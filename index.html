@@ -3,10 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>CheqControl - Total</title>
-    <meta name="theme-color" content="#1e40af">
+    <title>CheqControl</title>
     
-    <!-- Librerías -->
+    <!-- Configuración PWA para Android/iOS -->
+    <meta name="theme-color" content="#1e40af">
+    <link rel="manifest" href="manifest.json">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="CheqControl">
+    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/2534/2534860.png">
+
+    <!-- Librerías: React, ReactDOM, Babel, Tailwind -->
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -16,7 +23,7 @@
         @keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
         .animate-fade-in { animation: fadeIn 0.3s ease-out forwards; }
         .accordion-content { transition: max-height 0.3s ease-in-out, opacity 0.3s ease-in-out; overflow: hidden; }
-        /* Evitar zoom en inputs en iOS */
+        /* Evitar zoom automático en inputs en iOS */
         input, select, textarea { font-size: 16px !important; }
     </style>
 </head>
@@ -24,16 +31,28 @@
     
     <div id="root"></div>
 
-    <!-- Capturador de Errores para Móvil -->
-    <div id="error-display" style="display:none; padding: 20px; background: #fee; color: #b00; border: 1px solid #b00; margin: 10px; border-radius: 5px;">
+    <!-- Capturador de Errores para Móvil (Muestra error en pantalla si falla la carga) -->
+    <div id="error-display" style="display:none; padding: 20px; background: #fee; color: #b00; border: 1px solid #b00; margin: 10px; border-radius: 5px; z-index: 9999; position: relative;">
         <h3 style="margin-top:0">Error de Carga</h3>
+        <p>Si ves esto, algo falló en la inicialización.</p>
         <pre id="error-message" style="white-space: pre-wrap; font-size: 12px;"></pre>
     </div>
     <script>
         window.onerror = function(message, source, lineno, colno, error) {
             document.getElementById('error-display').style.display = 'block';
-            document.getElementById('error-message').innerText = message + '\nEn línea: ' + lineno;
+            document.getElementById('error-message').innerText = message + '\nEn línea: ' + lineno + '\nFuente: ' + source;
         };
+    </script>
+
+    <!-- Registro del Service Worker (Necesario para PWA en Android) -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(reg => console.log('SW registrado', reg))
+                    .catch(err => console.log('SW error', err));
+            });
+        }
     </script>
 
     <script type="text/babel" data-type="module">
@@ -41,7 +60,7 @@
         import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
         import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-        // TUS CREDENCIALES
+        // CONFIGURACIÓN FIREBASE
         const firebaseConfig = {
             apiKey: "AIzaSyAuEXUQT99SdJ1YZMhQOU-C0DGjQ1aIWXY",
             authDomain: "controlcheque-19226.firebaseapp.com",
@@ -57,7 +76,7 @@
 
         const { useState, useEffect, useMemo } = React;
 
-        // --- ICONOS ---
+        // --- COMPONENTES DE ICONOS SVG ---
         const IconCheck = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>;
         const IconTrash = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>;
         const IconPlus = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>;
@@ -66,8 +85,10 @@
         const IconBell = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>;
         const IconBellRing = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/><path d="M4 2C2.8 3.7 2 5.7 2 8"/><path d="M22 8c0-2.3-.8-4.3-2-6"/></svg>;
         const IconWallet = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/></svg>;
+        const IconDownload = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>;
 
         const CheqControl = () => {
+            // ESTADOS
             const [cheques, setCheques] = useState([]);
             const [loading, setLoading] = useState(true);
             const [activeFilter, setActiveFilter] = useState('all'); 
@@ -75,13 +96,24 @@
             const [newCheque, setNewCheque] = useState({ number: '', date: '', amount: '', payee: '' });
             const [expandedDates, setExpandedDates] = useState({});
             
-            // Estado de Notificaciones
+            // Estado Notificaciones
             const [showNotifPanel, setShowNotifPanel] = useState(false);
             const [notifPermission, setNotifPermission] = useState(
                 typeof Notification !== 'undefined' ? Notification.permission : 'default'
             );
+            
+            // Estado Instalación PWA
+            const [deferredPrompt, setDeferredPrompt] = useState(null);
 
+            // EFECTOS
             useEffect(() => {
+                // Escuchar evento para instalar PWA
+                window.addEventListener('beforeinstallprompt', (e) => {
+                    e.preventDefault();
+                    setDeferredPrompt(e);
+                });
+
+                // Autenticación Anónima y Conexión a DB Compartida
                 signInAnonymously(auth).catch(err => console.error("Auth error:", err));
                 
                 const unsub = onSnapshot(collection(db, 'cheques_public_shared', 'main_list', 'items'), (snap) => {
@@ -89,12 +121,13 @@
                     data.sort((a, b) => new Date(a.date) - new Date(b.date));
                     setCheques(data);
                     setLoading(false);
+                    // Comprobar alertas al cargar nuevos datos
                     checkAlerts(data);
                 });
                 return () => unsub();
             }, []);
 
-            // Helpers
+            // FUNCIONES AUXILIARES
             const getDays = (date) => Math.ceil((new Date(date+'T00:00:00') - new Date().setHours(0,0,0,0)) / (86400000));
             const formatMoney = (val) => new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 0 }).format(val);
             const formatDate = (dateStr) => {
@@ -102,7 +135,19 @@
                 return date.toLocaleDateString('es-AR', { weekday: 'short', day: 'numeric', month: 'short' });
             };
 
-            // Notificaciones
+            // LÓGICA DE INSTALACIÓN
+            const installApp = () => {
+                if (deferredPrompt) {
+                    deferredPrompt.prompt();
+                    deferredPrompt.userChoice.then((choiceResult) => {
+                        if (choiceResult.outcome === 'accepted') {
+                            setDeferredPrompt(null);
+                        }
+                    });
+                }
+            };
+
+            // LÓGICA DE NOTIFICACIONES
             const requestNotify = () => {
                 if (typeof Notification === 'undefined') {
                     alert("Tu navegador no soporta notificaciones.");
@@ -112,8 +157,8 @@
                     setNotifPermission(perm);
                     if(perm === 'granted') {
                         try {
-                            new Notification("CheqControl", { body: "¡Notificaciones activadas!" });
-                        } catch(e) { console.error(e); }
+                            new Notification("CheqControl", { body: "¡Notificaciones activadas correctamente!" });
+                        } catch(e) { console.error("Error lanzando notificación de prueba", e); }
                     }
                 });
             };
@@ -122,19 +167,19 @@
                 if(typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
                 
                 const urgentCount = data.filter(c => c.status === 'pending' && getDays(c.date) <= 5 && getDays(c.date) >= 0).length;
-                if (urgentCount > 0) {
-                    // Lógica de alerta...
-                }
+                // Aquí podrías implementar lógica para enviar notificación push si hay urgentes
             };
 
-            // Cálculo del TOTAL GLOBAL PENDIENTE
+            // DATOS COMPUTADOS (MEMOS)
+
+            // 1. Total de Deuda Pendiente
             const totalPendingDebt = useMemo(() => {
                 return cheques
                     .filter(c => c.status === 'pending')
                     .reduce((sum, c) => sum + c.amount, 0);
             }, [cheques]);
 
-            // Dashboard Data
+            // 2. Datos para el Dashboard (Contadores)
             const dashboardData = useMemo(() => {
                 const pending = cheques.filter(c => c.status === 'pending');
                 return {
@@ -153,15 +198,16 @@
                 };
             }, [cheques]);
 
+            // 3. Lista de Alertas (Para la campanita)
             const alerts = useMemo(() => {
                 return cheques.filter(c => {
                     if (c.status === 'paid') return false;
                     const d = getDays(c.date);
-                    return d <= 10;
+                    return d <= 10; // Muestra vencidos y próximos 10 días
                 }).sort((a,b) => getDays(a.date) - getDays(b.date));
             }, [cheques]);
 
-            // Lógica de Filtrado y Agrupación
+            // 4. Vista Agrupada o Plana según filtros
             const groupedView = useMemo(() => {
                 let filtered = cheques;
                 if (activeFilter !== 'all') {
@@ -189,19 +235,39 @@
 
             }, [cheques, activeFilter]);
 
-            // Acciones Base de Datos
+            // ACCIONES BASE DE DATOS
             const handleAdd = async (e) => {
                 e.preventDefault();
-                await addDoc(collection(db, 'cheques_public_shared', 'main_list', 'items'), {
-                    ...newCheque, amount: parseFloat(newCheque.amount), status: 'pending', createdAt: new Date().toISOString()
-                });
-                setNewCheque({ number: '', date: '', amount: '', payee: '' });
-                setShowAddForm(false);
+                try {
+                    await addDoc(collection(db, 'cheques_public_shared', 'main_list', 'items'), {
+                        ...newCheque, 
+                        amount: parseFloat(newCheque.amount), 
+                        status: 'pending', 
+                        createdAt: new Date().toISOString()
+                    });
+                    setNewCheque({ number: '', date: '', amount: '', payee: '' });
+                    setShowAddForm(false);
+                } catch(err) {
+                    alert("Error guardando: " + err.message);
+                }
             };
-            const toggleStatus = async (c) => await updateDoc(doc(db, 'cheques_public_shared', 'main_list', 'items', c.id), { status: c.status === 'pending' ? 'paid' : 'pending' });
-            const deleteItem = async (id) => confirm('¿Borrar cheque para TODOS?') && await deleteDoc(doc(db, 'cheques_public_shared', 'main_list', 'items', id));
+
+            const toggleStatus = async (c) => {
+                await updateDoc(doc(db, 'cheques_public_shared', 'main_list', 'items', c.id), { 
+                    status: c.status === 'pending' ? 'paid' : 'pending' 
+                });
+            };
+
+            const deleteItem = async (id) => {
+                if(confirm('¿Borrar cheque para TODOS?')) {
+                    await deleteDoc(doc(db, 'cheques_public_shared', 'main_list', 'items', id));
+                }
+            };
+
             const toggleDateGroup = (date) => setExpandedDates(prev => ({ ...prev, [date]: !prev[date] }));
 
+
+            // RENDERIZADO
             if (loading) return <div className="h-screen flex items-center justify-center"><IconLoader className="animate-spin text-blue-600 w-8 h-8"/></div>;
 
             return (
@@ -211,55 +277,62 @@
                     <div className="bg-blue-800 text-white p-4 sticky top-0 z-30 shadow-lg flex justify-between items-center">
                         <div>
                             <h1 className="text-xl font-bold flex items-center gap-2">CheqControl</h1>
-                            <p className="text-[10px] opacity-70 flex items-center gap-1"><span className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span> ONLINE (COMPARTIDO)</p>
                         </div>
                         
-                        {/* Campanita */}
-                        <div className="relative">
-                            <button onClick={() => setShowNotifPanel(!showNotifPanel)} className="p-2 relative">
-                                {alerts.length > 0 ? <IconBellRing className="w-6 h-6 animate-pulse text-yellow-300"/> : <IconBell className="w-6 h-6"/>}
-                                {alerts.length > 0 && <span className="absolute top-1 right-1 bg-red-500 text-white text-[10px] font-bold px-1.5 rounded-full">{alerts.length}</span>}
-                            </button>
-
-                            {/* Panel Notificaciones */}
-                            {showNotifPanel && (
-                                <div className="absolute right-0 mt-3 w-72 bg-white text-gray-800 rounded-xl shadow-2xl border border-gray-200 z-50 overflow-hidden">
-                                    <div className="p-3 bg-gray-50 border-b flex justify-between items-center">
-                                        <h3 className="font-bold text-sm">Alertas</h3>
-                                        {notifPermission !== 'granted' && (
-                                            <button onClick={requestNotify} className="text-[10px] bg-blue-100 text-blue-700 px-2 py-1 rounded font-bold hover:bg-blue-200">
-                                                ACTIVAR PUSH
-                                            </button>
-                                        )}
-                                    </div>
-                                    <div className="max-h-60 overflow-y-auto">
-                                        {alerts.length === 0 ? <div className="p-4 text-center text-xs text-gray-400">Todo tranquilo.</div> :
-                                         alerts.map(a => {
-                                            const d = getDays(a.date);
-                                            return (
-                                                <div key={a.id} className={`p-3 border-b text-sm ${d < 0 ? 'bg-red-50' : 'bg-white'}`}>
-                                                    <p className="font-bold">{a.payee}</p>
-                                                    <p className={`text-xs ${d < 0 ? 'text-red-600 font-bold' : 'text-orange-500'}`}>
-                                                        {d < 0 ? `Vencido hace ${Math.abs(d)} días` : `Vence en ${d} días`}
-                                                    </p>
-                                                    <p className="text-xs font-mono">{formatMoney(a.amount)}</p>
-                                                </div>
-                                            )
-                                         })}
-                                    </div>
-                                </div>
+                        <div className="flex gap-2">
+                            {/* Botón Instalar App (Solo aparece si es instalable) */}
+                            {deferredPrompt && (
+                                <button onClick={installApp} className="bg-white/20 hover:bg-white/30 text-white px-2 py-1 rounded text-xs font-bold flex items-center gap-1">
+                                    <IconDownload className="w-4 h-4" /> Instalar
+                                </button>
                             )}
+
+                            {/* Campanita */}
+                            <div className="relative">
+                                <button onClick={() => setShowNotifPanel(!showNotifPanel)} className="p-2 relative">
+                                    {alerts.length > 0 ? <IconBellRing className="w-6 h-6 animate-pulse text-yellow-300"/> : <IconBell className="w-6 h-6"/>}
+                                    {alerts.length > 0 && <span className="absolute top-1 right-1 bg-red-500 text-white text-[10px] font-bold px-1.5 rounded-full">{alerts.length}</span>}
+                                </button>
+
+                                {showNotifPanel && (
+                                    <div className="absolute right-0 mt-3 w-72 bg-white text-gray-800 rounded-xl shadow-2xl border border-gray-200 z-50 overflow-hidden">
+                                        <div className="p-3 bg-gray-50 border-b flex justify-between items-center">
+                                            <h3 className="font-bold text-sm">Alertas</h3>
+                                            {notifPermission !== 'granted' && (
+                                                <button onClick={requestNotify} className="text-[10px] bg-blue-100 text-blue-700 px-2 py-1 rounded font-bold hover:bg-blue-200">
+                                                    ACTIVAR PUSH
+                                                </button>
+                                            )}
+                                        </div>
+                                        <div className="max-h-60 overflow-y-auto">
+                                            {alerts.length === 0 ? <div className="p-4 text-center text-xs text-gray-400">Todo tranquilo.</div> :
+                                            alerts.map(a => {
+                                                const d = getDays(a.date);
+                                                return (
+                                                    <div key={a.id} className={`p-3 border-b text-sm ${d < 0 ? 'bg-red-50' : 'bg-white'}`}>
+                                                        <p className="font-bold">{a.payee}</p>
+                                                        <p className={`text-xs ${d < 0 ? 'text-red-600 font-bold' : 'text-orange-500'}`}>
+                                                            {d < 0 ? `Vencido (${Math.abs(d)}d)` : `Vence en ${d} días`}
+                                                        </p>
+                                                        <p className="text-xs font-mono">{formatMoney(a.amount)}</p>
+                                                    </div>
+                                                )
+                                            })}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     </div>
 
                     <div className="p-4">
-
-                        {/* --- NUEVO: TARJETA DE DEUDA TOTAL --- */}
+                        
+                        {/* TARJETA DE DEUDA TOTAL */}
                         <div className="bg-gradient-to-r from-blue-900 to-blue-800 p-5 rounded-2xl shadow-lg border border-blue-700 mb-6 flex items-center justify-between text-white">
                             <div>
-                                <p className="text-xs font-bold text-blue-200 uppercase tracking-wide mb-1">Total Pendiente de Pago</p>
+                                <p className="text-xs font-bold text-blue-200 uppercase tracking-wide mb-1">Total Pendiente</p>
                                 <p className="text-3xl font-black">{formatMoney(totalPendingDebt)}</p>
-                                <p className="text-[10px] text-blue-300 mt-1">Suma de todos los cheques emitidos no cobrados</p>
+                                <p className="text-[10px] text-blue-300 mt-1">Suma global de cheques no pagados</p>
                             </div>
                             <div className="bg-white/10 p-3 rounded-full backdrop-blur-sm">
                                 <IconWallet className="w-8 h-8 text-blue-100" />
@@ -291,25 +364,25 @@
                             onClick={() => setShowAddForm(!showAddForm)}
                             className="w-full bg-blue-600 hover:bg-blue-700 text-white p-3 rounded-xl shadow-md mb-6 flex items-center justify-center gap-2 font-bold transition-all active:scale-95"
                         >
-                            <IconPlus className="w-5 h-5"/> {showAddForm ? 'Cerrar' : 'Nuevo Cheque'}
+                            <IconPlus className="w-5 h-5"/> {showAddForm ? 'Cerrar Formulario' : 'Nuevo Cheque'}
                         </button>
 
                         {/* Formulario */}
                         {showAddForm && (
                             <form onSubmit={handleAdd} className="bg-white p-5 rounded-xl shadow-lg border border-blue-100 mb-6 animate-fade-in">
                                 <div className="space-y-3">
-                                    <input className="w-full p-3 bg-gray-50 rounded-lg border focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Beneficiario" value={newCheque.payee} onChange={e=>setNewCheque({...newCheque, payee:e.target.value})} required />
+                                    <input className="w-full p-3 bg-gray-50 rounded-lg border focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Beneficiario (A quién)" value={newCheque.payee} onChange={e=>setNewCheque({...newCheque, payee:e.target.value})} required />
                                     <div className="flex gap-3">
                                         <input className="w-1/2 p-3 bg-gray-50 rounded-lg border focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Nº Cheque" value={newCheque.number} onChange={e=>setNewCheque({...newCheque, number:e.target.value})} required />
                                         <input type="number" step="0.01" className="w-1/2 p-3 bg-gray-50 rounded-lg border focus:ring-2 focus:ring-blue-500 outline-none" placeholder="$ Valor" value={newCheque.amount} onChange={e=>setNewCheque({...newCheque, amount:e.target.value})} required />
                                     </div>
                                     <input type="date" className="w-full p-3 bg-gray-50 rounded-lg border focus:ring-2 focus:ring-blue-500 outline-none" value={newCheque.date} onChange={e=>setNewCheque({...newCheque, date:e.target.value})} required />
-                                    <button type="submit" className="w-full bg-green-600 text-white p-3 rounded-lg font-bold hover:bg-green-700">Guardar (Público)</button>
+                                    <button type="submit" className="w-full bg-green-600 text-white p-3 rounded-lg font-bold hover:bg-green-700">Guardar Cheque (Público)</button>
                                 </div>
                             </form>
                         )}
 
-                        {/* TITULO SECCIÓN */}
+                        {/* Cabecera de Lista */}
                         <div className="flex justify-between items-end mb-4 border-b pb-2">
                             <h2 className="text-lg font-bold text-gray-700">
                                 {activeFilter === 'all' ? 'Listado Completo' : 
@@ -319,7 +392,7 @@
                             {activeFilter !== 'all' && <button onClick={() => setActiveFilter('all')} className="text-xs text-blue-500 font-bold underline">Ver Todo</button>}
                         </div>
 
-                        {/* RENDERIZADO DE LISTA */}
+                        {/* LISTADO */}
                         <div className="space-y-3">
                             
                             {/* VISTA PLANA (Todos) */}
@@ -394,7 +467,7 @@
                             ))}
 
                             {((groupedView.type === 'flat' && groupedView.data.length === 0) || (groupedView.type === 'grouped' && groupedView.data.length === 0)) && (
-                                <div className="text-center py-12 text-gray-400 italic">No hay cheques aquí.</div>
+                                <div className="text-center py-12 text-gray-400 italic">No hay cheques para mostrar.</div>
                             )}
 
                         </div>
