@@ -29,20 +29,19 @@
 
     <!-- 4. Lógica de la Aplicación -->
     <script type="text/babel" data-type="module">
-        // Importamos Firebase directamente desde Google (Módulos ES)
+        // Importamos Firebase directamente desde Google (Módulos ES) para que funcione en el navegador
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
         import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-        // --- CONFIGURACIÓN DE FIREBASE ---
-        // REEMPLAZA ESTO CON TUS DATOS DE FIREBASE CONSOLE
+        // --- CONFIGURACIÓN DE FIREBASE (ACTUALIZADA) ---
         const firebaseConfig = {
-            apiKey: "TU_API_KEY_AQUI",
-            authDomain: "TU_PROYECTO.firebaseapp.com",
-            projectId: "TU_PROYECTO_ID",
-            storageBucket: "TU_PROYECTO.firebasestorage.app",
-            messagingSenderId: "NUMEROS...",
-            appId: "DATOS..."
+            apiKey: "AIzaSyAuEXUQT99SdJ1YZMhQOU-C0DGjQ1aIWXY",
+            authDomain: "controlcheque-19226.firebaseapp.com",
+            projectId: "controlcheque-19226",
+            storageBucket: "controlcheque-19226.firebasestorage.app",
+            messagingSenderId: "659933757076",
+            appId: "1:659933757076:web:28d285726e6cb9560fbe81"
         };
 
         // Inicializar Firebase
