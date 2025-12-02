@@ -24,6 +24,18 @@
     
     <div id="root"></div>
 
+    <!-- Capturador de Errores para Móvil (Muestra el error si la pantalla queda blanca) -->
+    <div id="error-display" style="display:none; padding: 20px; background: #fee; color: #b00; border: 1px solid #b00; margin: 10px; border-radius: 5px;">
+        <h3 style="margin-top:0">Error de Carga</h3>
+        <pre id="error-message" style="white-space: pre-wrap; font-size: 12px;"></pre>
+    </div>
+    <script>
+        window.onerror = function(message, source, lineno, colno, error) {
+            document.getElementById('error-display').style.display = 'block';
+            document.getElementById('error-message').innerText = message + '\nEn línea: ' + lineno;
+        };
+    </script>
+
     <script type="text/babel" data-type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
@@ -62,20 +74,20 @@
             const [newCheque, setNewCheque] = useState({ number: '', date: '', amount: '', payee: '' });
             const [expandedDates, setExpandedDates] = useState({});
             
-            // Estado de Notificaciones
+            // CORRECCIÓN: Inicializar estado de permisos de forma segura
             const [showNotifPanel, setShowNotifPanel] = useState(false);
-            const [notifPermission, setNotifPermission] = useState(Notification.permission);
+            const [notifPermission, setNotifPermission] = useState(
+                typeof Notification !== 'undefined' ? Notification.permission : 'default'
+            );
 
             useEffect(() => {
-                signInAnonymously(auth);
-                // Conexión a la colección COMPARTIDA "shared_list"
+                signInAnonymously(auth).catch(err => console.error("Auth error:", err));
+                
                 const unsub = onSnapshot(collection(db, 'cheques_public_shared', 'main_list', 'items'), (snap) => {
                     const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
                     data.sort((a, b) => new Date(a.date) - new Date(b.date));
                     setCheques(data);
                     setLoading(false);
-                    
-                    // Chequear alertas al cargar datos si hay permiso
                     checkAlerts(data);
                 });
                 return () => unsub();
@@ -89,27 +101,28 @@
                 return date.toLocaleDateString('es-AR', { weekday: 'short', day: 'numeric', month: 'short' });
             };
 
-            // Notificaciones
+            // Notificaciones (CORREGIDO PARA EVITAR CRASH)
             const requestNotify = () => {
+                if (typeof Notification === 'undefined') {
+                    alert("Tu navegador no soporta notificaciones.");
+                    return;
+                }
                 Notification.requestPermission().then(perm => {
                     setNotifPermission(perm);
                     if(perm === 'granted') {
-                        new Notification("CheqControl", { body: "¡Notificaciones activadas correctamente!" });
-                        checkAlerts(cheques);
+                        try {
+                            new Notification("CheqControl", { body: "¡Notificaciones activadas!" });
+                        } catch(e) { console.error(e); }
                     }
                 });
             };
 
             const checkAlerts = (data) => {
-                if(Notification.permission !== 'granted') return;
+                if(typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
                 
                 const urgentCount = data.filter(c => c.status === 'pending' && getDays(c.date) <= 5 && getDays(c.date) >= 0).length;
-                const expiredCount = data.filter(c => c.status === 'pending' && getDays(c.date) < 0).length;
-
-                if (urgentCount > 0 || expiredCount > 0) {
-                    // Evitamos spam, solo notificamos si la app acaba de abrirse o actualizarse
-                    // En una app real usaríamos un flag de "ya notificado hoy"
-                    // new Notification("Alertas CheqControl", { body: `Tienes ${urgentCount} cheques urgentes y ${expiredCount} vencidos.` });
+                if (urgentCount > 0) {
+                    // Lógica de alerta...
                 }
             };
 
@@ -132,12 +145,11 @@
                 };
             }, [cheques]);
 
-            // Alertas para el panel de notificaciones (10 y 5 días)
             const alerts = useMemo(() => {
                 return cheques.filter(c => {
                     if (c.status === 'paid') return false;
                     const d = getDays(c.date);
-                    return d <= 10; // Vencidos o próximos a vencer (10 dias)
+                    return d <= 10;
                 }).sort((a,b) => getDays(a.date) - getDays(b.date));
             }, [cheques]);
 
