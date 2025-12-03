@@ -3,13 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>CheqControl Balance</title>
+    <title>SII PALLETS APP</title>
     
-    <!-- Configuración PWA -->
+    <!-- Configuración PWA para Android/iOS -->
     <meta name="theme-color" content="#1e40af">
     <link rel="manifest" href="manifest.json">
     <meta name="mobile-web-app-capable" content="yes">
-    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/2534/2534860.png">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="SII PALLETS">
+    <link rel="apple-touch-icon" href="logo.png">
+    <link rel="icon" type="image/png" href="logo.png">
 
     <!-- Librerías -->
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
@@ -160,7 +163,7 @@
                     setNotifPermission(perm);
                     if(perm === 'granted') {
                         try {
-                            new Notification("CheqControl", { body: "¡Notificaciones activadas!" });
+                            new Notification("SII PALLETS APP", { body: "¡Notificaciones activadas!" });
                         } catch(e) {}
                     }
                 });
@@ -383,7 +386,7 @@
                     {/* --- HEADER --- */}
                     <div className={`${theme.bg} text-white p-4 sticky top-0 z-30 shadow-lg transition-colors duration-500`}>
                         <div className="flex justify-between items-center mb-4">
-                            <h1 className="text-xl font-bold flex items-center gap-2">CheqControl</h1>
+                            <h1 className="text-xl font-bold flex items-center gap-2">SII PALLETS APP</h1>
                             
                             <div className="flex gap-2 items-center">
                                 {deferredPrompt && (
