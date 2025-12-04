@@ -99,7 +99,8 @@
                 amount: '', 
                 payee: '', 
                 paidAmount: 0,
-                subtype: 'cheque' // 'cheque', 'transfer', 'cash', 'fixed', 'salary'
+                subtype: 'cheque', // 'cheque', 'transfer', 'cash', 'fixed', 'salary'
+                category: 'others' // NUEVO: Categoría de Gasto
             });
             const [expandedGroups, setExpandedGroups] = useState({});
 
@@ -121,7 +122,7 @@
                 const unsubPay = onSnapshot(collection(db, 'cheques_public_shared', 'main_list', 'items'), (snap) => {
                     const data = snap.docs.map(d => {
                         const dat = d.data();
-                        return { id: d.id, ...dat, dueDate: dat.dueDate || dat.date, type: 'pay', subtype: dat.subtype || 'cheque' };
+                        return { id: d.id, ...dat, dueDate: dat.dueDate || dat.date, type: 'pay', subtype: dat.subtype || 'cheque', category: dat.category || 'others' };
                     });
                     setPayItems(data);
                     checkAlerts([...data, ...collectItems]);
@@ -271,7 +272,7 @@
                     status: 'pending', 
                     createdAt: new Date().toISOString()
                 });
-                setNewItem({ number: '', issueDate: '', dueDate: '', amount: '', payee: '', paidAmount: 0, subtype: 'cheque' });
+                setNewItem({ number: '', issueDate: '', dueDate: '', amount: '', payee: '', paidAmount: 0, subtype: 'cheque', category: 'others' });
                 setShowAddForm(false);
             };
 
@@ -315,6 +316,14 @@
                     case 'fixed': case 'salary': return <IconBuilding className="w-4 h-4"/>;
                     default: return <span className="font-mono text-[10px] border px-1 rounded bg-white">CHQ</span>;
                 }
+            };
+
+            const getCategoryLabel = (cat) => {
+                const map = {
+                    'raw': 'Materia Prima', 'logistics': 'Logística', 'taxes': 'Impuestos',
+                    'salaries': 'Sueldos', 'services': 'Servicios', 'maintenance': 'Mantenimiento', 'others': 'Otros'
+                };
+                return map[cat] || 'Otros';
             };
 
             const getTheme = () => {
@@ -440,19 +449,32 @@
                                         <div className={`absolute top-0 left-0 w-1 h-full ${theme.bg}`}></div>
                                         <h3 className="font-bold mb-4 text-gray-700">{mode === 'pay' ? 'Nuevo Pago (Salida)' : 'Nueva Factura (Entrada)'}</h3>
                                         <div className="space-y-3">
-                                            {/* SELECTOR DE TIPO (NUEVO) */}
+                                            {/* SELECTOR DE TIPO */}
                                             {mode === 'pay' && (
-                                                <select 
-                                                    className="w-full p-3 bg-gray-50 rounded-lg border font-bold text-sm outline-none text-gray-700"
-                                                    value={newItem.subtype}
-                                                    onChange={e => setNewItem({...newItem, subtype: e.target.value})}
-                                                >
-                                                    <option value="cheque">🎫 Cheque</option>
-                                                    <option value="transfer">🏦 Transferencia</option>
-                                                    <option value="cash">💵 Efectivo / Otro</option>
-                                                    <option value="fixed">🏢 Gasto Fijo (Luz, Alquiler)</option>
-                                                    <option value="salary">👥 Sueldo / Jornal</option>
-                                                </select>
+                                                <div className="grid grid-cols-2 gap-3">
+                                                    <div>
+                                                        <label className="text-xs text-gray-500 block mb-1">Tipo</label>
+                                                        <select className="w-full p-3 bg-gray-50 rounded-lg border text-sm outline-none text-gray-700" value={newItem.subtype} onChange={e => setNewItem({...newItem, subtype: e.target.value})}>
+                                                            <option value="cheque">🎫 Cheque</option>
+                                                            <option value="transfer">🏦 Transferencia</option>
+                                                            <option value="cash">💵 Efectivo</option>
+                                                            <option value="fixed">🏢 Gasto Fijo</option>
+                                                            <option value="salary">👥 Sueldo</option>
+                                                        </select>
+                                                    </div>
+                                                    <div>
+                                                        <label className="text-xs text-gray-500 block mb-1">Categoría</label>
+                                                        <select className="w-full p-3 bg-gray-50 rounded-lg border text-sm outline-none text-gray-700" value={newItem.category} onChange={e => setNewItem({...newItem, category: e.target.value})}>
+                                                            <option value="others">Otros</option>
+                                                            <option value="raw">Materia Prima</option>
+                                                            <option value="logistics">Logística</option>
+                                                            <option value="salaries">RRHH / Sueldos</option>
+                                                            <option value="taxes">Impuestos</option>
+                                                            <option value="services">Servicios</option>
+                                                            <option value="maintenance">Mantenimiento</option>
+                                                        </select>
+                                                    </div>
+                                                </div>
                                             )}
 
                                             <div>
@@ -504,6 +526,7 @@
                                                             <div className="text-gray-400">{getTypeIcon(item.subtype)}</div>
                                                             <h3 className={`font-bold truncate ${isPaid ? 'line-through text-gray-500' : 'text-gray-800'}`}>{item.payee}</h3>
                                                             {isPartial && <span className="bg-yellow-200 text-yellow-800 text-[9px] px-1 rounded font-bold">PARCIAL</span>}
+                                                            {item.type === 'pay' && item.category !== 'others' && <span className="bg-gray-100 text-gray-500 text-[9px] px-1 rounded border uppercase">{getCategoryLabel(item.category)}</span>}
                                                         </div>
                                                         <div className="text-xs text-gray-500 flex flex-wrap gap-2 mt-1">
                                                             {item.number && <span className="font-mono bg-white px-1 rounded border">#{item.number}</span>}
