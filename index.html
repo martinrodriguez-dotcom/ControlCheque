@@ -151,87 +151,104 @@
             };
 
             const printReport = () => {
-                // Verificar si hay datos
                 if (!groupedView || !groupedView.data || groupedView.data.length === 0) return alert("No hay datos para imprimir.");
 
-                // Crear HTML del reporte
                 let contentHTML = `
                     <html>
                     <head>
                         <title>Reporte SII PALLETS</title>
                         <style>
-                            body { font-family: sans-serif; padding: 20px; color: #333; }
-                            h1 { color: #1e40af; border-bottom: 2px solid #1e40af; padding-bottom: 10px; }
-                            .meta { color: #666; font-size: 14px; margin-bottom: 20px; }
-                            .group-header { background: #f3f4f6; padding: 8px 12px; margin-top: 15px; font-weight: bold; border-radius: 4px; display: flex; justify-content: space-between; border: 1px solid #e5e7eb; page-break-after: avoid; }
-                            .item-row { padding: 8px 12px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; font-size: 13px; }
-                            .item-row:last-child { border-bottom: none; }
-                            .amount { font-weight: bold; font-family: monospace; font-size: 14px; }
-                            .status { font-size: 10px; text-transform: uppercase; padding: 2px 6px; border-radius: 4px; }
-                            .pending { background: #fee2e2; color: #991b1b; }
-                            .paid { background: #d1fae5; color: #065f46; }
-                            .partial { background: #fef3c7; color: #92400e; }
+                            body { font-family: sans-serif; padding: 20px; color: #333; font-size: 11px; }
+                            h1 { color: #1e40af; border-bottom: 2px solid #1e40af; padding-bottom: 5px; font-size: 16px; margin-bottom: 5px; }
+                            .meta { color: #666; font-size: 9px; margin-bottom: 10px; }
+                            
+                            table { width: 100%; border-collapse: collapse; margin-top: 5px; }
+                            th { background: #f3f4f6; padding: 4px; text-align: left; font-size: 10px; border-bottom: 1px solid #999; font-weight: bold; }
+                            td { padding: 3px 4px; border-bottom: 1px solid #eee; vertical-align: top; }
+                            .group-row td { background: #e5e7eb; font-weight: bold; padding: 4px; font-size: 11px; border-top: 1px solid #ccc; }
+                            .amount { font-family: monospace; text-align: right; }
+                            .date { white-space: nowrap; }
+                            .red { color: #dc2626; font-weight: bold; }
+                            .green { color: #16a34a; font-weight: bold; }
+                            
+                            .total-box { padding: 8px; background: #f0f9ff; border: 1px solid #bae6fd; margin-bottom: 10px; border-radius: 4px; font-weight: bold; font-size: 12px; }
+                            
                             @media print { button { display: none; } }
                         </style>
                     </head>
                     <body>
                         <h1>Reporte de ${mode === 'pay' ? 'Pagos' : (mode === 'collect' ? 'Cobros' : 'Balance')}</h1>
-                        <p class="meta">Fecha de Emisión: ${new Date().toLocaleDateString('es-AR')} • SII PALLETS APP</p>
+                        <p class="meta">Generado: ${new Date().toLocaleDateString('es-AR')} • SII PALLETS APP</p>
                 `;
 
                 if (mode === 'balance') {
-                    // Reporte Balance: Agenda
-                    contentHTML += `<h3>Resumen Financiero</h3>`;
-                    contentHTML += `<p><strong>A Cobrar:</strong> ${formatMoney(balanceData.collect)} | <strong>A Pagar:</strong> ${formatMoney(balanceData.pay)}</p>`;
-                    contentHTML += `<h3>Agenda Diaria</h3>`;
+                    contentHTML += `
+                        <div class="total-box">
+                            Neto Proyectado: ${formatMoney(balanceData.net)}
+                        </div>
+                        <table>
+                            <thead><tr><th>Fecha</th><th style="text-align:right">Entradas</th><th style="text-align:right">Salidas</th><th style="text-align:right">Neto</th></tr></thead>
+                            <tbody>
+                    `;
                     balanceData.dailyAgenda.forEach(day => {
-                        contentHTML += `<div class="group-header"><span>${new Date(day.date + 'T00:00:00').toLocaleDateString('es-AR')}</span> <span>${day.net > 0 ? '+' : ''}${formatMoney(day.net)}</span></div>`;
-                        contentHTML += `<div class="item-row"><span>Entradas</span> <span class="amount" style="color:green">${formatMoney(day.inflow)}</span></div>`;
-                        contentHTML += `<div class="item-row"><span>Salidas</span> <span class="amount" style="color:blue">${formatMoney(day.outflow)}</span></div>`;
+                        contentHTML += `
+                            <tr>
+                                <td>${new Date(day.date + 'T00:00:00').toLocaleDateString('es-AR')}</td>
+                                <td class="amount green">${day.inflow > 0 ? formatMoney(day.inflow) : '-'}</td>
+                                <td class="amount" style="color:blue">${day.outflow > 0 ? formatMoney(day.outflow) : '-'}</td>
+                                <td class="amount">${formatMoney(day.net)}</td>
+                            </tr>
+                        `;
                     });
+                    contentHTML += `</tbody></table>`;
                 } else {
-                    // Reporte Pagos/Cobros: Detalle por Grupo
+                    const modeTotal = mode === 'pay' ? balanceData.pay : balanceData.collect;
+                    contentHTML += `
+                        <div class="total-box">Total Pendiente: ${formatMoney(modeTotal)}</div>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th style="width:40%">Referencia</th>
+                                    <th style="width:15%">Vencimiento</th>
+                                    <th style="text-align:right;width:20%">Total</th>
+                                    <th style="text-align:right;width:25%">Pendiente</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                    `;
+                    
                     groupedView.data.forEach(group => {
                         let groupTitle = '';
                         if (groupedView.type === 'client-grouped') groupTitle = group.label;
                         else groupTitle = new Date(group.key + 'T00:00:00').toLocaleDateString('es-AR');
 
-                        contentHTML += `<div class="group-header"><span>${groupTitle}</span> <span>${formatMoney(group.total)}</span></div>`;
+                        contentHTML += `<tr class="group-row"><td colspan="2">${groupTitle}</td><td class="amount" colspan="2">Grupo: ${formatMoney(group.total)}</td></tr>`;
                         
                         group.items.forEach(item => {
-                            const statusLabel = item.status === 'paid' ? 'Pagado' : (item.status === 'partial' ? 'Parcial' : 'Pendiente');
-                            const statusClass = item.status === 'paid' ? 'paid' : (item.status === 'partial' ? 'partial' : 'pending');
                             const details = item.number ? `Ref: ${item.number}` : '';
+                            const remaining = item.amount - (item.paidAmount||0);
+                            const isPaid = item.status === 'paid';
                             
                             contentHTML += `
-                                <div class="item-row">
-                                    <div style="flex:1">
-                                        <strong>${item.payee}</strong> <br/>
-                                        <span style="color:#666">${details}</span>
-                                    </div>
-                                    <div style="text-align:right">
-                                        <div class="amount">${formatMoney(item.amount)}</div>
-                                        <span class="status ${statusClass}">${statusLabel}</span>
-                                        ${(item.status !== 'paid') ? `<div style="font-size:10px;color:red">Resta: ${formatMoney(item.amount - (item.paidAmount||0))}</div>` : ''}
-                                    </div>
-                                </div>
+                                <tr>
+                                    <td>${item.payee} <br/><span style="color:#666;font-size:9px">${details}</span></td>
+                                    <td class="date">${new Date(item.dueDate+'T00:00:00').toLocaleDateString('es-AR')}</td>
+                                    <td class="amount">${formatMoney(item.amount)}</td>
+                                    <td class="amount ${isPaid ? 'green' : 'red'}">${isPaid ? 'PAGADO' : formatMoney(remaining)}</td>
+                                </tr>
                             `;
                         });
                     });
+                    contentHTML += `</tbody></table>`;
                 }
 
                 contentHTML += `</body></html>`;
 
-                // Abrir ventana y printear
                 const printWindow = window.open('', '_blank');
                 printWindow.document.write(contentHTML);
                 printWindow.document.close();
                 printWindow.focus();
-                // Esperar a que cargue estilos (breve delay)
-                setTimeout(() => {
-                    printWindow.print();
-                    printWindow.close();
-                }, 500);
+                setTimeout(() => { printWindow.print(); printWindow.close(); }, 500);
             };
 
             const requestNotify = () => {
@@ -582,7 +599,13 @@
                                             </div>
 
                                             <div className="flex gap-3">
-                                                <input className="w-1/2 p-3 bg-gray-50 rounded-lg border focus:ring-2 focus:ring-blue-500 outline-none" placeholder={mode === 'collect' ? "Nº Factura" : (newItem.subtype === 'cheque' ? "Nº Cheque" : "Nota / Ref (Opcional)")} value={newItem.number} onChange={e=>setNewItem({...newItem, number:e.target.value})} required={mode === 'collect' || newItem.subtype === 'cheque'} />
+                                                <input 
+                                                    className="w-1/2 p-3 bg-gray-50 rounded-lg border focus:ring-2 focus:ring-blue-500 outline-none" 
+                                                    placeholder={mode === 'collect' ? "Nº Factura" : (newItem.subtype === 'cheque' ? "Nº Cheque" : "Nota / Ref (Opcional)")} 
+                                                    value={newItem.number} 
+                                                    onChange={e=>setNewItem({...newItem, number:e.target.value})} 
+                                                    required={mode === 'collect' || newItem.subtype === 'cheque'}
+                                                />
                                                 <input type="number" step="0.01" className="w-1/2 p-3 bg-gray-50 rounded-lg border focus:ring-2 focus:ring-blue-500 outline-none" placeholder="$ Importe Total" value={newItem.amount} onChange={e=>setNewItem({...newItem, amount:e.target.value})} required />
                                             </div>
                                             <div className="flex gap-3">
