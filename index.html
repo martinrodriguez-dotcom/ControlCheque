@@ -25,6 +25,8 @@
         .animate-fade-in { animation: fadeIn 0.3s ease-out forwards; }
         .accordion-content { transition: max-height 0.3s ease-in-out, opacity 0.3s ease-in-out; overflow: hidden; }
         input, select, textarea { font-size: 16px !important; }
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
+        .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
 </head>
 <body class="bg-gray-100 text-gray-800 font-sans">
@@ -208,26 +210,41 @@
                         <table>
                             <thead>
                                 <tr>
-                                    <th style="width:40%">Referencia</th>
+                                    <th style="width:30%">Referencia</th>
                                     <th style="width:15%">Vencimiento</th>
-                                    <th style="text-align:right;width:20%">Total</th>
-                                    <th style="text-align:right;width:25%">Pendiente</th>
+                                    <th style="text-align:right;width:15%">Total</th>
+                                    <th style="text-align:right;width:20%">Pendiente</th>
+                                    <th style="text-align:right;width:20%">Acumulado</th>
                                 </tr>
                             </thead>
                             <tbody>
                     `;
                     
+                    let runningAccumulator = 0;
+
                     groupedView.data.forEach(group => {
                         let groupTitle = '';
-                        if (groupedView.type === 'client-grouped') groupTitle = group.label;
-                        else groupTitle = new Date(group.key + 'T00:00:00').toLocaleDateString('es-AR');
+                        if (groupedView.type === 'client-grouped') {
+                            groupTitle = group.label;
+                            runningAccumulator = 0; // Reset for each client
+                        } else {
+                             groupTitle = new Date(group.key + 'T00:00:00').toLocaleDateString('es-AR');
+                        }
 
-                        contentHTML += `<tr class="group-row"><td colspan="2">${groupTitle}</td><td class="amount" colspan="2">Grupo: ${formatMoney(group.total)}</td></tr>`;
+                        // Ordenar items cronológicamente para la impresión
+                        const sortedItems = [...group.items].sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
+
+                        contentHTML += `<tr class="group-row"><td colspan="2">${groupTitle}</td><td class="amount" colspan="3">Grupo: ${formatMoney(group.total)}</td></tr>`;
                         
-                        group.items.forEach(item => {
+                        sortedItems.forEach(item => {
                             const details = item.number ? `Ref: ${item.number}` : '';
                             const remaining = item.amount - (item.paidAmount||0);
                             const isPaid = item.status === 'paid';
+                            
+                            // Sumar al acumulado solo si está pendiente
+                            if (!isPaid) {
+                                runningAccumulator += remaining;
+                            }
                             
                             contentHTML += `
                                 <tr>
@@ -235,6 +252,7 @@
                                     <td class="date">${new Date(item.dueDate+'T00:00:00').toLocaleDateString('es-AR')}</td>
                                     <td class="amount">${formatMoney(item.amount)}</td>
                                     <td class="amount ${isPaid ? 'green' : 'red'}">${isPaid ? 'PAGADO' : formatMoney(remaining)}</td>
+                                    <td class="amount" style="color:#555;font-weight:bold">${formatMoney(runningAccumulator)}</td>
                                 </tr>
                             `;
                         });
