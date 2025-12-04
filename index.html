@@ -80,20 +80,15 @@
         const IconBuilding = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M6 22V12c0-1.1.9-2 2-2h8a2 2 0 0 1 2 2v10H6Z"/><path d="M6 18H4a2 2 0 0 1-2-2v-5.5a2 2 0 0 1 2-2h2"/><path d="M18 18h2a2 2 0 0 0 2-2v-5.5a2 2 0 0 0-2-2h-2"/><path d="M12 6V2"/><path d="M12 2L7 7"/><path d="M12 2l5 5"/></svg>;
         const IconPieChart = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></svg>;
         const IconPencil = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>;
-        const IconFileText = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><path d="M16 13H8"/><path d="M16 17H8"/><path d="M10 9H8"/></svg>;
+        const IconPrinter = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>;
         const IconSearch = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>;
 
         const CheqControl = () => {
-            // ESTADOS
             const [mode, setMode] = useState('pay'); 
-            
-            // Datos Separados
             const [payItems, setPayItems] = useState([]);
             const [collectItems, setCollectItems] = useState([]);
-            
             const [loading, setLoading] = useState(true);
             const [deferredPrompt, setDeferredPrompt] = useState(null);
-            
             const [activeFilter, setActiveFilter] = useState('all'); 
             const [showAddForm, setShowAddForm] = useState(false);
             const [newItem, setNewItem] = useState({ 
@@ -102,19 +97,15 @@
             const [editingId, setEditingId] = useState(null); 
             const [expandedGroups, setExpandedGroups] = useState({});
             const [expandedCategory, setExpandedCategory] = useState(null);
-            const [searchTerm, setSearchTerm] = useState(""); // NUEVO: Búsqueda
-
-            // Estado Notificaciones
+            const [searchTerm, setSearchTerm] = useState("");
             const [showNotifPanel, setShowNotifPanel] = useState(false);
             const [notifPermission, setNotifPermission] = useState(typeof Notification !== 'undefined' ? Notification.permission : 'default');
 
-            // EFECTOS
             useEffect(() => {
                 window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); setDeferredPrompt(e); });
                 signInAnonymously(auth).catch(console.error);
             }, []);
 
-            // CARGAR DATOS
             useEffect(() => {
                 setLoading(true);
                 const unsubPay = onSnapshot(collection(db, 'cheques_public_shared', 'main_list', 'items'), (snap) => {
@@ -139,7 +130,6 @@
                 return () => { unsubPay(); unsubCollect(); };
             }, []);
 
-            // UTILS
             const getDays = (date) => { if (!date) return 999; return Math.ceil((new Date(date+'T00:00:00') - new Date().setHours(0,0,0,0)) / (86400000)); };
             const formatMoney = (val) => new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 0 }).format(val);
             const formatDate = (dateStr) => { if(!dateStr) return '-'; const date = new Date(dateStr + 'T00:00:00'); return date.toLocaleDateString('es-AR', { weekday: 'short', day: 'numeric', month: 'short' }); };
@@ -160,24 +150,88 @@
                 return map[cat] || 'bg-gray-400';
             };
 
-            const exportToCSV = () => {
-                const dataToExport = mode === 'pay' ? payItems : (mode === 'collect' ? collectItems : [...payItems, ...collectItems]);
-                if (dataToExport.length === 0) return alert("Nada para exportar.");
-                let csvContent = "data:text/csv;charset=utf-8,FECHA,TIPO,BENEFICIARIO,NUMERO,IMPORTE,ESTADO\n";
-                dataToExport.forEach(item => {
-                    const date = new Date(item.dueDate).toLocaleDateString('es-AR');
-                    const type = item.type === 'pay' ? 'PAGO' : 'COBRO';
-                    const status = item.status === 'paid' ? 'PAGADO' : 'PENDIENTE';
-                    const payee = item.payee ? item.payee.replace(/,/g, '') : ''; 
-                    csvContent += `${date},${type},${payee},${item.number || '-'},${item.amount},${status}\n`;
-                });
-                const encodedUri = encodeURI(csvContent);
-                const link = document.createElement("a");
-                link.setAttribute("href", encodedUri);
-                link.setAttribute("download", `Reporte_SIIPALLETS_${new Date().toLocaleDateString('es-AR').replace(/\//g,'-')}.csv`);
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
+            const printReport = () => {
+                // Verificar si hay datos
+                if (!groupedView || !groupedView.data || groupedView.data.length === 0) return alert("No hay datos para imprimir.");
+
+                // Crear HTML del reporte
+                let contentHTML = `
+                    <html>
+                    <head>
+                        <title>Reporte SII PALLETS</title>
+                        <style>
+                            body { font-family: sans-serif; padding: 20px; color: #333; }
+                            h1 { color: #1e40af; border-bottom: 2px solid #1e40af; padding-bottom: 10px; }
+                            .meta { color: #666; font-size: 14px; margin-bottom: 20px; }
+                            .group-header { background: #f3f4f6; padding: 8px 12px; margin-top: 15px; font-weight: bold; border-radius: 4px; display: flex; justify-content: space-between; border: 1px solid #e5e7eb; page-break-after: avoid; }
+                            .item-row { padding: 8px 12px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; font-size: 13px; }
+                            .item-row:last-child { border-bottom: none; }
+                            .amount { font-weight: bold; font-family: monospace; font-size: 14px; }
+                            .status { font-size: 10px; text-transform: uppercase; padding: 2px 6px; border-radius: 4px; }
+                            .pending { background: #fee2e2; color: #991b1b; }
+                            .paid { background: #d1fae5; color: #065f46; }
+                            .partial { background: #fef3c7; color: #92400e; }
+                            @media print { button { display: none; } }
+                        </style>
+                    </head>
+                    <body>
+                        <h1>Reporte de ${mode === 'pay' ? 'Pagos' : (mode === 'collect' ? 'Cobros' : 'Balance')}</h1>
+                        <p class="meta">Fecha de Emisión: ${new Date().toLocaleDateString('es-AR')} • SII PALLETS APP</p>
+                `;
+
+                if (mode === 'balance') {
+                    // Reporte Balance: Agenda
+                    contentHTML += `<h3>Resumen Financiero</h3>`;
+                    contentHTML += `<p><strong>A Cobrar:</strong> ${formatMoney(balanceData.collect)} | <strong>A Pagar:</strong> ${formatMoney(balanceData.pay)}</p>`;
+                    contentHTML += `<h3>Agenda Diaria</h3>`;
+                    balanceData.dailyAgenda.forEach(day => {
+                        contentHTML += `<div class="group-header"><span>${new Date(day.date + 'T00:00:00').toLocaleDateString('es-AR')}</span> <span>${day.net > 0 ? '+' : ''}${formatMoney(day.net)}</span></div>`;
+                        contentHTML += `<div class="item-row"><span>Entradas</span> <span class="amount" style="color:green">${formatMoney(day.inflow)}</span></div>`;
+                        contentHTML += `<div class="item-row"><span>Salidas</span> <span class="amount" style="color:blue">${formatMoney(day.outflow)}</span></div>`;
+                    });
+                } else {
+                    // Reporte Pagos/Cobros: Detalle por Grupo
+                    groupedView.data.forEach(group => {
+                        let groupTitle = '';
+                        if (groupedView.type === 'client-grouped') groupTitle = group.label;
+                        else groupTitle = new Date(group.key + 'T00:00:00').toLocaleDateString('es-AR');
+
+                        contentHTML += `<div class="group-header"><span>${groupTitle}</span> <span>${formatMoney(group.total)}</span></div>`;
+                        
+                        group.items.forEach(item => {
+                            const statusLabel = item.status === 'paid' ? 'Pagado' : (item.status === 'partial' ? 'Parcial' : 'Pendiente');
+                            const statusClass = item.status === 'paid' ? 'paid' : (item.status === 'partial' ? 'partial' : 'pending');
+                            const details = item.number ? `Ref: ${item.number}` : '';
+                            
+                            contentHTML += `
+                                <div class="item-row">
+                                    <div style="flex:1">
+                                        <strong>${item.payee}</strong> <br/>
+                                        <span style="color:#666">${details}</span>
+                                    </div>
+                                    <div style="text-align:right">
+                                        <div class="amount">${formatMoney(item.amount)}</div>
+                                        <span class="status ${statusClass}">${statusLabel}</span>
+                                        ${(item.status !== 'paid') ? `<div style="font-size:10px;color:red">Resta: ${formatMoney(item.amount - (item.paidAmount||0))}</div>` : ''}
+                                    </div>
+                                </div>
+                            `;
+                        });
+                    });
+                }
+
+                contentHTML += `</body></html>`;
+
+                // Abrir ventana y printear
+                const printWindow = window.open('', '_blank');
+                printWindow.document.write(contentHTML);
+                printWindow.document.close();
+                printWindow.focus();
+                // Esperar a que cargue estilos (breve delay)
+                setTimeout(() => {
+                    printWindow.print();
+                    printWindow.close();
+                }, 500);
             };
 
             const requestNotify = () => {
@@ -236,13 +290,9 @@
                 if (mode === 'balance') return null;
                 let items = mode === 'pay' ? payItems : collectItems;
                 
-                // FILTER BY SEARCH
                 if (searchTerm) {
                     const lowerSearch = searchTerm.toLowerCase();
-                    items = items.filter(i => 
-                        (i.payee && i.payee.toLowerCase().includes(lowerSearch)) || 
-                        (i.number && i.number.toLowerCase().includes(lowerSearch))
-                    );
+                    items = items.filter(i => (i.payee && i.payee.toLowerCase().includes(lowerSearch)) || (i.number && i.number.toLowerCase().includes(lowerSearch)));
                 }
 
                 let filtered = items;
@@ -283,7 +333,6 @@
                 }
             }, [payItems, collectItems, activeFilter, mode, searchTerm]);
 
-            // ACCIONES
             const handleAdd = async (e) => {
                 e.preventDefault();
                 const targetCollection = mode === 'collect' ? 'cobros_public_shared' : 'cheques_public_shared';
@@ -361,7 +410,7 @@
                             <h1 className="text-xl font-bold flex items-center gap-2">SII PALLETS APP</h1>
                             <div className="flex gap-2 items-center">
                                 {deferredPrompt && ( <button onClick={installApp} className="bg-white/20 hover:bg-white/30 px-2 py-1 rounded text-xs font-bold flex items-center gap-1"><IconDownload className="w-4 h-4" /> Instalar</button> )}
-                                <button onClick={exportToCSV} className="p-2 relative bg-white/20 rounded-full hover:bg-white/30" title="Descargar Excel"><IconFileText className="w-5 h-5"/></button>
+                                <button onClick={printReport} className="p-2 relative bg-white/20 rounded-full hover:bg-white/30" title="Imprimir Reporte PDF"><IconPrinter className="w-5 h-5"/></button>
                                 <div className="relative">
                                     <button onClick={() => setShowNotifPanel(!showNotifPanel)} className="p-2 relative">
                                         {alerts.length > 0 ? <IconBellRing className="w-6 h-6 animate-pulse text-yellow-300"/> : <IconBell className="w-6 h-6"/>}
@@ -390,15 +439,8 @@
                             </div>
                         </div>
 
-                        {/* BUSCADOR (NUEVO) */}
                         <div className="mb-3 relative">
-                            <input 
-                                type="text" 
-                                placeholder="Buscar por nombre, cheque o factura..." 
-                                className="w-full pl-9 pr-4 py-2 rounded-lg bg-white/20 text-white placeholder-white/70 outline-none focus:bg-white/30 text-sm"
-                                value={searchTerm}
-                                onChange={e => setSearchTerm(e.target.value)}
-                            />
+                            <input type="text" placeholder="Buscar por nombre, cheque o factura..." className="w-full pl-9 pr-4 py-2 rounded-lg bg-white/20 text-white placeholder-white/70 outline-none focus:bg-white/30 text-sm" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
                             <IconSearch className="w-4 h-4 text-white/70 absolute left-3 top-2.5"/>
                         </div>
 
@@ -410,7 +452,6 @@
                     </div>
 
                     <div className="p-4">
-                        {/* BALANCE VIEW */}
                         {mode === 'balance' && (
                             <div className="animate-fade-in">
                                 <div className={`bg-white p-5 rounded-2xl shadow-md border-l-8 mb-6 border-violet-500`}>
@@ -481,7 +522,6 @@
                             </div>
                         )}
 
-                        {/* PAY & COLLECT VIEWS */}
                         {mode !== 'balance' && (
                             <div className="animate-fade-in">
                                 <div className={`bg-white p-5 rounded-2xl shadow-md border-l-8 mb-6 flex items-center justify-between ${theme.border}`}>
@@ -542,13 +582,7 @@
                                             </div>
 
                                             <div className="flex gap-3">
-                                                <input 
-                                                    className="w-1/2 p-3 bg-gray-50 rounded-lg border focus:ring-2 focus:ring-blue-500 outline-none" 
-                                                    placeholder={mode === 'collect' ? "Nº Factura" : (newItem.subtype === 'cheque' ? "Nº Cheque" : "Nota / Ref (Opcional)")} 
-                                                    value={newItem.number} 
-                                                    onChange={e=>setNewItem({...newItem, number:e.target.value})} 
-                                                    required={mode === 'collect' || newItem.subtype === 'cheque'}
-                                                />
+                                                <input className="w-1/2 p-3 bg-gray-50 rounded-lg border focus:ring-2 focus:ring-blue-500 outline-none" placeholder={mode === 'collect' ? "Nº Factura" : (newItem.subtype === 'cheque' ? "Nº Cheque" : "Nota / Ref (Opcional)")} value={newItem.number} onChange={e=>setNewItem({...newItem, number:e.target.value})} required={mode === 'collect' || newItem.subtype === 'cheque'} />
                                                 <input type="number" step="0.01" className="w-1/2 p-3 bg-gray-50 rounded-lg border focus:ring-2 focus:ring-blue-500 outline-none" placeholder="$ Importe Total" value={newItem.amount} onChange={e=>setNewItem({...newItem, amount:e.target.value})} required />
                                             </div>
                                             <div className="flex gap-3">
