@@ -44,7 +44,8 @@
 
     <script type="text/babel" data-type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        // IMPORTANTE: Agregamos onAuthStateChanged para esperar la autenticación
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
         import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
         const firebaseConfig = {
@@ -88,6 +89,7 @@
 
         const CheqControl = () => {
             const [mode, setMode] = useState('pay'); 
+            const [user, setUser] = useState(null); // Nuevo estado para controlar la autenticación
             const [payItems, setPayItems] = useState([]);
             const [collectItems, setCollectItems] = useState([]);
             const [loading, setLoading] = useState(true);
@@ -105,12 +107,26 @@
             const [notifPermission, setNotifPermission] = useState(typeof Notification !== 'undefined' ? Notification.permission : 'default');
             const [selectedDateFilter, setSelectedDateFilter] = useState(null);
 
+            // EFECTO 1: Autenticación
             useEffect(() => {
                 window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); setDeferredPrompt(e); });
-                signInAnonymously(auth).catch(console.error);
+                
+                // Escuchar estado de autenticación
+                const unsubscribe = onAuthStateChanged(auth, (u) => {
+                    if (u) {
+                        setUser(u); // Usuario autenticado
+                    } else {
+                        // Si no hay usuario, iniciar sesión anónima
+                        signInAnonymously(auth).catch(console.error);
+                    }
+                });
+                return () => unsubscribe();
             }, []);
 
+            // EFECTO 2: Cargar datos (Solo cuando hay usuario)
             useEffect(() => {
+                if (!user) return; // Si no hay usuario, no intentar cargar datos (evita permission-denied)
+                
                 setLoading(true);
                 const unsubPay = onSnapshot(collection(db, 'cheques_public_shared', 'main_list', 'items'), (snap) => {
                     const data = snap.docs.map(d => {
@@ -132,7 +148,7 @@
 
                 setTimeout(() => setLoading(false), 800); 
                 return () => { unsubPay(); unsubCollect(); };
-            }, []);
+            }, [user]); // Dependencia clave: user
 
             const getDays = (date) => { if (!date) return 999; return Math.ceil((new Date(date+'T00:00:00') - new Date().setHours(0,0,0,0)) / (86400000)); };
             const formatMoney = (val) => new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 0 }).format(val);
@@ -228,7 +244,7 @@
                         let groupTitle = '';
                         if (groupedView.type === 'client-grouped') {
                             groupTitle = group.label;
-                            runningAccumulator = 0; // Reset for each client
+                            runningAccumulator = 0; // Reset for each client in Collect mode
                         } else {
                              groupTitle = new Date(group.key + 'T00:00:00').toLocaleDateString('es-AR');
                         }
@@ -353,8 +369,17 @@
             }, [payItems, collectItems, mode]);
 
             const groupedView = useMemo(() => {
-                if (mode === 'balance') return null;
-                let items = mode === 'pay' ? payItems : collectItems;
+                // *** MODIFICACIÓN: Permitir modo Balance si hay filtro de fecha ***
+                if (mode === 'balance' && !selectedDateFilter) return null;
+
+                let items = [];
+                // Si estamos en Balance con filtro, combinamos las listas
+                if (mode === 'balance' && selectedDateFilter) {
+                    items = [...payItems, ...collectItems];
+                } else {
+                    // Si no, seguimos la lógica normal
+                    items = mode === 'pay' ? payItems : collectItems;
+                }
                 
                 if (searchTerm) {
                     const lowerSearch = searchTerm.toLowerCase();
@@ -378,7 +403,7 @@
 
                 let filtered = items;
 
-                if (mode === 'collect') {
+                if (mode === 'collect' && !selectedDateFilter) {
                     const groups = {};
                     filtered.forEach(item => {
                         const clientName = item.payee ? item.payee.trim().toUpperCase() : 'SIN NOMBRE';
@@ -391,7 +416,7 @@
                     return { type: 'client-grouped', data: Object.values(groups).sort((a,b) => b.total - a.total) };
                 } else {
                     filtered.sort((a,b) => new Date(a.dueDate) - new Date(b.dueDate));
-                    if (activeFilter === 'all' && !selectedDateFilter) return { type: 'flat', data: filtered };
+                    if ((activeFilter === 'all' && !selectedDateFilter) || (mode === 'balance' && selectedDateFilter)) return { type: 'flat', data: filtered };
                     const groups = {};
                     filtered.forEach(item => {
                         const dateKey = item.dueDate;
@@ -499,7 +524,7 @@
                                                         <div key={a.id} className={`p-3 border-b text-sm ${d < 0 ? 'bg-red-50' : 'bg-white'}`}>
                                                             <div className="flex justify-between"><span className={`text-[10px] font-bold px-1 rounded ${isPay ? 'bg-blue-100 text-blue-700' : 'bg-emerald-100 text-emerald-700'}`}>{isPay ? 'PAGO' : 'COBRO'}</span><span className="font-mono text-xs">{formatMoney(a.amount - (a.paidAmount||0))}</span></div>
                                                             <p className="font-bold mt-1">{a.payee}</p>
-                                                            <p className={`text-xs ${d < 0 ? 'text-red-600 font-bold' : 'text-orange-500'}`}>{d < 0 ? `Vencido hace ${Math.abs(d)} días` : `Vence en ${d} días`}</p>
+                                                            <p className={`text-xs ${d < 0 ? 'text-red-600 font-bold' : 'text-orange-500'}`}>{d <0 ? `Vencido hace ${Math.abs(d)} días` : `Vence en ${d} días`}</p>
                                                         </div>
                                                     )
                                                 })}
@@ -523,7 +548,7 @@
                     </div>
 
                     <div className="p-4">
-                        {mode === 'balance' && (
+                        {mode === 'balance' && !selectedDateFilter && (
                             <div className="animate-fade-in">
                                 <div className={`bg-white p-5 rounded-2xl shadow-md border-l-8 mb-6 border-violet-500`}>
                                     <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-3">Estado Financiero Global (Pendiente)</p>
@@ -534,7 +559,6 @@
                                     <div className="border-t pt-3 flex justify-between items-center"><span className="text-sm font-bold text-gray-600">PROYECCIÓN SALDO:</span><span className={`text-3xl font-black ${balanceData.net >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>{balanceData.net > 0 ? '+' : ''}{formatMoney(balanceData.net)}</span></div>
                                 </div>
                                 
-                                {/* NUEVO: PROYECCIÓN A 15 DÍAS (CUADRÍCULA 5x3) */}
                                 <div className="mb-6">
                                     <h3 className="font-bold text-gray-700 mb-3 ml-1 flex items-center gap-2"><IconCalendar className="w-5 h-5 text-violet-600"/> Proyección 15 Días</h3>
                                     
@@ -543,11 +567,7 @@
                                             <button 
                                                 key={idx} 
                                                 onClick={() => {
-                                                    // Ir al modo que corresponda si hay datos, o quedarse en balance para ver detalles si quisiera (pero la lista está abajo en modo pago/cobro)
-                                                    // Mejor: Filtrar la lista actual (si estuviera visible) o ir a modo PAGOS filtrado por esa fecha si es salida, o COBROS si es entrada.
-                                                    // Para simplificar y ser útil: Al hacer click, vamos al modo "PAGOS" (o el que tenga más movimiento) y filtramos por esa fecha.
-                                                    const targetMode = day.outflow > day.inflow ? 'pay' : 'collect';
-                                                    setMode(targetMode);
+                                                    // Stay in Balance but set Filter
                                                     setSelectedDateFilter(day.dateKey);
                                                 }}
                                                 className={`p-2 rounded-xl border flex flex-col items-center justify-center shadow-sm transition-transform active:scale-95 ${day.net > 0 ? 'bg-emerald-50 border-emerald-200' : (day.net < 0 ? 'bg-red-50 border-red-200' : 'bg-white border-gray-100')}`}
@@ -606,29 +626,91 @@
                             </div>
                         )}
 
-                        {mode !== 'balance' && (
+                        {(mode !== 'balance' || selectedDateFilter) && (
                             <div className="animate-fade-in">
-                                <div className={`bg-white p-5 rounded-2xl shadow-md border-l-8 mb-6 flex items-center justify-between ${theme.border}`}>
-                                    <div>
-                                        <p className={`text-xs font-bold uppercase tracking-wide mb-1 ${theme.text}`}>
-                                            {selectedDateFilter 
-                                                ? `Movimientos del ${new Date(selectedDateFilter+'T00:00:00').toLocaleDateString('es-AR')}`
-                                                : (mode === 'pay' ? 'Deuda Total Pendiente' : 'Cobros Totales Pendientes')
-                                            }
-                                        </p>
-                                        <p className="text-3xl font-black text-gray-800">{mode === 'pay' ? formatMoney(balanceData.pay) : formatMoney(balanceData.collect)}</p>
-                                    </div>
-                                    <div className={`${theme.light} p-3 rounded-full`}>{mode === 'pay' ? <IconWallet className={`w-8 h-8 ${theme.text}`} /> : <IconCash className={`w-8 h-8 ${theme.text}`} />}</div>
-                                </div>
+                                {mode === 'balance' && selectedDateFilter && (() => {
+                                    // Custom View for Balance Detail Day
+                                    const dayPays = payItems.filter(i => i.dueDate === selectedDateFilter);
+                                    const dayCollects = collectItems.filter(i => i.dueDate === selectedDateFilter);
+                                    // Calculate pending flow for the balance header
+                                    const dayOutflow = dayPays.filter(i => i.status !== 'paid').reduce((s,i) => s + (i.amount - (i.paidAmount||0)), 0);
+                                    const dayInflow = dayCollects.filter(i => i.status !== 'paid').reduce((s,i) => s + (i.amount - (i.paidAmount||0)), 0);
+                                    const dayBalance = dayInflow - dayOutflow;
+                                    
+                                    return (
+                                        <>
+                                            <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 mb-4 text-center">
+                                                <h3 className="text-gray-500 text-xs font-bold uppercase mb-1">Balance del Día (Pendiente)</h3>
+                                                <p className={`text-3xl font-black ${dayBalance >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                                                    {dayBalance > 0 ? '+' : ''}{formatMoney(dayBalance)}
+                                                </p>
+                                                <p className="text-xs text-gray-400 mt-1">{new Date(selectedDateFilter+'T00:00:00').toLocaleDateString('es-AR', {weekday:'long', day:'numeric', month:'long'})}</p>
+                                            </div>
 
-                                {selectedDateFilter && (
+                                            <div className="grid grid-cols-2 gap-3 mb-6">
+                                                {/* COLUMNA COBROS */}
+                                                <div className="bg-emerald-50 rounded-xl p-2 border border-emerald-100 flex flex-col h-full">
+                                                    <h4 className="text-emerald-800 font-bold text-xs mb-3 flex items-center gap-1 uppercase tracking-wider border-b border-emerald-200 pb-1">
+                                                        <IconArrowDownLeft className="w-3 h-3"/> Entradas
+                                                    </h4>
+                                                    <div className="space-y-2">
+                                                        {dayCollects.length === 0 ? <p className="text-[10px] text-emerald-400 italic text-center py-4">Sin Cobros.</p> : 
+                                                            dayCollects.map(item => (
+                                                                <div key={item.id} className={`p-2 rounded bg-white border border-emerald-100 shadow-sm ${item.status === 'paid' ? 'opacity-60' : ''}`}>
+                                                                    <div className="text-xs font-bold text-gray-700 truncate">{item.payee}</div>
+                                                                    <div className="flex justify-between items-end mt-1">
+                                                                         <span className="text-[10px] text-gray-400">{item.number || '#'}</span>
+                                                                         <span className={`font-mono text-xs font-bold ${item.status === 'paid' ? 'text-gray-400 line-through' : 'text-emerald-600'}`}>
+                                                                            {formatMoney(item.amount)}
+                                                                         </span>
+                                                                    </div>
+                                                                </div>
+                                                            ))
+                                                        }
+                                                    </div>
+                                                </div>
+
+                                                {/* COLUMNA PAGOS */}
+                                                <div className="bg-blue-50 rounded-xl p-2 border border-blue-100 flex flex-col h-full">
+                                                    <h4 className="text-blue-800 font-bold text-xs mb-3 flex items-center gap-1 uppercase tracking-wider border-b border-blue-200 pb-1">
+                                                        <IconArrowUpRight className="w-3 h-3"/> Salidas
+                                                    </h4>
+                                                    <div className="space-y-2">
+                                                        {dayPays.length === 0 ? <p className="text-[10px] text-blue-400 italic text-center py-4">Sin Pagos.</p> : 
+                                                            dayPays.map(item => (
+                                                                <div key={item.id} className={`p-2 rounded bg-white border border-blue-100 shadow-sm ${item.status === 'paid' ? 'opacity-60' : ''}`}>
+                                                                    <div className="text-xs font-bold text-gray-700 truncate">{item.payee}</div>
+                                                                    <div className="flex justify-between items-end mt-1">
+                                                                         <div className="text-[10px] text-gray-400">{getTypeIcon(item.subtype)}</div>
+                                                                         <span className={`font-mono text-xs font-bold ${item.status === 'paid' ? 'text-gray-400 line-through' : 'text-blue-600'}`}>
+                                                                            {formatMoney(item.amount)}
+                                                                         </span>
+                                                                    </div>
+                                                                </div>
+                                                            ))
+                                                        }
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            
+                                            <button onClick={() => setSelectedDateFilter(null)} className="w-full py-3 bg-gray-200 text-gray-600 font-bold rounded-xl text-sm hover:bg-gray-300">Volver al Calendario</button>
+                                        </>
+                                    );
+                                })()}
+                                
+                                {!selectedDateFilter && <div className={`bg-white p-5 rounded-2xl shadow-md border-l-8 mb-6 flex items-center justify-between ${theme.border}`}>
+                                    <div><p className={`text-xs font-bold uppercase tracking-wide mb-1 ${theme.text}`}>{mode === 'pay' ? 'Deuda Total Pendiente' : 'Cobros Totales Pendientes'}</p><p className="text-3xl font-black text-gray-800">{mode === 'pay' ? formatMoney(balanceData.pay) : formatMoney(balanceData.collect)}</p></div>
+                                    <div className={`${theme.light} p-3 rounded-full`}>{mode === 'pay' ? <IconWallet className={`w-8 h-8 ${theme.text}`} /> : <IconCash className={`w-8 h-8 ${theme.text}`} />}</div>
+                                </div>}
+
+                                {selectedDateFilter && mode !== 'balance' && (
                                     <div className="mb-4 flex justify-between items-center bg-blue-50 p-3 rounded-lg border border-blue-100">
                                         <span className="text-sm text-blue-800 font-bold">📅 Filtrado por fecha: {new Date(selectedDateFilter+'T00:00:00').toLocaleDateString('es-AR')}</span>
                                         <button onClick={() => setSelectedDateFilter(null)} className="text-xs text-red-500 font-bold underline">Borrar Filtro</button>
                                     </div>
                                 )}
 
-                                {!selectedDateFilter && (
+                                {!selectedDateFilter && mode !== 'balance' && (
                                     <div className="grid grid-cols-3 gap-2 mb-6">
                                         {[{ id: 'expired', label: 'Vencidos', color: 'red', data: dashboardData.expired }, { id: 'urgent', label: 'Esta Semana', color: 'orange', data: dashboardData.urgent }, { id: 'future', label: 'A Futuro', color: 'green', data: dashboardData.future }].map(filter => (
                                             <button key={filter.id} onClick={() => setActiveFilter(activeFilter === filter.id ? 'all' : filter.id)} className={`p-2 rounded-xl border-2 transition-all text-center flex flex-col items-center justify-center shadow-sm relative ${activeFilter === filter.id ? `bg-${filter.color}-50 border-${filter.color}-500 ring-2 ring-${filter.color}-200` : 'bg-white border-transparent hover:bg-gray-50'}`}>
@@ -641,9 +723,9 @@
                                     </div>
                                 )}
 
-                                <button onClick={() => { setEditingId(null); setNewItem({ number: '', issueDate: '', dueDate: '', amount: '', payee: '', paidAmount: 0, subtype: 'cheque', category: 'others', status: 'pending' }); setShowAddForm(!showAddForm); }} className={`w-full ${theme.btn} hover:opacity-90 text-white p-3 rounded-xl shadow-md mb-6 flex items-center justify-center gap-2 font-bold transition-all active:scale-95`}>
+                                {mode !== 'balance' && <button onClick={() => { setEditingId(null); setNewItem({ number: '', issueDate: '', dueDate: '', amount: '', payee: '', paidAmount: 0, subtype: 'cheque', category: 'others', status: 'pending' }); setShowAddForm(!showAddForm); }} className={`w-full ${theme.btn} hover:opacity-90 text-white p-3 rounded-xl shadow-md mb-6 flex items-center justify-center gap-2 font-bold transition-all active:scale-95`}>
                                     <IconPlus className="w-5 h-5"/> {showAddForm ? 'Cancelar' : (mode === 'pay' ? 'Registrar Pago' : 'Registrar Factura')}
-                                </button>
+                                </button>}
 
                                 {showAddForm && (
                                     <form onSubmit={handleAdd} className="bg-white p-5 rounded-xl shadow-lg border border-gray-200 mb-6 animate-fade-in relative overflow-hidden">
