@@ -113,7 +113,7 @@
             const [selectedDateFilter, setSelectedDateFilter] = useState(null);
             
             // Payment Confirmation Modal
-            const [paymentModal, setPaymentModal] = useState({ isOpen: false, item: null, method: 'transfer', proof: '' });
+            const [paymentModal, setPaymentModal] = useState({ isOpen: false, item: null, method: 'transfer', proof: '', type: 'total', amount: '' });
 
             useEffect(() => {
                 window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); setDeferredPrompt(e); });
@@ -426,12 +426,30 @@
             const confirmPayment = async () => {
                 if(!paymentModal.item) return;
                 const item = paymentModal.item;
-                const collectionName = 'gastos_public_shared'; // Solo para gastos por ahora
+                const collectionName = 'gastos_public_shared'; 
                 
-                // Actualizar item con pago total
+                let newPaidAmount = item.paidAmount || 0;
+                let newStatus = 'pending';
+
+                if (paymentModal.type === 'total') {
+                    newPaidAmount = item.amount;
+                    newStatus = 'paid';
+                } else {
+                    const partial = parseFloat(paymentModal.amount);
+                    if (!isNaN(partial)) {
+                        newPaidAmount += partial;
+                        if (newPaidAmount >= item.amount) {
+                            newPaidAmount = item.amount;
+                            newStatus = 'paid';
+                        } else {
+                            newStatus = 'partial';
+                        }
+                    }
+                }
+                
                 await updateDoc(doc(db, collectionName, 'main_list', 'items', item.id), { 
-                    status: 'paid', 
-                    paidAmount: item.amount,
+                    status: newStatus, 
+                    paidAmount: newPaidAmount,
                     paymentDetails: {
                         method: paymentModal.method,
                         proof: paymentModal.proof,
@@ -439,13 +457,13 @@
                     }
                 });
                 
-                setPaymentModal({ isOpen: false, item: null, method: 'transfer', proof: '' });
+                setPaymentModal({ isOpen: false, item: null, method: 'transfer', proof: '', type: 'total', amount: '' });
             };
 
             const markFullPayment = async (item) => {
                 if (item.type === 'expense') {
-                    // Abrir modal para gastos
-                    setPaymentModal({ isOpen: true, item: item, method: 'transfer', proof: '' });
+                    // Abrir modal para gastos con opción total/parcial
+                    setPaymentModal({ isOpen: true, item: item, method: 'transfer', proof: '', type: 'total', amount: '' });
                     return;
                 }
 
@@ -459,7 +477,7 @@
             };
 
             const markPartialPayment = async (item) => {
-                if(item.type === 'wallet' || item.type === 'expense') return; // Gastos y Cartera no parciales
+                if(item.type === 'wallet' || item.type === 'expense') return; // Gastos usa el modal principal
 
                 const amountStr = prompt(`Total: ${item.amount}\nPagado: ${item.paidAmount || 0}\n\nNuevo total acumulado:`);
                 if(!amountStr) return;
@@ -552,11 +570,11 @@
                         </div>
 
                         <div className="bg-black/20 p-1 rounded-xl flex text-[10px] sm:text-xs overflow-x-auto scrollbar-hide">
+                            <button onClick={() => { setMode('expenses'); setActiveFilter('all'); setSelectedDateFilter(null); }} className={`flex-1 py-2 px-3 rounded-lg font-bold flex flex-col sm:flex-row items-center justify-center gap-1 transition-all whitespace-nowrap ${mode === 'expenses' ? 'bg-white text-orange-800 shadow-md' : 'text-white/60'}`}><IconTag className="w-4 h-4"/> <span>GASTOS</span></button>
                             <button onClick={() => { setMode('pay'); setActiveFilter('all'); setSelectedDateFilter(null); }} className={`flex-1 py-2 px-3 rounded-lg font-bold flex flex-col sm:flex-row items-center justify-center gap-1 transition-all whitespace-nowrap ${mode === 'pay' ? 'bg-white text-blue-800 shadow-md' : 'text-white/60'}`}><IconWallet className="w-4 h-4"/> <span>PAGOS</span></button>
                             <button onClick={() => { setMode('balance'); setSelectedDateFilter(null); }} className={`flex-1 py-2 px-3 rounded-lg font-bold flex flex-col sm:flex-row items-center justify-center gap-1 transition-all whitespace-nowrap ${mode === 'balance' ? 'bg-white text-violet-800 shadow-md' : 'text-white/60'}`}><IconTrendingUp className="w-4 h-4"/> <span>BALANCE</span></button>
                             <button onClick={() => { setMode('collect'); setActiveFilter('all'); setSelectedDateFilter(null); }} className={`flex-1 py-2 px-3 rounded-lg font-bold flex flex-col sm:flex-row items-center justify-center gap-1 transition-all whitespace-nowrap ${mode === 'collect' ? 'bg-white text-emerald-800 shadow-md' : 'text-white/60'}`}><IconBriefcase className="w-4 h-4"/> <span>COBROS</span></button>
                             <button onClick={() => { setMode('wallet'); setActiveFilter('all'); setSelectedDateFilter(null); }} className={`flex-1 py-2 px-3 rounded-lg font-bold flex flex-col sm:flex-row items-center justify-center gap-1 transition-all whitespace-nowrap ${mode === 'wallet' ? 'bg-white text-indigo-800 shadow-md' : 'text-white/60'}`}><IconFolder className="w-4 h-4"/> <span>CARTERA</span></button>
-                            <button onClick={() => { setMode('expenses'); setActiveFilter('all'); setSelectedDateFilter(null); }} className={`flex-1 py-2 px-3 rounded-lg font-bold flex flex-col sm:flex-row items-center justify-center gap-1 transition-all whitespace-nowrap ${mode === 'expenses' ? 'bg-white text-orange-800 shadow-md' : 'text-white/60'}`}><IconTag className="w-4 h-4"/> <span>GASTOS</span></button>
                         </div>
                     </div>
 
@@ -566,13 +584,47 @@
                             <div className="fixed inset-0 modal-overlay z-50 flex items-center justify-center p-4">
                                 <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm animate-fade-in">
                                     <h3 className="text-lg font-bold text-gray-800 mb-4">Confirmar Pago de Gasto</h3>
-                                    <p className="text-sm text-gray-500 mb-4">Vas a cancelar: <strong>{paymentModal.item.payee}</strong> ({formatMoney(paymentModal.item.amount)})</p>
+                                    <p className="text-sm text-gray-500 mb-4">
+                                        Concepto: <strong>{paymentModal.item.payee}</strong><br/>
+                                        Total Gasto: {formatMoney(paymentModal.item.amount)}<br/>
+                                        <span className="text-red-500">Pendiente: {formatMoney(paymentModal.item.amount - (paymentModal.item.paidAmount||0))}</span>
+                                    </p>
                                     
-                                    <div className="space-y-3">
+                                    <div className="space-y-4">
+                                        {/* TIPO DE PAGO: TOTAL O PARCIAL */}
+                                        <div className="flex gap-2">
+                                            <button 
+                                                onClick={() => setPaymentModal({...paymentModal, type: 'total'})}
+                                                className={`flex-1 py-2 rounded-lg border font-bold text-xs ${paymentModal.type === 'total' ? 'bg-blue-100 border-blue-500 text-blue-700' : 'bg-gray-50 border-gray-200 text-gray-500'}`}
+                                            >
+                                                PAGO TOTAL
+                                            </button>
+                                            <button 
+                                                onClick={() => setPaymentModal({...paymentModal, type: 'partial'})}
+                                                className={`flex-1 py-2 rounded-lg border font-bold text-xs ${paymentModal.type === 'partial' ? 'bg-blue-100 border-blue-500 text-blue-700' : 'bg-gray-50 border-gray-200 text-gray-500'}`}
+                                            >
+                                                PAGO PARCIAL
+                                            </button>
+                                        </div>
+
+                                        {/* INPUT MONTO (SOLO SI ES PARCIAL) */}
+                                        {paymentModal.type === 'partial' && (
+                                            <div>
+                                                <label className="text-xs text-gray-500 block mb-1">Monto a Pagar Ahora</label>
+                                                <input 
+                                                    type="number" step="0.01"
+                                                    className="w-full p-2 border rounded-lg font-bold text-gray-800"
+                                                    placeholder="$ 0.00"
+                                                    value={paymentModal.amount}
+                                                    onChange={e => setPaymentModal({...paymentModal, amount: e.target.value})}
+                                                />
+                                            </div>
+                                        )}
+
                                         <div>
                                             <label className="text-xs text-gray-500 block mb-1">Medio de Pago</label>
                                             <select 
-                                                className="w-full p-2 border rounded-lg"
+                                                className="w-full p-2 border rounded-lg bg-white"
                                                 value={paymentModal.method}
                                                 onChange={e => setPaymentModal({...paymentModal, method: e.target.value})}
                                             >
@@ -594,8 +646,8 @@
                                         </div>
                                     </div>
                                     <div className="mt-6 flex gap-2">
-                                        <button onClick={() => setPaymentModal({isOpen:false, item:null, method:'transfer', proof:''})} className="flex-1 py-2 border rounded-lg text-gray-500 hover:bg-gray-50">Cancelar</button>
-                                        <button onClick={confirmPayment} className="flex-1 py-2 bg-green-600 text-white rounded-lg font-bold hover:bg-green-700">Confirmar Pago</button>
+                                        <button onClick={() => setPaymentModal({isOpen:false, item:null, method:'transfer', proof:'', type: 'total', amount: ''})} className="flex-1 py-2 border rounded-lg text-gray-500 hover:bg-gray-50">Cancelar</button>
+                                        <button onClick={confirmPayment} className="flex-1 py-2 bg-green-600 text-white rounded-lg font-bold hover:bg-green-700">Confirmar</button>
                                     </div>
                                 </div>
                             </div>
