@@ -27,6 +27,8 @@
         input, select, textarea { font-size: 16px !important; }
         .scrollbar-hide::-webkit-scrollbar { display: none; }
         .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+        /* Modal Overlay */
+        .modal-overlay { background-color: rgba(0, 0, 0, 0.5); backdrop-filter: blur(2px); }
     </style>
 </head>
 <body class="bg-gray-100 text-gray-800 font-sans">
@@ -85,22 +87,22 @@
         const IconPrinter = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>;
         const IconSearch = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>;
         const IconCalendar = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>;
-        const IconArchive = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><rect x="2" y="4" width="20" height="16" rx="2"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>; // Using as placeholder, can be IconInbox
         const IconFolder = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>;
-
+        const IconTag = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>;
 
         const CheqControl = () => {
-            const [mode, setMode] = useState('pay'); // pay, collect, wallet, balance
+            const [mode, setMode] = useState('pay'); // pay, collect, wallet, expenses, balance
             const [user, setUser] = useState(null); 
             const [payItems, setPayItems] = useState([]);
             const [collectItems, setCollectItems] = useState([]);
             const [walletItems, setWalletItems] = useState([]);
+            const [expenseItems, setExpenseItems] = useState([]);
             const [loading, setLoading] = useState(true);
             const [deferredPrompt, setDeferredPrompt] = useState(null);
             const [activeFilter, setActiveFilter] = useState('all'); 
             const [showAddForm, setShowAddForm] = useState(false);
             const [newItem, setNewItem] = useState({ 
-                number: '', issueDate: '', dueDate: '', amount: '', payee: '', paidAmount: 0, subtype: 'cheque', category: 'others', status: 'pending'
+                number: '', issueDate: '', dueDate: '', amount: '', payee: '', paidAmount: 0, subtype: 'cheque', category: 'others', status: 'pending', monthYear: ''
             });
             const [editingId, setEditingId] = useState(null); 
             const [expandedGroups, setExpandedGroups] = useState({});
@@ -109,6 +111,9 @@
             const [showNotifPanel, setShowNotifPanel] = useState(false);
             const [notifPermission, setNotifPermission] = useState(typeof Notification !== 'undefined' ? Notification.permission : 'default');
             const [selectedDateFilter, setSelectedDateFilter] = useState(null);
+            
+            // Payment Confirmation Modal
+            const [paymentModal, setPaymentModal] = useState({ isOpen: false, item: null, method: 'transfer', proof: '' });
 
             useEffect(() => {
                 window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); setDeferredPrompt(e); });
@@ -138,17 +143,18 @@
                     setWalletItems(data);
                 });
 
-                // Check alerts for all
-                // const allData = [...payItems, ...collectItems, ...walletItems]; // Need to be inside the snapshot or updated via effect deps
+                const unsubExpenses = onSnapshot(collection(db, 'gastos_public_shared', 'main_list', 'items'), (snap) => {
+                    const data = snap.docs.map(d => { const dat = d.data(); return { id: d.id, ...dat, type: 'expense' }; });
+                    setExpenseItems(data);
+                });
                 
                 setTimeout(() => setLoading(false), 800); 
-                return () => { unsubPay(); unsubCollect(); unsubWallet(); };
+                return () => { unsubPay(); unsubCollect(); unsubWallet(); unsubExpenses(); };
             }, [user]);
 
-            // Re-calc alerts when items change
             useEffect(() => {
-                checkAlerts([...payItems, ...collectItems, ...walletItems]);
-            }, [payItems, collectItems, walletItems]);
+                checkAlerts([...payItems, ...collectItems, ...walletItems, ...expenseItems]);
+            }, [payItems, collectItems, walletItems, expenseItems]);
 
 
             const getDays = (date) => { if (!date) return 999; return Math.ceil((new Date(date+'T00:00:00') - new Date().setHours(0,0,0,0)) / (86400000)); };
@@ -174,7 +180,8 @@
 
             const printReport = () => {
                 if (!groupedView || !groupedView.data || groupedView.data.length === 0) return alert("No hay datos para imprimir.");
-                let contentHTML = `<html><head><title>Reporte SII PALLETS</title><style>body { font-family: sans-serif; padding: 20px; color: #333; font-size: 11px; } h1 { color: #1e40af; border-bottom: 2px solid #1e40af; padding-bottom: 5px; font-size: 16px; margin-bottom: 5px; } .meta { color: #666; font-size: 9px; margin-bottom: 10px; } table { width: 100%; border-collapse: collapse; margin-top: 5px; } th { background: #f3f4f6; padding: 4px; text-align: left; font-size: 10px; border-bottom: 1px solid #999; font-weight: bold; } td { padding: 3px 4px; border-bottom: 1px solid #eee; vertical-align: top; } .group-row td { background: #e5e7eb; font-weight: bold; padding: 4px; font-size: 11px; border-top: 1px solid #ccc; } .amount { font-family: monospace; text-align: right; } .date { white-space: nowrap; } .red { color: #dc2626; font-weight: bold; } .green { color: #16a34a; font-weight: bold; } .total-box { padding: 8px; background: #f0f9ff; border: 1px solid #bae6fd; margin-bottom: 10px; border-radius: 4px; font-weight: bold; font-size: 12px; } @media print { button { display: none; } }</style></head><body><h1>Reporte de ${mode === 'pay' ? 'Pagos' : (mode === 'collect' ? 'Cobros' : (mode === 'wallet' ? 'Cartera Cheques' : 'Balance'))}</h1><p class="meta">Generado: ${new Date().toLocaleDateString('es-AR')} • SII PALLETS APP</p>`;
+                let titleMode = mode === 'pay' ? 'Pagos' : (mode === 'collect' ? 'Cobros' : (mode === 'wallet' ? 'Cartera Cheques' : (mode === 'expenses' ? 'Gastos Mensuales' : 'Balance')));
+                let contentHTML = `<html><head><title>Reporte SII PALLETS</title><style>body { font-family: sans-serif; padding: 20px; color: #333; font-size: 11px; } h1 { color: #1e40af; border-bottom: 2px solid #1e40af; padding-bottom: 5px; font-size: 16px; margin-bottom: 5px; } .meta { color: #666; font-size: 9px; margin-bottom: 10px; } table { width: 100%; border-collapse: collapse; margin-top: 5px; } th { background: #f3f4f6; padding: 4px; text-align: left; font-size: 10px; border-bottom: 1px solid #999; font-weight: bold; } td { padding: 3px 4px; border-bottom: 1px solid #eee; vertical-align: top; } .group-row td { background: #e5e7eb; font-weight: bold; padding: 4px; font-size: 11px; border-top: 1px solid #ccc; } .amount { font-family: monospace; text-align: right; } .date { white-space: nowrap; } .red { color: #dc2626; font-weight: bold; } .green { color: #16a34a; font-weight: bold; } .total-box { padding: 8px; background: #f0f9ff; border: 1px solid #bae6fd; margin-bottom: 10px; border-radius: 4px; font-weight: bold; font-size: 12px; } @media print { button { display: none; } }</style></head><body><h1>Reporte de ${titleMode}</h1><p class="meta">Generado: ${new Date().toLocaleDateString('es-AR')} • SII PALLETS APP</p>`;
 
                 if (mode === 'balance') {
                     contentHTML += `<div class="total-box">Neto Proyectado: ${formatMoney(balanceData.net)}</div><table><thead><tr><th>Fecha</th><th style="text-align:right">Entradas</th><th style="text-align:right">Salidas</th><th style="text-align:right">Neto</th></tr></thead><tbody>`;
@@ -183,13 +190,19 @@
                     });
                     contentHTML += `</tbody></table>`;
                 } else {
-                    const modeTotal = mode === 'pay' ? balanceData.pay : (mode === 'wallet' ? balanceData.wallet : balanceData.collect);
+                    let modeTotal = 0;
+                    if(mode === 'pay') modeTotal = balanceData.pay;
+                    else if(mode === 'wallet') modeTotal = balanceData.wallet;
+                    else if(mode === 'expenses') modeTotal = balanceData.expenses;
+                    else modeTotal = balanceData.collect;
+
                     contentHTML += `<div class="total-box">Total Pendiente: ${formatMoney(modeTotal)}</div><table><thead><tr><th style="width:30%">Referencia</th><th style="width:15%">Vencimiento</th><th style="text-align:right;width:15%">Total</th><th style="text-align:right;width:20%">Pendiente</th><th style="text-align:right;width:20%">Acumulado</th></tr></thead><tbody>`;
                     
                     let runningAccumulator = 0;
                     groupedView.data.forEach(group => {
                         let groupTitle = '';
                         if (groupedView.type === 'client-grouped') { groupTitle = group.label; runningAccumulator = 0; } 
+                        else if (groupedView.type === 'month-grouped') { groupTitle = group.label; } // Expenses
                         else groupTitle = new Date(group.key + 'T00:00:00').toLocaleDateString('es-AR');
 
                         const sortedItems = [...group.items].sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
@@ -201,7 +214,7 @@
                             const isPaid = item.status === 'paid';
                             if (!isPaid) runningAccumulator += remaining;
                             
-                            contentHTML += `<tr><td>${item.payee} <br/><span style="color:#666;font-size:9px">${details}</span></td><td class="date">${new Date(item.dueDate+'T00:00:00').toLocaleDateString('es-AR')}</td><td class="amount">${formatMoney(item.amount)}</td><td class="amount ${isPaid ? 'green' : 'red'}">${isPaid ? 'COBRADO' : formatMoney(remaining)}</td><td class="amount" style="color:#555;font-weight:bold">${formatMoney(runningAccumulator)}</td></tr>`;
+                            contentHTML += `<tr><td>${item.payee} <br/><span style="color:#666;font-size:9px">${details}</span></td><td class="date">${new Date(item.dueDate+'T00:00:00').toLocaleDateString('es-AR')}</td><td class="amount">${formatMoney(item.amount)}</td><td class="amount ${isPaid ? 'green' : 'red'}">${isPaid ? 'PAGADO' : formatMoney(remaining)}</td><td class="amount" style="color:#555;font-weight:bold">${formatMoney(runningAccumulator)}</td></tr>`;
                         });
                     });
                     contentHTML += `</tbody></table>`;
@@ -225,14 +238,16 @@
             };
 
             const alerts = useMemo(() => {
-                const all = [...payItems, ...collectItems, ...walletItems];
+                const all = [...payItems, ...collectItems, ...walletItems, ...expenseItems];
                 return all.filter(item => { if (item.status === 'paid') return false; const d = getDays(item.dueDate); return d <= 10; }).sort((a,b) => getDays(a.dueDate) - getDays(b.dueDate));
-            }, [payItems, collectItems, walletItems]);
+            }, [payItems, collectItems, walletItems, expenseItems]);
 
             const balanceData = useMemo(() => {
-                const pendingPay = payItems.filter(i => i.status !== 'paid').reduce((sum, i) => sum + (i.amount - (i.paidAmount || 0)), 0);
-                const pendingCollect = collectItems.filter(i => i.status !== 'paid').reduce((sum, i) => sum + (i.amount - (i.paidAmount || 0)), 0);
-                const pendingWallet = walletItems.filter(i => i.status !== 'paid').reduce((sum, i) => sum + (i.amount - (i.paidAmount || 0)), 0);
+                const calcPending = (list) => list.filter(i => i.status !== 'paid').reduce((sum, i) => sum + (i.amount - (i.paidAmount || 0)), 0);
+                const pendingPay = calcPending(payItems);
+                const pendingCollect = calcPending(collectItems);
+                const pendingWallet = calcPending(walletItems);
+                const pendingExpenses = calcPending(expenseItems);
                 
                 const expensesByCategory = {};
                 payItems.filter(i => i.status !== 'paid').forEach(item => {
@@ -245,25 +260,26 @@
                 let dailyAgenda = [];
                 if (mode === 'balance') {
                     const dates = new Set();
-                    [...payItems, ...collectItems, ...walletItems].filter(i => i.status !== 'paid').forEach(i => { if(i.dueDate) dates.add(i.dueDate); });
+                    [...payItems, ...collectItems, ...walletItems, ...expenseItems].filter(i => i.status !== 'paid').forEach(i => { if(i.dueDate) dates.add(i.dueDate); });
                     const sortedDates = Array.from(dates).sort((a,b) => new Date(a) - new Date(b));
                     
                     dailyAgenda = sortedDates.map(date => {
                         const dayPays = payItems.filter(i => i.dueDate === date && i.status !== 'paid');
                         const dayCollects = collectItems.filter(i => i.dueDate === date && i.status !== 'paid');
                         const dayWallet = walletItems.filter(i => i.dueDate === date && i.status !== 'paid');
+                        const dayExpenses = expenseItems.filter(i => i.dueDate === date && i.status !== 'paid');
                         
-                        const outflow = dayPays.reduce((s, i) => s + (i.amount - (i.paidAmount||0)), 0);
+                        const outflow = dayPays.reduce((s, i) => s + (i.amount - (i.paidAmount||0)), 0) + dayExpenses.reduce((s, i) => s + (i.amount - (i.paidAmount||0)), 0);
                         const inflow = dayCollects.reduce((s, i) => s + (i.amount - (i.paidAmount||0)), 0) + dayWallet.reduce((s, i) => s + (i.amount - (i.paidAmount||0)), 0);
                         
                         return { date, outflow, inflow, net: inflow - outflow };
                     });
                 }
-                return { pay: pendingPay, collect: pendingCollect, wallet: pendingWallet, net: (pendingCollect + pendingWallet) - pendingPay, dailyAgenda, sortedCategories };
-            }, [payItems, collectItems, walletItems, mode]);
+                return { pay: pendingPay, collect: pendingCollect, wallet: pendingWallet, expenses: pendingExpenses, net: (pendingCollect + pendingWallet) - (pendingPay + pendingExpenses), dailyAgenda, sortedCategories };
+            }, [payItems, collectItems, walletItems, expenseItems, mode]);
 
             const dashboardData = useMemo(() => {
-                const currentItems = mode === 'pay' ? payItems : (mode === 'collect' ? collectItems : (mode === 'wallet' ? walletItems : []));
+                const currentItems = mode === 'pay' ? payItems : (mode === 'collect' ? collectItems : (mode === 'wallet' ? walletItems : (mode === 'expenses' ? expenseItems : [])));
                 const pending = currentItems.filter(i => i.status !== 'paid');
                 const calcDebt = (list) => list.reduce((s, i) => s + (i.amount - (i.paidAmount || 0)), 0);
                 return {
@@ -271,7 +287,7 @@
                     urgent: { count: pending.filter(i => getDays(i.dueDate) >= 0 && getDays(i.dueDate) <= 7).length, total: calcDebt(pending.filter(i => getDays(i.dueDate) >= 0 && getDays(i.dueDate) <= 7)) },
                     future: { count: pending.filter(i => getDays(i.dueDate) > 7).length, total: calcDebt(pending.filter(i => getDays(i.dueDate) > 7)) }
                 };
-            }, [payItems, collectItems, walletItems, mode]);
+            }, [payItems, collectItems, walletItems, expenseItems, mode]);
 
             // PREVISIÓN 15 DÍAS (Modo Balance)
             const forecastData = useMemo(() => {
@@ -289,27 +305,30 @@
                     const dayPays = payItems.filter(item => item.dueDate === dateKey && item.status !== 'paid');
                     const dayCollects = collectItems.filter(item => item.dueDate === dateKey && item.status !== 'paid');
                     const dayWallet = walletItems.filter(item => item.dueDate === dateKey && item.status !== 'paid');
+                    const dayExpenses = expenseItems.filter(item => item.dueDate === dateKey && item.status !== 'paid');
 
-                    const outflow = dayPays.reduce((sum, item) => sum + (item.amount - (item.paidAmount || 0)), 0);
+                    const outflow = dayPays.reduce((sum, item) => sum + (item.amount - (item.paidAmount || 0)), 0) + dayExpenses.reduce((sum, item) => sum + (item.amount - (item.paidAmount || 0)), 0);
                     const inflow = dayCollects.reduce((sum, item) => sum + (item.amount - (item.paidAmount || 0)), 0) + dayWallet.reduce((sum, item) => sum + (item.amount - (item.paidAmount || 0)), 0);
                     
                     days.push({ date: current, dateKey, net: inflow - outflow, inflow, outflow });
                 }
                 return days;
-            }, [payItems, collectItems, walletItems]);
+            }, [payItems, collectItems, walletItems, expenseItems]);
 
             const groupedView = useMemo(() => {
                 if (mode === 'balance' && !selectedDateFilter) return null;
 
                 let items = [];
                 if (mode === 'balance' && selectedDateFilter) {
-                    items = [...payItems, ...collectItems, ...walletItems];
+                    items = [...payItems, ...collectItems, ...walletItems, ...expenseItems];
                 } else if (mode === 'pay') {
                     items = payItems;
                 } else if (mode === 'collect') {
                     items = collectItems;
                 } else if (mode === 'wallet') {
                     items = walletItems;
+                } else if (mode === 'expenses') {
+                    items = expenseItems;
                 }
                 
                 if (searchTerm) {
@@ -332,9 +351,7 @@
 
                 let filtered = items;
 
-                // Grouping Logic
                 if (mode === 'collect' && !selectedDateFilter) {
-                    // Client Grouping for Collections
                     const groups = {};
                     filtered.forEach(item => {
                         const clientName = item.payee ? item.payee.trim().toUpperCase() : 'SIN NOMBRE';
@@ -345,8 +362,24 @@
                         groups[clientName].items.push(item);
                     });
                     return { type: 'client-grouped', data: Object.values(groups).sort((a,b) => b.total - a.total) };
+                } else if (mode === 'expenses' && !selectedDateFilter) {
+                    // Agrupación por Mes para Gastos
+                    const groups = {};
+                    filtered.forEach(item => {
+                        const monthKey = item.monthYear || item.dueDate.substring(0, 7); // YYYY-MM
+                        if (!groups[monthKey]) {
+                            const [y, m] = monthKey.split('-');
+                            const dateObj = new Date(y, m-1);
+                            const label = dateObj.toLocaleDateString('es-AR', { month: 'long', year: 'numeric' });
+                            groups[monthKey] = { key: monthKey, label: label.charAt(0).toUpperCase() + label.slice(1), total: 0, items: [], count: 0 };
+                        }
+                        const pendingAmount = item.amount - (item.paidAmount || 0);
+                        if (item.status !== 'paid') groups[monthKey].total += pendingAmount;
+                        groups[monthKey].count += 1;
+                        groups[monthKey].items.push(item);
+                    });
+                    return { type: 'month-grouped', data: Object.values(groups).sort((a,b) => b.key.localeCompare(a.key)) };
                 } else {
-                    // Date Grouping for Pay, Wallet, Balance
                     filtered.sort((a,b) => new Date(a.dueDate) - new Date(b.dueDate));
                     if ((activeFilter === 'all' && !selectedDateFilter) || (mode === 'balance' && selectedDateFilter)) return { type: 'flat', data: filtered };
                     const groups = {};
@@ -359,21 +392,23 @@
                     });
                     return { type: 'date-grouped', data: Object.values(groups).sort((a,b) => new Date(a.key) - new Date(b.key)) };
                 }
-            }, [payItems, collectItems, walletItems, activeFilter, mode, searchTerm, selectedDateFilter]);
+            }, [payItems, collectItems, walletItems, expenseItems, activeFilter, mode, searchTerm, selectedDateFilter]);
 
             const handleAdd = async (e) => {
                 e.preventDefault();
                 let targetCollection = 'cheques_public_shared';
                 if(mode === 'collect') targetCollection = 'cobros_public_shared';
                 if(mode === 'wallet') targetCollection = 'cartera_public_shared';
+                if(mode === 'expenses') targetCollection = 'gastos_public_shared';
 
                 const itemData = {
                     number: newItem.number, issueDate: newItem.issueDate, dueDate: newItem.dueDate, amount: parseFloat(newItem.amount), payee: newItem.payee,
-                    paidAmount: newItem.paidAmount || 0, subtype: newItem.subtype || 'cheque', category: newItem.category || 'others', status: newItem.status || 'pending'
+                    paidAmount: newItem.paidAmount || 0, subtype: newItem.subtype || 'cheque', category: newItem.category || 'others', status: newItem.status || 'pending',
+                    monthYear: newItem.monthYear || '' // Para gastos
                 };
                 if (editingId) { await updateDoc(doc(db, targetCollection, 'main_list', 'items', editingId), itemData); } 
                 else { await addDoc(collection(db, targetCollection, 'main_list', 'items'), { ...itemData, createdAt: new Date().toISOString() }); }
-                setNewItem({ number: '', issueDate: '', dueDate: '', amount: '', payee: '', paidAmount: 0, subtype: 'cheque', category: 'others', status: 'pending' });
+                setNewItem({ number: '', issueDate: '', dueDate: '', amount: '', payee: '', paidAmount: 0, subtype: 'cheque', category: 'others', status: 'pending', monthYear: '' });
                 setEditingId(null);
                 setShowAddForm(false);
             };
@@ -381,13 +416,39 @@
             const handleEdit = (item) => {
                 setNewItem({
                     number: item.number || '', issueDate: item.issueDate || '', dueDate: item.dueDate || '', amount: item.amount, payee: item.payee,
-                    paidAmount: item.paidAmount || 0, subtype: item.subtype || 'cheque', category: item.category || 'others', status: item.status || 'pending'
+                    paidAmount: item.paidAmount || 0, subtype: item.subtype || 'cheque', category: item.category || 'others', status: item.status || 'pending',
+                    monthYear: item.monthYear || ''
                 });
                 setEditingId(item.id);
                 setShowAddForm(true);
             };
 
+            const confirmPayment = async () => {
+                if(!paymentModal.item) return;
+                const item = paymentModal.item;
+                const collectionName = 'gastos_public_shared'; // Solo para gastos por ahora
+                
+                // Actualizar item con pago total
+                await updateDoc(doc(db, collectionName, 'main_list', 'items', item.id), { 
+                    status: 'paid', 
+                    paidAmount: item.amount,
+                    paymentDetails: {
+                        method: paymentModal.method,
+                        proof: paymentModal.proof,
+                        date: new Date().toISOString()
+                    }
+                });
+                
+                setPaymentModal({ isOpen: false, item: null, method: 'transfer', proof: '' });
+            };
+
             const markFullPayment = async (item) => {
+                if (item.type === 'expense') {
+                    // Abrir modal para gastos
+                    setPaymentModal({ isOpen: true, item: item, method: 'transfer', proof: '' });
+                    return;
+                }
+
                 let collectionName = 'cheques_public_shared';
                 if(item.type === 'collect') collectionName = 'cobros_public_shared';
                 if(item.type === 'wallet') collectionName = 'cartera_public_shared';
@@ -398,8 +459,7 @@
             };
 
             const markPartialPayment = async (item) => {
-                // Wallet does not support partial
-                if(item.type === 'wallet') return;
+                if(item.type === 'wallet' || item.type === 'expense') return; // Gastos y Cartera no parciales
 
                 const amountStr = prompt(`Total: ${item.amount}\nPagado: ${item.paidAmount || 0}\n\nNuevo total acumulado:`);
                 if(!amountStr) return;
@@ -420,6 +480,7 @@
                 let collectionName = 'cheques_public_shared';
                 if(item.type === 'collect') collectionName = 'cobros_public_shared';
                 if(item.type === 'wallet') collectionName = 'cartera_public_shared';
+                if(item.type === 'expense') collectionName = 'gastos_public_shared';
                 await deleteDoc(doc(db, collectionName, 'main_list', 'items', item.id));
             };
 
@@ -440,6 +501,7 @@
                 if(mode === 'pay') return { main: 'blue', bg: 'bg-blue-800', light: 'bg-blue-50', text: 'text-blue-600', border: 'border-blue-500', btn: 'bg-blue-600' };
                 if(mode === 'collect') return { main: 'emerald', bg: 'bg-emerald-800', light: 'bg-emerald-50', text: 'text-emerald-600', border: 'border-emerald-500', btn: 'bg-emerald-600' };
                 if(mode === 'wallet') return { main: 'indigo', bg: 'bg-indigo-800', light: 'bg-indigo-50', text: 'text-indigo-600', border: 'border-indigo-500', btn: 'bg-indigo-600' };
+                if(mode === 'expenses') return { main: 'orange', bg: 'bg-orange-800', light: 'bg-orange-50', text: 'text-orange-600', border: 'border-orange-500', btn: 'bg-orange-600' };
                 return { main: 'violet', bg: 'bg-violet-900', light: 'bg-violet-50', text: 'text-violet-600', border: 'border-violet-500', btn: 'bg-violet-600' }; 
             }
             const theme = getTheme();
@@ -448,6 +510,8 @@
 
             return (
                 <div className="pb-24 max-w-4xl mx-auto min-h-screen bg-gray-50 shadow-2xl relative transition-colors duration-500">
+                    
+                    {/* --- HEADER --- */}
                     <div className={`${theme.bg} text-white p-4 sticky top-0 z-30 shadow-lg transition-colors duration-500`}>
                         <div className="flex justify-between items-center mb-4">
                             <h1 className="text-xl font-bold flex items-center gap-2">SII PALLETS APP</h1>
@@ -469,7 +533,7 @@
                                                     const isPay = a.type === 'pay';
                                                     return (
                                                         <div key={a.id} className={`p-3 border-b text-sm ${d < 0 ? 'bg-red-50' : 'bg-white'}`}>
-                                                            <div className="flex justify-between"><span className={`text-[10px] font-bold px-1 rounded ${isPay ? 'bg-blue-100 text-blue-700' : 'bg-emerald-100 text-emerald-700'}`}>{isPay ? 'PAGO' : 'COBRO'}</span><span className="font-mono text-xs">{formatMoney(a.amount - (a.paidAmount||0))}</span></div>
+                                                            <div className="flex justify-between"><span className={`text-[10px] font-bold px-1 rounded ${isPay ? 'bg-blue-100 text-blue-700' : 'bg-emerald-100 text-emerald-700'}`}>{isPay ? 'PAGO' : (a.type === 'wallet' ? 'CARTERA' : (a.type === 'expense' ? 'GASTO' : 'COBRO'))}</span><span className="font-mono text-xs">{formatMoney(a.amount - (a.paidAmount||0))}</span></div>
                                                             <p className="font-bold mt-1">{a.payee}</p>
                                                             <p className={`text-xs ${d < 0 ? 'text-red-600 font-bold' : 'text-orange-500'}`}>{d < 0 ? `Vencido hace ${Math.abs(d)} días` : `Vence en ${d} días`}</p>
                                                         </div>
@@ -487,22 +551,64 @@
                             <IconSearch className="w-4 h-4 text-white/70 absolute left-3 top-2.5"/>
                         </div>
 
-                        <div className="bg-black/20 p-1 rounded-xl flex relative text-[10px] sm:text-xs">
-                            <button onClick={() => { setMode('pay'); setActiveFilter('all'); setSelectedDateFilter(null); }} className={`flex-1 py-2 rounded-lg font-bold flex flex-col sm:flex-row items-center justify-center gap-1 transition-all ${mode === 'pay' ? 'bg-white text-blue-800 shadow-md' : 'text-white/60'}`}><IconWallet className="w-4 h-4"/> <span>PAGOS</span></button>
-                            <button onClick={() => { setMode('balance'); setSelectedDateFilter(null); }} className={`flex-1 py-2 rounded-lg font-bold flex flex-col sm:flex-row items-center justify-center gap-1 transition-all ${mode === 'balance' ? 'bg-white text-violet-800 shadow-md' : 'text-white/60'}`}><IconTrendingUp className="w-4 h-4"/> <span>BALANCE</span></button>
-                            <button onClick={() => { setMode('collect'); setActiveFilter('all'); setSelectedDateFilter(null); }} className={`flex-1 py-2 rounded-lg font-bold flex flex-col sm:flex-row items-center justify-center gap-1 transition-all ${mode === 'collect' ? 'bg-white text-emerald-800 shadow-md' : 'text-white/60'}`}><IconBriefcase className="w-4 h-4"/> <span>COBROS</span></button>
-                            <button onClick={() => { setMode('wallet'); setActiveFilter('all'); setSelectedDateFilter(null); }} className={`flex-1 py-2 rounded-lg font-bold flex flex-col sm:flex-row items-center justify-center gap-1 transition-all ${mode === 'wallet' ? 'bg-white text-indigo-800 shadow-md' : 'text-white/60'}`}><IconFolder className="w-4 h-4"/> <span>CARTERA</span></button>
+                        <div className="bg-black/20 p-1 rounded-xl flex text-[10px] sm:text-xs overflow-x-auto scrollbar-hide">
+                            <button onClick={() => { setMode('pay'); setActiveFilter('all'); setSelectedDateFilter(null); }} className={`flex-1 py-2 px-3 rounded-lg font-bold flex flex-col sm:flex-row items-center justify-center gap-1 transition-all whitespace-nowrap ${mode === 'pay' ? 'bg-white text-blue-800 shadow-md' : 'text-white/60'}`}><IconWallet className="w-4 h-4"/> <span>PAGOS</span></button>
+                            <button onClick={() => { setMode('balance'); setSelectedDateFilter(null); }} className={`flex-1 py-2 px-3 rounded-lg font-bold flex flex-col sm:flex-row items-center justify-center gap-1 transition-all whitespace-nowrap ${mode === 'balance' ? 'bg-white text-violet-800 shadow-md' : 'text-white/60'}`}><IconTrendingUp className="w-4 h-4"/> <span>BALANCE</span></button>
+                            <button onClick={() => { setMode('collect'); setActiveFilter('all'); setSelectedDateFilter(null); }} className={`flex-1 py-2 px-3 rounded-lg font-bold flex flex-col sm:flex-row items-center justify-center gap-1 transition-all whitespace-nowrap ${mode === 'collect' ? 'bg-white text-emerald-800 shadow-md' : 'text-white/60'}`}><IconBriefcase className="w-4 h-4"/> <span>COBROS</span></button>
+                            <button onClick={() => { setMode('wallet'); setActiveFilter('all'); setSelectedDateFilter(null); }} className={`flex-1 py-2 px-3 rounded-lg font-bold flex flex-col sm:flex-row items-center justify-center gap-1 transition-all whitespace-nowrap ${mode === 'wallet' ? 'bg-white text-indigo-800 shadow-md' : 'text-white/60'}`}><IconFolder className="w-4 h-4"/> <span>CARTERA</span></button>
+                            <button onClick={() => { setMode('expenses'); setActiveFilter('all'); setSelectedDateFilter(null); }} className={`flex-1 py-2 px-3 rounded-lg font-bold flex flex-col sm:flex-row items-center justify-center gap-1 transition-all whitespace-nowrap ${mode === 'expenses' ? 'bg-white text-orange-800 shadow-md' : 'text-white/60'}`}><IconTag className="w-4 h-4"/> <span>GASTOS</span></button>
                         </div>
                     </div>
 
                     <div className="p-4">
+                        {/* PAYMENT MODAL (GASTOS) */}
+                        {paymentModal.isOpen && (
+                            <div className="fixed inset-0 modal-overlay z-50 flex items-center justify-center p-4">
+                                <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm animate-fade-in">
+                                    <h3 className="text-lg font-bold text-gray-800 mb-4">Confirmar Pago de Gasto</h3>
+                                    <p className="text-sm text-gray-500 mb-4">Vas a cancelar: <strong>{paymentModal.item.payee}</strong> ({formatMoney(paymentModal.item.amount)})</p>
+                                    
+                                    <div className="space-y-3">
+                                        <div>
+                                            <label className="text-xs text-gray-500 block mb-1">Medio de Pago</label>
+                                            <select 
+                                                className="w-full p-2 border rounded-lg"
+                                                value={paymentModal.method}
+                                                onChange={e => setPaymentModal({...paymentModal, method: e.target.value})}
+                                            >
+                                                <option value="transfer">Transferencia</option>
+                                                <option value="cheque">Cheque</option>
+                                                <option value="echeq">E-Cheq</option>
+                                                <option value="cash">Efectivo</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className="text-xs text-gray-500 block mb-1">Nº Comprobante / Referencia</label>
+                                            <input 
+                                                type="text" 
+                                                className="w-full p-2 border rounded-lg"
+                                                placeholder="Ej: 123456"
+                                                value={paymentModal.proof}
+                                                onChange={e => setPaymentModal({...paymentModal, proof: e.target.value})}
+                                            />
+                                        </div>
+                                    </div>
+                                    <div className="mt-6 flex gap-2">
+                                        <button onClick={() => setPaymentModal({isOpen:false, item:null, method:'transfer', proof:''})} className="flex-1 py-2 border rounded-lg text-gray-500 hover:bg-gray-50">Cancelar</button>
+                                        <button onClick={confirmPayment} className="flex-1 py-2 bg-green-600 text-white rounded-lg font-bold hover:bg-green-700">Confirmar Pago</button>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+
                         {mode === 'balance' && !selectedDateFilter && (
                             <div className="animate-fade-in">
                                 <div className={`bg-white p-5 rounded-2xl shadow-md border-l-8 mb-6 border-violet-500`}>
                                     <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-3">Estado Financiero Global (Pendiente)</p>
                                     <div className="flex justify-between text-center mb-4">
                                         <div><p className="text-xs text-emerald-600 font-bold mb-1">A COBRAR (+)</p><p className="text-xl font-bold text-gray-800">{formatMoney(balanceData.collect + balanceData.wallet)}</p></div>
-                                        <div><p className="text-xs text-blue-600 font-bold mb-1">A PAGAR (-)</p><p className="text-xl font-bold text-gray-800">{formatMoney(balanceData.pay)}</p></div>
+                                        <div><p className="text-xs text-blue-600 font-bold mb-1">A PAGAR (-)</p><p className="text-xl font-bold text-gray-800">{formatMoney(balanceData.pay + balanceData.expenses)}</p></div>
                                     </div>
                                     <div className="border-t pt-3 flex justify-between items-center"><span className="text-sm font-bold text-gray-600">PROYECCIÓN SALDO:</span><span className={`text-3xl font-black ${balanceData.net >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>{balanceData.net > 0 ? '+' : ''}{formatMoney(balanceData.net)}</span></div>
                                 </div>
@@ -579,10 +685,13 @@
                                     const dayPays = payItems.filter(i => i.dueDate === selectedDateFilter);
                                     const dayCollects = collectItems.filter(i => i.dueDate === selectedDateFilter);
                                     const dayWallets = walletItems.filter(i => i.dueDate === selectedDateFilter);
-                                    const dayOutflow = dayPays.filter(i => i.status !== 'paid').reduce((s,i) => s + (i.amount - (i.paidAmount||0)), 0);
+                                    const dayExpenses = expenseItems.filter(i => i.dueDate === selectedDateFilter);
+                                    
+                                    const dayOutflow = dayPays.filter(i => i.status !== 'paid').reduce((s,i) => s + (i.amount - (i.paidAmount||0)), 0) + dayExpenses.filter(i => i.status !== 'paid').reduce((s,i) => s + (i.amount - (i.paidAmount||0)), 0);
                                     const dayInflow = dayCollects.filter(i => i.status !== 'paid').reduce((s,i) => s + (i.amount - (i.paidAmount||0)), 0) + dayWallets.filter(i => i.status !== 'paid').reduce((s,i) => s + (i.amount - (i.paidAmount||0)), 0);
                                     const dayBalance = dayInflow - dayOutflow;
                                     const dayInflowItems = [...dayCollects, ...dayWallets];
+                                    const dayOutflowItems = [...dayPays, ...dayExpenses];
 
                                     return (
                                         <>
@@ -621,8 +730,8 @@
                                                         <IconArrowUpRight className="w-3 h-3"/> Salidas
                                                     </h4>
                                                     <div className="space-y-2">
-                                                        {dayPays.length === 0 ? <p className="text-[10px] text-blue-400 italic text-center py-4">Sin Pagos.</p> : 
-                                                            dayPays.map(item => (
+                                                        {dayOutflowItems.length === 0 ? <p className="text-[10px] text-blue-400 italic text-center py-4">Sin Pagos.</p> : 
+                                                            dayOutflowItems.map(item => (
                                                                 <div key={item.id} className={`p-2 rounded bg-white border border-blue-100 shadow-sm ${item.status === 'paid' ? 'opacity-60' : ''}`}>
                                                                     <div className="text-xs font-bold text-gray-700 truncate">{item.payee}</div>
                                                                     <div className="flex justify-between items-end mt-1">
@@ -645,10 +754,10 @@
                                 {!selectedDateFilter && <div className={`bg-white p-5 rounded-2xl shadow-md border-l-8 mb-6 flex items-center justify-between ${theme.border}`}>
                                     <div>
                                         <p className={`text-xs font-bold uppercase tracking-wide mb-1 ${theme.text}`}>
-                                            {mode === 'pay' ? 'Deuda Total Pendiente' : (mode === 'wallet' ? 'Total en Cartera' : 'Cobros Totales Pendientes')}
+                                            {mode === 'pay' ? 'Deuda Total Pendiente' : (mode === 'wallet' ? 'Total en Cartera' : (mode === 'expenses' ? 'Total Gastos Mes' : 'Cobros Totales Pendientes'))}
                                         </p>
                                         <p className="text-3xl font-black text-gray-800">
-                                            {mode === 'pay' ? formatMoney(balanceData.pay) : (mode === 'wallet' ? formatMoney(balanceData.wallet) : formatMoney(balanceData.collect))}
+                                            {mode === 'pay' ? formatMoney(balanceData.pay) : (mode === 'wallet' ? formatMoney(balanceData.wallet) : (mode === 'expenses' ? formatMoney(balanceData.expenses) : formatMoney(balanceData.collect)))}
                                         </p>
                                     </div>
                                     <div className={`${theme.light} p-3 rounded-full`}>{mode === 'pay' ? <IconWallet className={`w-8 h-8 ${theme.text}`} /> : <IconCash className={`w-8 h-8 ${theme.text}`} />}</div>
@@ -675,13 +784,13 @@
                                 )}
 
                                 {mode !== 'balance' && <button onClick={() => { setEditingId(null); setNewItem({ number: '', issueDate: '', dueDate: '', amount: '', payee: '', paidAmount: 0, subtype: 'cheque', category: 'others', status: 'pending' }); setShowAddForm(!showAddForm); }} className={`w-full ${theme.btn} hover:opacity-90 text-white p-3 rounded-xl shadow-md mb-6 flex items-center justify-center gap-2 font-bold transition-all active:scale-95`}>
-                                    <IconPlus className="w-5 h-5"/> {showAddForm ? 'Cancelar' : (mode === 'pay' ? 'Registrar Pago' : (mode === 'wallet' ? 'Registrar Cheque' : 'Registrar Factura'))}
+                                    <IconPlus className="w-5 h-5"/> {showAddForm ? 'Cancelar' : (mode === 'pay' ? 'Registrar Pago' : (mode === 'wallet' ? 'Registrar Cheque' : (mode === 'expenses' ? 'Registrar Gasto' : 'Registrar Factura')))}
                                 </button>}
 
                                 {showAddForm && (
                                     <form onSubmit={handleAdd} className="bg-white p-5 rounded-xl shadow-lg border border-gray-200 mb-6 animate-fade-in relative overflow-hidden">
                                         <div className={`absolute top-0 left-0 w-1 h-full ${theme.bg}`}></div>
-                                        <h3 className="font-bold mb-4 text-gray-700">{editingId ? 'Editar Movimiento' : (mode === 'pay' ? 'Nuevo Pago (Salida)' : (mode === 'wallet' ? 'Nuevo Cheque en Cartera' : 'Nueva Factura (Entrada)'))}</h3>
+                                        <h3 className="font-bold mb-4 text-gray-700">{editingId ? 'Editar Movimiento' : (mode === 'pay' ? 'Nuevo Pago (Salida)' : (mode === 'wallet' ? 'Nuevo Cheque en Cartera' : (mode === 'expenses' ? 'Nuevo Gasto Mensual' : 'Nueva Factura (Entrada)')))}</h3>
                                         <div className="space-y-3">
                                             {mode === 'pay' && (
                                                 <div className="grid grid-cols-2 gap-3">
@@ -710,24 +819,37 @@
                                                 </div>
                                             )}
 
-                                            <div>
-                                                <input list={mode === 'collect' ? "clientsSuggestions" : ""} className="w-full p-3 bg-gray-50 rounded-lg border focus:ring-2 focus:ring-blue-500 outline-none" placeholder={mode === 'pay' ? "Beneficiario (A quién pagas)" : (mode === 'wallet' ? "Librador (Quién te pagó)" : "Cliente")} value={newItem.payee} onChange={e=>setNewItem({...newItem, payee:e.target.value})} required />
-                                                {mode === 'collect' && <datalist id="clientsSuggestions">{uniqueClients.map(client => <option key={client} value={client} />)}</datalist>}
-                                            </div>
+                                            {mode === 'expenses' ? (
+                                                <>
+                                                    <div>
+                                                        <label className="text-xs text-gray-500 block mb-1">Concepto / Nombre</label>
+                                                        <input className="w-full p-3 bg-gray-50 rounded-lg border focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Ej: Alquiler Galpón" value={newItem.payee} onChange={e=>setNewItem({...newItem, payee:e.target.value})} required />
+                                                    </div>
+                                                    <div>
+                                                        <label className="text-xs text-gray-500 block mb-1">Mes que Corresponde</label>
+                                                        <input type="month" className="w-full p-3 bg-gray-50 rounded-lg border focus:ring-2 focus:ring-blue-500 outline-none" value={newItem.monthYear} onChange={e=>setNewItem({...newItem, monthYear:e.target.value})} required />
+                                                    </div>
+                                                </>
+                                            ) : (
+                                                <div>
+                                                    <input list={mode === 'collect' ? "clientsSuggestions" : ""} className="w-full p-3 bg-gray-50 rounded-lg border focus:ring-2 focus:ring-blue-500 outline-none" placeholder={mode === 'pay' ? "Beneficiario (A quién pagas)" : (mode === 'wallet' ? "Librador (Quién te pagó)" : "Cliente")} value={newItem.payee} onChange={e=>setNewItem({...newItem, payee:e.target.value})} required />
+                                                    {mode === 'collect' && <datalist id="clientsSuggestions">{uniqueClients.map(client => <option key={client} value={client} />)}</datalist>}
+                                                </div>
+                                            )}
 
                                             <div className="flex gap-3">
-                                                <input 
+                                                {mode !== 'expenses' && <input 
                                                     className="w-1/2 p-3 bg-gray-50 rounded-lg border focus:ring-2 focus:ring-blue-500 outline-none" 
                                                     placeholder={mode === 'collect' ? "Nº Factura" : (newItem.subtype === 'cheque' || mode === 'wallet' ? "Nº Cheque" : "Nota / Ref (Opcional)")} 
                                                     value={newItem.number} 
                                                     onChange={e=>setNewItem({...newItem, number:e.target.value})} 
                                                     required={mode === 'collect' || newItem.subtype === 'cheque' || mode === 'wallet'}
-                                                />
-                                                <input type="number" step="0.01" className="w-1/2 p-3 bg-gray-50 rounded-lg border focus:ring-2 focus:ring-blue-500 outline-none" placeholder="$ Importe Total" value={newItem.amount} onChange={e=>setNewItem({...newItem, amount:e.target.value})} required />
+                                                />}
+                                                <input type="number" step="0.01" className={`${mode === 'expenses' ? 'w-full' : 'w-1/2'} p-3 bg-gray-50 rounded-lg border focus:ring-2 focus:ring-blue-500 outline-none`} placeholder="$ Importe Total" value={newItem.amount} onChange={e=>setNewItem({...newItem, amount:e.target.value})} required />
                                             </div>
                                             <div className="flex gap-3">
-                                                <div className="w-1/2"><label className="text-xs text-gray-500 block mb-1">Emisión</label><input type="date" className="w-full p-3 bg-gray-50 rounded-lg border outline-none" value={newItem.issueDate} onChange={e=>setNewItem({...newItem, issueDate:e.target.value})} /></div>
-                                                <div className="w-1/2"><label className="text-xs text-gray-500 block mb-1 font-bold">Vencimiento</label><input type="date" className="w-full p-3 bg-gray-50 rounded-lg border outline-none font-bold text-gray-700" value={newItem.dueDate} onChange={e=>setNewItem({...newItem, dueDate:e.target.value})} required /></div>
+                                                {mode !== 'expenses' && <div className="w-1/2"><label className="text-xs text-gray-500 block mb-1">Emisión</label><input type="date" className="w-full p-3 bg-gray-50 rounded-lg border outline-none" value={newItem.issueDate} onChange={e=>setNewItem({...newItem, issueDate:e.target.value})} /></div>}
+                                                <div className={mode === 'expenses' ? 'w-full' : 'w-1/2'}><label className="text-xs text-gray-500 block mb-1">Vencimiento</label><input type="date" className="w-full p-3 bg-gray-50 rounded-lg border outline-none font-bold text-gray-700" value={newItem.dueDate} onChange={e=>setNewItem({...newItem, dueDate:e.target.value})} required /></div>
                                             </div>
                                             <button type="submit" className={`w-full ${theme.btn} text-white p-3 rounded-lg font-bold hover:opacity-90`}>{editingId ? 'Actualizar' : 'Guardar'}</button>
                                         </div>
@@ -774,7 +896,7 @@
                                                         </div>
                                                         <div className="flex gap-1">
                                                             <button onClick={() => markFullPayment(item)} className={`p-1.5 rounded border shadow-sm ${isPaid ? 'bg-green-100 text-green-700 border-green-300' : 'bg-white text-gray-400 hover:text-green-600'}`} title={mode === 'wallet' ? "Depositar/Cobrar" : "Pagar/Cobrar"}><IconCheck className="w-4 h-4"/></button>
-                                                            {!isPaid && mode !== 'wallet' && <button onClick={() => markPartialPayment(item)} className="p-1.5 rounded border shadow-sm bg-white text-gray-400 hover:text-yellow-600 hover:bg-yellow-50"><span className="font-bold text-xs w-4 h-4 flex items-center justify-center">$</span></button>}
+                                                            {!isPaid && mode !== 'wallet' && mode !== 'expenses' && <button onClick={() => markPartialPayment(item)} className="p-1.5 rounded border shadow-sm bg-white text-gray-400 hover:text-yellow-600 hover:bg-yellow-50"><span className="font-bold text-xs w-4 h-4 flex items-center justify-center">$</span></button>}
                                                             <button onClick={() => {
                                                                 const action = item.type === 'pay' ? 'PAGO' : 'COBRO';
                                                                 const text = `Hola *${item.payee}*, aviso sobre ${action} (Ref: ${item.number || 'S/N'}) por *${formatMoney(item.amount)}* con fecha: ${new Date(item.dueDate+'T00:00:00').toLocaleDateString('es-AR')}. Saludos, SII PALLETS.`;
@@ -800,8 +922,8 @@
                                                     <div key={idx} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-2">
                                                         <button onClick={() => setExpandedGroups(p => ({...p, [group.key]: !p[group.key]}))} className="w-full p-3 flex justify-between items-center bg-gray-50 hover:bg-gray-100 transition">
                                                             <div className="flex items-center gap-3">
-                                                                {isClientGroup ? (<div className={`bg-emerald-100 text-emerald-700 font-bold rounded-full p-2 w-10 h-10 flex items-center justify-center shrink-0`}><IconUserGroup className="w-5 h-5"/></div>) : (<div className={`${theme.light} ${theme.text} font-bold rounded-lg p-2 text-center min-w-[50px]`}><span className="block text-xs uppercase">{new Date(group.key + 'T00:00:00').toLocaleDateString('es-AR', {month:'short'})}</span><span className="block text-xl leading-none">{new Date(group.key + 'T00:00:00').getDate()}</span></div>)}
-                                                                <div className="text-left overflow-hidden"><p className="text-sm font-bold text-gray-700 truncate">{isClientGroup ? group.label : `${group.items.length} Items`}</p>{isClientGroup && <p className="text-xs text-gray-500">{group.count} Facturas pendientes</p>}</div>
+                                                                {isClientGroup ? (<div className={`bg-emerald-100 text-emerald-700 font-bold rounded-full p-2 w-10 h-10 flex items-center justify-center shrink-0`}><IconUserGroup className="w-5 h-5"/></div>) : (<div className={`${theme.light} ${theme.text} font-bold rounded-lg p-2 text-center min-w-[50px]`}><span className="block text-xs uppercase">{group.label.includes(' ') ? group.label.split(' ')[0] : new Date(group.key + 'T00:00:00').toLocaleDateString('es-AR', {month:'short'})}</span><span className="block text-xl leading-none">{group.key.includes('-') && group.key.length === 7 ? '' : new Date(group.key + 'T00:00:00').getDate()}</span></div>)}
+                                                                <div className="text-left overflow-hidden"><p className="text-sm font-bold text-gray-700 truncate">{isClientGroup || mode === 'expenses' ? group.label : `${group.items.length} Items`}</p>{(isClientGroup || mode === 'expenses') && <p className="text-xs text-gray-500">{group.count} Pendientes</p>}</div>
                                                             </div>
                                                             <div className="text-right shrink-0"><p className="text-lg font-black text-gray-800">{formatMoney(group.total)}</p><IconChevronDown className={`w-5 h-5 ml-auto text-gray-400 transition-transform ${expandedGroups[group.key] ? 'rotate-180' : ''}`} /></div>
                                                         </button>
