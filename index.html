@@ -227,6 +227,100 @@
                 setTimeout(() => { printWindow.print(); printWindow.close(); }, 500);
             };
 
+            const printClientReport = (group) => {
+                const pendingItems = group.items.filter(i => i.status !== 'paid').sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
+                
+                if (pendingItems.length === 0) return alert("Este cliente no tiene facturas pendientes.");
+
+                const totalPending = pendingItems.reduce((acc, item) => acc + (item.amount - (item.paidAmount || 0)), 0);
+
+                let contentHTML = `
+                    <html>
+                    <head>
+                        <title>Estado de Cuenta - ${group.label}</title>
+                        <style>
+                            body { font-family: sans-serif; padding: 20px; color: #333; font-size: 12px; }
+                            h1 { color: #1e40af; border-bottom: 2px solid #1e40af; padding-bottom: 10px; margin-bottom: 5px; }
+                            .meta { color: #666; font-size: 10px; margin-bottom: 20px; }
+                            .client-info { background: #f3f4f6; padding: 10px; border-radius: 4px; margin-bottom: 20px; border: 1px solid #e5e7eb; }
+                            .client-name { font-size: 16px; font-weight: bold; color: #111; }
+                            
+                            table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+                            th { background: #e5e7eb; padding: 6px; text-align: left; font-size: 11px; border-bottom: 1px solid #999; font-weight: bold; }
+                            td { padding: 6px; border-bottom: 1px solid #eee; vertical-align: top; }
+                            .amount { font-family: monospace; text-align: right; font-weight: bold; }
+                            .date { white-space: nowrap; }
+                            
+                            .total-row td { border-top: 2px solid #333; font-size: 14px; background: #fff; padding-top: 10px; }
+                            .red { color: #dc2626; }
+                            
+                            @media print { button { display: none; } }
+                        </style>
+                    </head>
+                    <body>
+                        <h1>Estado de Cuenta</h1>
+                        <p class="meta">Generado: ${new Date().toLocaleDateString('es-AR')} • SII PALLETS APP</p>
+                        
+                        <div class="client-info">
+                            <div class="client-name">${group.label}</div>
+                            <div>Total Pendiente: <strong>${formatMoney(totalPending)}</strong></div>
+                        </div>
+
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Factura / Ref</th>
+                                    <th>Vencimiento</th>
+                                    <th style="text-align:right">Importe Original</th>
+                                    <th style="text-align:right">A Cuenta / Parcial</th>
+                                    <th style="text-align:right">Saldo Pendiente</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                `;
+
+                pendingItems.forEach(item => {
+                    const original = item.amount;
+                    const paid = item.paidAmount || 0;
+                    const remaining = original - paid;
+                    const details = item.number ? `${item.number}` : 'S/N';
+                    
+                    contentHTML += `
+                        <tr>
+                            <td>${details}</td>
+                            <td class="date">${new Date(item.dueDate + 'T00:00:00').toLocaleDateString('es-AR')}</td>
+                            <td class="amount">${formatMoney(original)}</td>
+                            <td class="amount" style="color:#666">${paid > 0 ? formatMoney(paid) : '-'}</td>
+                            <td class="amount red">${formatMoney(remaining)}</td>
+                        </tr>
+                    `;
+                });
+
+                contentHTML += `
+                            <tr class="total-row">
+                                <td colspan="4" style="text-align:right; font-weight:bold;">TOTAL A PAGAR:</td>
+                                <td class="amount red">${formatMoney(totalPending)}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    
+                    <div style="margin-top: 40px; font-size: 10px; color: #888; text-align: center;">
+                        Documento generado automáticamente por SII PALLETS APP
+                    </div>
+                </body>
+                </html>
+                `;
+
+                const printWindow = window.open('', '_blank');
+                printWindow.document.write(contentHTML);
+                printWindow.document.close();
+                printWindow.focus();
+                setTimeout(() => {
+                    printWindow.print();
+                    printWindow.close();
+                }, 500);
+            };
+
             const requestNotify = () => {
                 if (typeof Notification === 'undefined') return;
                 Notification.requestPermission().then(perm => { setNotifPermission(perm); if(perm === 'granted') { try { new Notification("SII PALLETS APP", { body: "¡Notificaciones activadas!" }); } catch(e) {} } });
@@ -567,27 +661,16 @@
                     </div>
 
                     <div className="p-4">
-                        {/* PAYMENT MODAL (UNIFIED) */}
+                        {/* PAYMENT MODAL (GASTOS) */}
                         {paymentModal.isOpen && (
                             <div className="fixed inset-0 modal-overlay z-50 flex items-center justify-center p-4">
                                 <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm animate-fade-in">
-                                    <h3 className="text-lg font-bold text-gray-800 mb-4">Confirmar {paymentModal.item.type === 'collect' ? 'Cobro' : 'Pago'}</h3>
-                                    
-                                    <div className="bg-gray-50 p-3 rounded-lg mb-4 text-sm text-gray-600">
-                                        <p><strong>{paymentModal.item.payee}</strong></p>
-                                        <p>Nº: {paymentModal.item.number || '-'}</p>
-                                        <p>Vencimiento: {new Date(paymentModal.item.dueDate+'T00:00:00').toLocaleDateString('es-AR')}</p>
-                                        {/* Overdue logic in Modal */}
-                                        {(() => {
-                                            const d = getDays(paymentModal.item.dueDate);
-                                            if (d < 0) return <p className="text-red-500 font-bold mt-1">(Vencida hace {Math.abs(d)} días)</p>;
-                                            return null;
-                                        })()}
-                                        <div className="mt-2 pt-2 border-t border-gray-200">
-                                            Total: {formatMoney(paymentModal.item.amount)}<br/>
-                                            <span className="text-red-500 font-bold">Pendiente: {formatMoney(paymentModal.item.amount - (paymentModal.item.paidAmount||0))}</span>
-                                        </div>
-                                    </div>
+                                    <h3 className="text-lg font-bold text-gray-800 mb-4">Confirmar Pago de Gasto</h3>
+                                    <p className="text-sm text-gray-500 mb-4">
+                                        Concepto: <strong>{paymentModal.item.payee}</strong><br/>
+                                        Total Gasto: {formatMoney(paymentModal.item.amount)}<br/>
+                                        <span className="text-red-500">Pendiente: {formatMoney(paymentModal.item.amount - (paymentModal.item.paidAmount||0))}</span>
+                                    </p>
                                     
                                     <div className="space-y-4">
                                         {/* TIPO DE PAGO: TOTAL O PARCIAL */}
@@ -596,20 +679,20 @@
                                                 onClick={() => setPaymentModal({...paymentModal, type: 'total'})}
                                                 className={`flex-1 py-2 rounded-lg border font-bold text-xs ${paymentModal.type === 'total' ? 'bg-blue-100 border-blue-500 text-blue-700' : 'bg-gray-50 border-gray-200 text-gray-500'}`}
                                             >
-                                                TOTAL
+                                                PAGO TOTAL
                                             </button>
                                             <button 
                                                 onClick={() => setPaymentModal({...paymentModal, type: 'partial'})}
                                                 className={`flex-1 py-2 rounded-lg border font-bold text-xs ${paymentModal.type === 'partial' ? 'bg-blue-100 border-blue-500 text-blue-700' : 'bg-gray-50 border-gray-200 text-gray-500'}`}
                                             >
-                                                PARCIAL
+                                                PAGO PARCIAL
                                             </button>
                                         </div>
 
                                         {/* INPUT MONTO (SOLO SI ES PARCIAL) */}
                                         {paymentModal.type === 'partial' && (
                                             <div>
-                                                <label className="text-xs text-gray-500 block mb-1">Monto a {paymentModal.item.type === 'collect' ? 'Cobrar' : 'Pagar'} Ahora</label>
+                                                <label className="text-xs text-gray-500 block mb-1">Monto a Pagar Ahora</label>
                                                 <input 
                                                     type="number" step="0.01"
                                                     className="w-full p-2 border rounded-lg font-bold text-gray-800"
@@ -621,7 +704,7 @@
                                         )}
 
                                         <div>
-                                            <label className="text-xs text-gray-500 block mb-1">Medio</label>
+                                            <label className="text-xs text-gray-500 block mb-1">Medio de Pago</label>
                                             <select 
                                                 className="w-full p-2 border rounded-lg bg-white"
                                                 value={paymentModal.method}
@@ -634,11 +717,11 @@
                                             </select>
                                         </div>
                                         <div>
-                                            <label className="text-xs text-gray-500 block mb-1">Nº Comprobante / Nota</label>
+                                            <label className="text-xs text-gray-500 block mb-1">Nº Comprobante / Referencia</label>
                                             <input 
                                                 type="text" 
                                                 className="w-full p-2 border rounded-lg"
-                                                placeholder="Opcional"
+                                                placeholder="Ej: 123456"
                                                 value={paymentModal.proof}
                                                 onChange={e => setPaymentModal({...paymentModal, proof: e.target.value})}
                                             />
@@ -924,10 +1007,7 @@
                                                         <div className="text-xs text-gray-500 flex flex-wrap gap-2 mt-1">
                                                             {item.number && <span className="font-mono bg-white px-1 rounded border">#{item.number}</span>}
                                                             <span>•</span>
-                                                            <span className={days < 0 && !isPaid ? 'text-red-600 font-bold' : ''}>
-                                                                {formatDate(item.dueDate)}
-                                                                {days < 0 && !isPaid && <span className="ml-1 bg-red-100 text-red-600 px-1 rounded">-{Math.abs(days)}d</span>}
-                                                            </span>
+                                                            <span className={days < 0 && !isPaid ? 'text-red-600 font-bold' : ''}>Vence: {formatDate(item.dueDate)}</span>
                                                         </div>
                                                     </div>
                                                     <div className="w-full sm:w-auto flex justify-between sm:justify-end items-center gap-4 pl-0 sm:pl-3 border-t sm:border-t-0 pt-2 sm:pt-0 mt-2 sm:mt-0">
@@ -937,7 +1017,7 @@
                                                         </div>
                                                         <div className="flex gap-1">
                                                             <button onClick={() => markFullPayment(item)} className={`p-1.5 rounded border shadow-sm ${isPaid ? 'bg-green-100 text-green-700 border-green-300' : 'bg-white text-gray-400 hover:text-green-600'}`}><IconCheck className="w-4 h-4"/></button>
-                                                            {!isPaid && mode !== 'wallet' && mode !== 'expenses' && <button onClick={() => markPartialPayment(item)} className="p-1.5 rounded border shadow-sm bg-white text-gray-400 hover:text-yellow-600 hover:bg-yellow-50"><span className="font-bold text-xs w-4 h-4 flex items-center justify-center">$</span></button>}
+                                                            {!isPaid && <button onClick={() => markPartialPayment(item)} className="p-1.5 rounded border shadow-sm bg-white text-gray-400 hover:text-yellow-600 hover:bg-yellow-50"><span className="font-bold text-xs w-4 h-4 flex items-center justify-center">$</span></button>}
                                                             <button onClick={() => {
                                                                 const action = item.type === 'pay' ? 'PAGO' : 'COBRO';
                                                                 const text = `Hola *${item.payee}*, aviso sobre ${action} (Ref: ${item.number || 'S/N'}) por *${formatMoney(item.amount)}* con fecha: ${new Date(item.dueDate+'T00:00:00').toLocaleDateString('es-AR')}. Saludos, SII PALLETS.`;
@@ -966,7 +1046,19 @@
                                                                 {isClientGroup ? (<div className={`bg-emerald-100 text-emerald-700 font-bold rounded-full p-2 w-10 h-10 flex items-center justify-center shrink-0`}><IconUserGroup className="w-5 h-5"/></div>) : (<div className={`${theme.light} ${theme.text} font-bold rounded-lg p-2 text-center min-w-[50px]`}><span className="block text-xs uppercase">{group.label.includes(' ') ? group.label.split(' ')[0] : new Date(group.key + 'T00:00:00').toLocaleDateString('es-AR', {month:'short'})}</span><span className="block text-xl leading-none">{group.key.includes('-') && group.key.length === 7 ? '' : new Date(group.key + 'T00:00:00').getDate()}</span></div>)}
                                                                 <div className="text-left overflow-hidden"><p className="text-sm font-bold text-gray-700 truncate">{isClientGroup || mode === 'expenses' ? group.label : `${group.items.length} Items`}</p>{(isClientGroup || mode === 'expenses') && <p className="text-xs text-gray-500">{group.count} Pendientes</p>}</div>
                                                             </div>
-                                                            <div className="text-right shrink-0"><p className="text-lg font-black text-gray-800">{formatMoney(group.total)}</p><IconChevronDown className={`w-5 h-5 ml-auto text-gray-400 transition-transform ${expandedGroups[group.key] ? 'rotate-180' : ''}`} /></div>
+                                                            <div className="text-right flex items-center gap-3">
+                                                                <p className="text-lg font-black text-gray-800">{formatMoney(group.total)}</p>
+                                                                {isClientGroup && (
+                                                                    <button 
+                                                                        onClick={(e) => { e.stopPropagation(); printClientReport(group); }} 
+                                                                        className="p-1 rounded-full bg-gray-100 hover:bg-emerald-100 text-gray-400 hover:text-emerald-600 transition-colors"
+                                                                        title="Imprimir Estado de Cuenta"
+                                                                    >
+                                                                        <IconPrinter className="w-4 h-4" />
+                                                                    </button>
+                                                                )}
+                                                                <IconChevronDown className={`w-5 h-5 text-gray-400 transition-transform ${expandedGroups[group.key] ? 'rotate-180' : ''}`} />
+                                                            </div>
                                                         </button>
                                                         {expandedGroups[group.key] && <div className="border-t border-gray-100 animate-fade-in bg-gray-50 p-2 space-y-2">{group.items.map(renderItem)}</div>}
                                                     </div>
