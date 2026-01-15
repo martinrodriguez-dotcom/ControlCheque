@@ -239,8 +239,8 @@
                     <head>
                         <title>Estado de Cuenta - ${group.label}</title>
                         <style>
-                            body { font-family: sans-serif; padding: 20px; color: #333; font-size: 12px; }
-                            h1 { color: #1e40af; border-bottom: 2px solid #1e40af; padding-bottom: 10px; margin-bottom: 5px; }
+                            body { font-family: sans-serif; padding: 20px; color: #333; font-size: 12px; position: relative; }
+                            h1 { color: #1e40af; border-bottom: 2px solid #1e40af; padding-bottom: 10px; margin-bottom: 5px; width: 80%; }
                             .meta { color: #666; font-size: 10px; margin-bottom: 20px; }
                             .client-info { background: #f3f4f6; padding: 10px; border-radius: 4px; margin-bottom: 20px; border: 1px solid #e5e7eb; }
                             .client-name { font-size: 16px; font-weight: bold; color: #111; }
@@ -250,9 +250,11 @@
                             td { padding: 6px; border-bottom: 1px solid #eee; vertical-align: top; }
                             .amount { font-family: monospace; text-align: right; font-weight: bold; }
                             .date { white-space: nowrap; }
+                            .center { text-align: center; }
                             
                             .total-row td { border-top: 2px solid #333; font-size: 14px; background: #fff; padding-top: 10px; }
-                            .red { color: #dc2626; }
+                            .red { color: #dc2626; font-weight: bold; }
+                            .green { color: #16a34a; font-weight: bold; }
                             
                             @media print { button { display: none; } }
                         </style>
@@ -271,6 +273,7 @@
                                 <tr>
                                     <th>Factura / Ref</th>
                                     <th>Vencimiento</th>
+                                    <th class="center">Estado / Días</th>
                                     <th style="text-align:right">Importe Original</th>
                                     <th style="text-align:right">A Cuenta / Parcial</th>
                                     <th style="text-align:right">Saldo Pendiente</th>
@@ -285,10 +288,15 @@
                     const remaining = original - paid;
                     const details = item.number ? `${item.number}` : 'S/N';
                     
+                    const d = getDays(item.dueDate);
+                    const daysText = d < 0 ? `Vencida (${Math.abs(d)} días)` : `Faltan ${d} días`;
+                    const daysClass = d < 0 ? 'red' : 'green';
+
                     contentHTML += `
                         <tr>
                             <td>${details}</td>
                             <td class="date">${new Date(item.dueDate + 'T00:00:00').toLocaleDateString('es-AR')}</td>
+                            <td class="center ${daysClass}" style="font-size:10px">${daysText}</td>
                             <td class="amount">${formatMoney(original)}</td>
                             <td class="amount" style="color:#666">${paid > 0 ? formatMoney(paid) : '-'}</td>
                             <td class="amount red">${formatMoney(remaining)}</td>
@@ -298,15 +306,11 @@
 
                 contentHTML += `
                             <tr class="total-row">
-                                <td colspan="4" style="text-align:right; font-weight:bold;">TOTAL A PAGAR:</td>
+                                <td colspan="5" style="text-align:right; font-weight:bold;">TOTAL A PAGAR:</td>
                                 <td class="amount red">${formatMoney(totalPending)}</td>
                             </tr>
                         </tbody>
                     </table>
-                    
-                    <div style="margin-top: 40px; font-size: 10px; color: #888; text-align: center;">
-                        Documento generado automáticamente por SII PALLETS APP
-                    </div>
                 </body>
                 </html>
                 `;
@@ -612,6 +616,8 @@
 
             return (
                 <div className="pb-24 max-w-4xl mx-auto min-h-screen bg-gray-50 shadow-2xl relative transition-colors duration-500">
+                    
+                    {/* --- HEADER --- */}
                     <div className={`${theme.bg} text-white p-4 sticky top-0 z-30 shadow-lg transition-colors duration-500`}>
                         <div className="flex justify-between items-center mb-4">
                             <h1 className="text-xl font-bold flex items-center gap-2">SII PALLETS APP</h1>
@@ -665,12 +671,23 @@
                         {paymentModal.isOpen && (
                             <div className="fixed inset-0 modal-overlay z-50 flex items-center justify-center p-4">
                                 <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm animate-fade-in">
-                                    <h3 className="text-lg font-bold text-gray-800 mb-4">Confirmar Pago de Gasto</h3>
-                                    <p className="text-sm text-gray-500 mb-4">
-                                        Concepto: <strong>{paymentModal.item.payee}</strong><br/>
-                                        Total Gasto: {formatMoney(paymentModal.item.amount)}<br/>
-                                        <span className="text-red-500">Pendiente: {formatMoney(paymentModal.item.amount - (paymentModal.item.paidAmount||0))}</span>
-                                    </p>
+                                    <h3 className="text-lg font-bold text-gray-800 mb-4">Confirmar {paymentModal.item.type === 'collect' ? 'Cobro' : 'Pago'}</h3>
+                                    
+                                    <div className="bg-gray-50 p-3 rounded-lg mb-4 text-sm text-gray-600">
+                                        <p><strong>{paymentModal.item.payee}</strong></p>
+                                        <p>Nº: {paymentModal.item.number || '-'}</p>
+                                        <p>Vencimiento: {new Date(paymentModal.item.dueDate+'T00:00:00').toLocaleDateString('es-AR')}</p>
+                                        {/* Overdue logic in Modal */}
+                                        {(() => {
+                                            const d = getDays(paymentModal.item.dueDate);
+                                            if (d < 0) return <p className="text-red-500 font-bold mt-1">(Vencida hace {Math.abs(d)} días)</p>;
+                                            return null;
+                                        })()}
+                                        <div className="mt-2 pt-2 border-t border-gray-200">
+                                            Total: {formatMoney(paymentModal.item.amount)}<br/>
+                                            <span className="text-red-500 font-bold">Pendiente: {formatMoney(paymentModal.item.amount - (paymentModal.item.paidAmount||0))}</span>
+                                        </div>
+                                    </div>
                                     
                                     <div className="space-y-4">
                                         {/* TIPO DE PAGO: TOTAL O PARCIAL */}
@@ -679,20 +696,20 @@
                                                 onClick={() => setPaymentModal({...paymentModal, type: 'total'})}
                                                 className={`flex-1 py-2 rounded-lg border font-bold text-xs ${paymentModal.type === 'total' ? 'bg-blue-100 border-blue-500 text-blue-700' : 'bg-gray-50 border-gray-200 text-gray-500'}`}
                                             >
-                                                PAGO TOTAL
+                                                TOTAL
                                             </button>
                                             <button 
                                                 onClick={() => setPaymentModal({...paymentModal, type: 'partial'})}
                                                 className={`flex-1 py-2 rounded-lg border font-bold text-xs ${paymentModal.type === 'partial' ? 'bg-blue-100 border-blue-500 text-blue-700' : 'bg-gray-50 border-gray-200 text-gray-500'}`}
                                             >
-                                                PAGO PARCIAL
+                                                PARCIAL
                                             </button>
                                         </div>
 
                                         {/* INPUT MONTO (SOLO SI ES PARCIAL) */}
                                         {paymentModal.type === 'partial' && (
                                             <div>
-                                                <label className="text-xs text-gray-500 block mb-1">Monto a Pagar Ahora</label>
+                                                <label className="text-xs text-gray-500 block mb-1">Monto a {paymentModal.item.type === 'collect' ? 'Cobrar' : 'Pagar'} Ahora</label>
                                                 <input 
                                                     type="number" step="0.01"
                                                     className="w-full p-2 border rounded-lg font-bold text-gray-800"
@@ -704,7 +721,7 @@
                                         )}
 
                                         <div>
-                                            <label className="text-xs text-gray-500 block mb-1">Medio de Pago</label>
+                                            <label className="text-xs text-gray-500 block mb-1">Medio</label>
                                             <select 
                                                 className="w-full p-2 border rounded-lg bg-white"
                                                 value={paymentModal.method}
@@ -717,11 +734,11 @@
                                             </select>
                                         </div>
                                         <div>
-                                            <label className="text-xs text-gray-500 block mb-1">Nº Comprobante / Referencia</label>
+                                            <label className="text-xs text-gray-500 block mb-1">Nº Comprobante / Nota</label>
                                             <input 
                                                 type="text" 
                                                 className="w-full p-2 border rounded-lg"
-                                                placeholder="Ej: 123456"
+                                                placeholder="Opcional"
                                                 value={paymentModal.proof}
                                                 onChange={e => setPaymentModal({...paymentModal, proof: e.target.value})}
                                             />
@@ -1017,7 +1034,7 @@
                                                         </div>
                                                         <div className="flex gap-1">
                                                             <button onClick={() => markFullPayment(item)} className={`p-1.5 rounded border shadow-sm ${isPaid ? 'bg-green-100 text-green-700 border-green-300' : 'bg-white text-gray-400 hover:text-green-600'}`}><IconCheck className="w-4 h-4"/></button>
-                                                            {!isPaid && <button onClick={() => markPartialPayment(item)} className="p-1.5 rounded border shadow-sm bg-white text-gray-400 hover:text-yellow-600 hover:bg-yellow-50"><span className="font-bold text-xs w-4 h-4 flex items-center justify-center">$</span></button>}
+                                                            {!isPaid && mode !== 'wallet' && mode !== 'expenses' && <button onClick={() => markPartialPayment(item)} className="p-1.5 rounded border shadow-sm bg-white text-gray-400 hover:text-yellow-600 hover:bg-yellow-50"><span className="font-bold text-xs w-4 h-4 flex items-center justify-center">$</span></button>}
                                                             <button onClick={() => {
                                                                 const action = item.type === 'pay' ? 'PAGO' : 'COBRO';
                                                                 const text = `Hola *${item.payee}*, aviso sobre ${action} (Ref: ${item.number || 'S/N'}) por *${formatMoney(item.amount)}* con fecha: ${new Date(item.dueDate+'T00:00:00').toLocaleDateString('es-AR')}. Saludos, SII PALLETS.`;
