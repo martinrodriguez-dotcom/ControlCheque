@@ -17,7 +17,7 @@
     <!-- Librerías -->
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    <!-- FIX: Usamos babel standalone específico para evitar errores de módulos -->
+    <!-- FIX: Versión específica de Babel para evitar error de esmodules -->
     <script src="https://unpkg.com/@babel/standalone@7.23.6/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
 
@@ -353,7 +353,7 @@
                 setTimeout(() => {
                     printWindow.print();
                     printWindow.close();
-                }, 1000);
+                }, 500);
             };
 
             const requestNotify = () => {
@@ -371,7 +371,7 @@
                 return all.filter(item => { if (item.status === 'paid') return false; const d = getDays(item.dueDate); return d <= 10; }).sort((a,b) => getDays(a.dueDate) - getDays(b.dueDate));
             }, [payItems, collectItems, walletItems, expenseItems]);
 
-            // --- Lógica de Caja ---
+            // --- Lógica de Caja (NUEVO) ---
             const cashData = useMemo(() => {
                 const sorted = [...cashItems].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime() || (a.createdAt || '').localeCompare(b.createdAt || ''));
                 let balance = 0;
@@ -475,8 +475,9 @@
             }, [payItems, collectItems, walletItems, expenseItems]);
 
             const groupedView = useMemo(() => {
+                // *** CORRECCIÓN: Evitar error si no hay filtro de fecha en balance ***
                 if (mode === 'balance' && !selectedDateFilter) return null;
-                // Si estamos en caja, la vista es diferente
+                // *** NUEVO: Caja no usa esta vista agrupada ***
                 if (mode === 'cashbox') return null;
 
                 let items = [];
@@ -523,6 +524,7 @@
                         groups[clientName].items.push(item);
                     });
                     
+                    // NEW: Sort items within each group by number (Ascending)
                     const resultData = Object.values(groups).sort((a,b) => b.total - a.total);
                     resultData.forEach(group => {
                         group.items.sort((a, b) => {
@@ -586,6 +588,7 @@
                 setShowAddForm(false);
             };
 
+            // --- NUEVO: FUNCIÓN PARA AGREGAR A CAJA ---
             const handleCashAdd = async (e) => {
                 e.preventDefault();
                 let desc = newItem.payee; 
@@ -621,9 +624,11 @@
             const confirmPayment = async () => {
                 if(!paymentModal.item) return;
                 const item = paymentModal.item;
+                // Determine collection dynamically, defaulting to expenses if unsure but logic handles all types
                 let collectionName = 'gastos_public_shared';
                 if(item.type === 'collect') collectionName = 'cobros_public_shared';
                 if(item.type === 'pay') collectionName = 'cheques_public_shared';
+                // Wallet doesn't usually use this modal for partials but if it did...
                 if(item.type === 'wallet') collectionName = 'cartera_public_shared';
 
                 let newPaidAmount = item.paidAmount || 0;
@@ -654,14 +659,16 @@
                         date: new Date().toISOString()
                     }
                 });
+                
                 setPaymentModal({ isOpen: false, item: null, method: 'transfer', proof: '', type: 'total', amount: '' });
             };
 
-            const markFullPayment = (item) => {
+            const markFullPayment = async (item) => {
+                // Open modal for ALL types to allow details and partial payments
                 setPaymentModal({ isOpen: true, item: item, method: 'transfer', proof: '', type: 'total', amount: '' });
             };
             
-            const markPartialPayment = (item) => {
+            const markPartialPayment = async (item) => {
                  setPaymentModal({ isOpen: true, item: item, method: 'transfer', proof: '', type: 'partial', amount: '' });
             };
 
@@ -671,12 +678,15 @@
                 if(item.type === 'collect') collectionName = 'cobros_public_shared';
                 if(item.type === 'wallet') collectionName = 'cartera_public_shared';
                 if(item.type === 'expense') collectionName = 'gastos_public_shared';
+                // --- NUEVO: Borrar caja ---
                 if(item.type === 'cash') collectionName = 'caja_public_shared';
                 await deleteDoc(doc(db, collectionName, 'main_list', 'items', item.id));
             };
 
-            const installApp = () => { if (deferredPrompt) deferredPrompt.prompt(); };
-            
+            const installApp = () => {
+                if (deferredPrompt) { deferredPrompt.prompt(); deferredPrompt.userChoice.then((res) => { if(res.outcome==='accepted') setDeferredPrompt(null); }); }
+            };
+
             const getTypeIcon = (subtype) => {
                 switch(subtype) {
                     case 'transfer': return <IconBank className="w-4 h-4"/>;
@@ -693,7 +703,7 @@
                             <h1 className="text-xl font-bold flex items-center gap-2">SII PALLETS APP</h1>
                             <div className="flex gap-2 items-center">
                                 {deferredPrompt && ( <button onClick={installApp} className="bg-white/20 hover:bg-white/30 px-2 py-1 rounded text-xs font-bold flex items-center gap-1"><IconDownload className="w-4 h-4" /> Instalar</button> )}
-                                {mode !== 'cashbox' && <button onClick={printReport} className="p-2 relative bg-white/20 rounded-full hover:bg-white/30"><IconPrinter className="w-5 h-5"/></button>}
+                                {mode !== 'cashbox' && <button onClick={printReport} className="p-2 relative bg-white/20 rounded-full hover:bg-white/30" title="Imprimir Reporte PDF"><IconPrinter className="w-5 h-5"/></button>}
                                 <div className="relative">
                                     <button onClick={() => setShowNotifPanel(!showNotifPanel)} className="p-2 relative">
                                         {alerts.length > 0 ? <IconBellRing className="w-6 h-6 animate-pulse text-yellow-300"/> : <IconBell className="w-6 h-6"/>}
@@ -701,9 +711,20 @@
                                     </button>
                                     {showNotifPanel && (
                                         <div className="absolute right-0 mt-3 w-72 bg-white text-gray-800 rounded-xl shadow-2xl border border-gray-200 z-50 overflow-hidden">
-                                            <div className="p-3 bg-gray-50 border-b flex justify-between items-center"><h3 className="font-bold text-sm">Alertas</h3><button onClick={()=>setShowNotifPanel(false)} className="text-xs">X</button></div>
-                                            <div className="max-h-60 overflow-y-auto p-2">
-                                                {alerts.map(a => <div key={a.id} className="text-xs border-b p-2">{a.payee} - {formatMoney(a.amount)}</div>)}
+                                            <div className="p-3 bg-gray-50 border-b flex justify-between items-center"><h3 className="font-bold text-sm">Alertas (10 días)</h3>{notifPermission !== 'granted' && <button onClick={requestNotify} className="text-[10px] bg-blue-100 text-blue-700 px-2 py-1 rounded font-bold hover:bg-blue-200">ACTIVAR PUSH</button>}</div>
+                                            <div className="max-h-60 overflow-y-auto">
+                                                {alerts.length === 0 ? <div className="p-4 text-center text-xs text-gray-400">Todo tranquilo.</div> :
+                                                alerts.map(a => {
+                                                    const d = getDays(a.dueDate);
+                                                    const isPay = a.type === 'pay';
+                                                    return (
+                                                        <div key={a.id} className={`p-3 border-b text-sm ${d < 0 ? 'bg-red-50' : 'bg-white'}`}>
+                                                            <div className="flex justify-between"><span className={`text-[10px] font-bold px-1 rounded ${isPay ? 'bg-blue-100 text-blue-700' : 'bg-emerald-100 text-emerald-700'}`}>{isPay ? 'PAGO' : (a.type === 'wallet' ? 'CARTERA' : (a.type === 'expense' ? 'GASTO' : 'COBRO'))}</span><span className="font-mono text-xs">{formatMoney(a.amount - (a.paidAmount||0))}</span></div>
+                                                            <p className="font-bold mt-1">{a.payee}</p>
+                                                            <p className={`text-xs ${d < 0 ? 'text-red-600 font-bold' : 'text-orange-500'}`}>{d < 0 ? `Vencido hace ${Math.abs(d)} días` : `Vence en ${d} días`}</p>
+                                                        </div>
+                                                    )
+                                                })}
                                             </div>
                                         </div>
                                     )}
@@ -860,7 +881,103 @@
                                     </form>
                                 )}
 
-                                {/* LIST (Reusing logic) */}
+                                {mode === 'balance' && !selectedDateFilter && (
+                                    <>
+                                        <div className="mb-6">
+                                            <h3 className="font-bold text-gray-700 mb-3 ml-1 flex items-center gap-2"><IconCalendar className="w-5 h-5 text-violet-600"/> Proyección 15 Días</h3>
+                                            
+                                            <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+                                                {forecastData.map((day, idx) => (
+                                                    <button 
+                                                        key={idx} 
+                                                        onClick={() => {
+                                                            setSelectedDateFilter(day.dateKey);
+                                                        }}
+                                                        className={`p-2 rounded-xl border flex flex-col items-center justify-center shadow-sm transition-transform active:scale-95 ${day.net > 0 ? 'bg-emerald-50 border-emerald-200' : (day.net < 0 ? 'bg-red-50 border-red-200' : 'bg-white border-gray-100')}`}
+                                                    >
+                                                        <span className="text-[10px] font-bold text-gray-500 uppercase mb-1">{day.date.toLocaleDateString('es-AR', {weekday:'short', day:'numeric'})}</span>
+                                                        <span className={`text-xs font-black ${day.net > 0 ? 'text-emerald-600' : (day.net < 0 ? 'text-red-600' : 'text-gray-300')}`}>
+                                                            {day.net === 0 ? '-' : (day.net > 0 ? '+' : '') + formatMoney(Math.abs(day.net))}
+                                                        </span>
+                                                        {(day.inflow > 0 || day.outflow > 0) && (
+                                                            <div className="flex gap-1 mt-1 justify-center w-full">
+                                                                {day.inflow > 0 && <div className="w-1.5 h-1.5 rounded-full bg-emerald-400"></div>}
+                                                                {day.outflow > 0 && <div className="w-1.5 h-1.5 rounded-full bg-blue-400"></div>}
+                                                            </div>
+                                                        )}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                            <p className="text-[10px] text-gray-400 mt-2 text-center">Toca un día para ver el detalle de movimientos.</p>
+                                        </div>
+
+                                        {balanceData.sortedCategories.length > 0 && (
+                                            <div className="bg-white p-5 rounded-2xl shadow-md border border-gray-100 mb-6">
+                                                <h3 className="font-bold text-gray-700 mb-4 flex items-center gap-2 text-sm uppercase tracking-wide">
+                                                    <IconPieChart className="w-4 h-4 text-blue-500"/> Distribución de Gastos (Pendientes)
+                                                </h3>
+                                                <div className="space-y-3">
+                                                    {balanceData.sortedCategories.map((item, idx) => {
+                                                        const percent = balanceData.pay > 0 ? (item.amount / balanceData.pay) * 100 : 0;
+                                                        const isExpanded = expandedCategory === item.cat;
+                                                        return (
+                                                            <div key={idx} className="mb-3">
+                                                                <button onClick={() => setExpandedCategory(isExpanded ? null : item.cat)} className="w-full text-left">
+                                                                    <div className="flex justify-between text-xs mb-1">
+                                                                        <span className="font-bold text-gray-600 flex items-center gap-1">{getCategoryLabel(item.cat)} <IconChevronDown className={`w-3 h-3 text-gray-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`}/></span>
+                                                                        <span className="font-mono text-gray-500">{formatMoney(item.amount)}</span>
+                                                                    </div>
+                                                                    <div className="w-full bg-gray-100 rounded-full h-2.5"><div className={`h-2.5 rounded-full ${getCategoryColor(item.cat)}`} style={{ width: `${percent}%` }}></div></div>
+                                                                </button>
+                                                                {isExpanded && (
+                                                                    <div className="mt-2 pl-2 border-l-2 border-gray-200 space-y-2 animate-fade-in">
+                                                                        {payItems.filter(p => p.status !== 'paid' && (p.category || 'others') === item.cat).sort((a,b) => new Date(a.dueDate) - new Date(b.dueDate)).map(detail => (
+                                                                                <div key={detail.id} className="text-xs flex justify-between bg-gray-50 p-2 rounded items-center">
+                                                                                    <span className="truncate pr-2">{detail.payee} <span className="text-gray-400">({new Date(detail.dueDate+'T00:00:00').toLocaleDateString('es-AR', {day:'numeric', month:'short'})})</span></span>
+                                                                                    <span className="font-mono font-bold whitespace-nowrap">{formatMoney(detail.amount - (detail.paidAmount||0))}</span>
+                                                                                </div>
+                                                                            ))
+                                                                        }
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* AGENDA FINANCIERA EN BALANCE */}
+                                        <div className="bg-white p-5 rounded-2xl shadow-md border border-gray-100">
+                                            <h3 className="font-bold text-gray-700 mb-4 flex items-center gap-2 text-sm uppercase tracking-wide">
+                                                <IconCalendar className="w-4 h-4 text-violet-500"/> Agenda Financiera
+                                            </h3>
+                                            <div className="space-y-4">
+                                                {balanceData.dailyAgenda.length === 0 ? <p className="text-xs text-gray-400 italic text-center">No hay movimientos pendientes.</p> : 
+                                                balanceData.dailyAgenda.slice(0, 10).map((day, i) => (
+                                                    <div key={i} className="flex items-center text-sm border-b border-gray-50 last:border-0 pb-2 last:pb-0">
+                                                        <div className="w-16 font-bold text-gray-500 text-xs">{new Date(day.date+'T00:00:00').toLocaleDateString('es-AR', {day:'2-digit', month:'short'})}</div>
+                                                        <div className="flex-1 px-2">
+                                                            <div className="flex justify-between text-xs mb-1">
+                                                                <span className="text-emerald-600 font-bold">Ingresos</span>
+                                                                <span className="text-emerald-600">{formatMoney(day.inflow)}</span>
+                                                            </div>
+                                                            <div className="flex justify-between text-xs">
+                                                                <span className="text-blue-600 font-bold">Egresos</span>
+                                                                <span className="text-blue-600">{formatMoney(day.outflow)}</span>
+                                                            </div>
+                                                        </div>
+                                                        <div className={`w-20 text-right font-mono font-bold text-xs ${day.net >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                                            {day.net > 0 ? '+' : ''}{formatMoney(day.net)}
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </>
+                                )}
+
+                                {/* LIST (Reusing logic for brevity in this specific artifact, assume full list logic is here as per previous step) */}
                                 <div className="space-y-3">
                                     {groupedView && (groupedView.type === 'flat' ? groupedView.data.map(item => {
                                         const days = getDays(item.dueDate);
@@ -910,68 +1027,68 @@
                                     }) : groupedView.data.map((group, idx) => {
                                         const isClientGroup = groupedView.type === 'client-grouped';
                                         return (
-                                        <div key={idx} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-2">
-                                            <button onClick={() => setExpandedGroups(p => ({...p, [group.key]: !p[group.key]}))} className="w-full p-3 flex justify-between items-center bg-gray-50 hover:bg-gray-100 transition">
-                                                <div className="flex items-center gap-3">
-                                                    {isClientGroup ? (<div className={`bg-emerald-100 text-emerald-700 font-bold rounded-full p-2 w-10 h-10 flex items-center justify-center shrink-0`}><IconUserGroup className="w-5 h-5"/></div>) : (<div className={`${theme.light} ${theme.text} font-bold rounded-lg p-2 text-center min-w-[50px]`}><span className="block text-xs uppercase">{(group.label && group.label.includes(' ')) ? group.label.split(' ')[0] : new Date(group.key + 'T00:00:00').toLocaleDateString('es-AR', {month:'short'})}</span><span className="block text-xl leading-none">{group.key.includes('-') && group.key.length === 7 ? '' : new Date(group.key + 'T00:00:00').getDate()}</span></div>)}
-                                                    <div className="text-left overflow-hidden"><p className="text-sm font-bold text-gray-700 truncate">{groupedView.type === 'client-grouped' || mode === 'expenses' ? group.label : `${group.items.length} Items`}</p>{(groupedView.type === 'client-grouped' || mode === 'expenses') && <p className="text-xs text-gray-500">{group.count} Pendientes</p>}</div>
-                                                </div>
-                                                <div className="text-right flex items-center gap-3">
-                                                    <p className="text-lg font-black text-gray-800">{formatMoney(group.total)}</p>
-                                                    {isClientGroup && <button onClick={(e) => { e.stopPropagation(); printClientReport(group); }} className="p-1 rounded-full bg-gray-100 hover:bg-emerald-100 text-gray-400 hover:text-emerald-600 transition-colors" title="Imprimir Estado"><IconPrinter className="w-4 h-4" /></button>}
-                                                    <IconChevronDown className={`w-5 h-5 text-gray-400 transition-transform ${expandedGroups[group.key] ? 'rotate-180' : ''}`} />
-                                                </div>
-                                            </button>
-                                            {expandedGroups[group.key] && <div className="border-t border-gray-100 animate-fade-in bg-gray-50 p-2 space-y-2">
-                                                {group.items.map(item => {
-                                                    const days = getDays(item.dueDate);
-                                                    const isPaid = item.status === 'paid';
-                                                    const isPartial = item.status === 'partial';
-                                                    let borderClass = 'border-l-4 ';
-                                                    if (isPaid) borderClass += 'border-gray-300 bg-gray-50 opacity-60';
-                                                    else if (isPartial) borderClass += 'border-yellow-400 bg-yellow-50';
-                                                    else if (days < 0) borderClass += 'border-red-500 bg-red-50';
-                                                    else if (days <= 7) borderClass += 'border-orange-400 bg-orange-50';
-                                                    else borderClass += 'border-green-400 bg-white';
+                                            <div key={idx} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-2">
+                                                <button onClick={() => setExpandedGroups(p => ({...p, [group.key]: !p[group.key]}))} className="w-full p-3 flex justify-between items-center bg-gray-50 hover:bg-gray-100 transition">
+                                                    <div className="flex items-center gap-3">
+                                                        {isClientGroup ? (<div className={`bg-emerald-100 text-emerald-700 font-bold rounded-full p-2 w-10 h-10 flex items-center justify-center shrink-0`}><IconUserGroup className="w-5 h-5"/></div>) : (<div className={`${theme.light} ${theme.text} font-bold rounded-lg p-2 text-center min-w-[50px]`}><span className="block text-xs uppercase">{(group.label && group.label.includes(' ')) ? group.label.split(' ')[0] : new Date(group.key + 'T00:00:00').toLocaleDateString('es-AR', {month:'short'})}</span><span className="block text-xl leading-none">{group.key.includes('-') && group.key.length === 7 ? '' : new Date(group.key + 'T00:00:00').getDate()}</span></div>)}
+                                                        <div className="text-left overflow-hidden"><p className="text-sm font-bold text-gray-700 truncate">{groupedView.type === 'client-grouped' || mode === 'expenses' ? group.label : `${group.items.length} Items`}</p>{(groupedView.type === 'client-grouped' || mode === 'expenses') && <p className="text-xs text-gray-500">{group.count} Pendientes</p>}</div>
+                                                    </div>
+                                                    <div className="text-right flex items-center gap-3">
+                                                        <p className="text-lg font-black text-gray-800">{formatMoney(group.total)}</p>
+                                                        {isClientGroup && <button onClick={(e) => { e.stopPropagation(); printClientReport(group); }} className="p-1 rounded-full bg-gray-100 hover:bg-emerald-100 text-gray-400 hover:text-emerald-600 transition-colors" title="Imprimir Estado"><IconPrinter className="w-4 h-4" /></button>}
+                                                        <IconChevronDown className={`w-5 h-5 text-gray-400 transition-transform ${expandedGroups[group.key] ? 'rotate-180' : ''}`} />
+                                                    </div>
+                                                </button>
+                                                {expandedGroups[group.key] && <div className="border-t border-gray-100 animate-fade-in bg-gray-50 p-2 space-y-2">
+                                                    {group.items.map(item => {
+                                                        const days = getDays(item.dueDate);
+                                                        const isPaid = item.status === 'paid';
+                                                        const isPartial = item.status === 'partial';
+                                                        let borderClass = 'border-l-4 ';
+                                                        if (isPaid) borderClass += 'border-gray-300 bg-gray-50 opacity-60';
+                                                        else if (isPartial) borderClass += 'border-yellow-400 bg-yellow-50';
+                                                        else if (days < 0) borderClass += 'border-red-500 bg-red-50';
+                                                        else if (days <= 7) borderClass += 'border-orange-400 bg-orange-50';
+                                                        else borderClass += 'border-green-400 bg-white';
 
-                                                    return (
-                                                        <div key={item.id} className={`p-4 rounded-lg shadow-sm flex flex-col sm:flex-row gap-2 justify-between items-start sm:items-center ${borderClass} mb-2 bg-white`}>
-                                                            <div className="flex-1 min-w-0">
-                                                                <div className="flex items-center gap-2">
-                                                                    <div className="text-gray-400">{getTypeIcon(item.subtype)}</div>
-                                                                    <h3 className={`font-bold truncate ${isPaid ? 'line-through text-gray-500' : 'text-gray-800'}`}>{item.payee}</h3>
-                                                                    {isPartial && <span className="bg-yellow-200 text-yellow-800 text-[9px] px-1 rounded font-bold">PARCIAL</span>}
-                                                                    {item.type === 'pay' && item.category !== 'others' && <span className={`text-white text-[9px] px-1.5 py-0.5 rounded font-bold uppercase ml-1 ${getCategoryColor(item.category)}`}>{getCategoryLabel(item.category)}</span>}
+                                                        return (
+                                                            <div key={item.id} className={`p-4 rounded-lg shadow-sm flex flex-col sm:flex-row gap-2 justify-between items-start sm:items-center ${borderClass} mb-2 bg-white`}>
+                                                                <div className="flex-1 min-w-0">
+                                                                    <div className="flex items-center gap-2">
+                                                                        <div className="text-gray-400">{getTypeIcon(item.subtype)}</div>
+                                                                        <h3 className={`font-bold truncate ${isPaid ? 'line-through text-gray-500' : 'text-gray-800'}`}>{item.payee}</h3>
+                                                                        {isPartial && <span className="bg-yellow-200 text-yellow-800 text-[9px] px-1 rounded font-bold">PARCIAL</span>}
+                                                                        {item.type === 'pay' && item.category !== 'others' && <span className={`text-white text-[9px] px-1.5 py-0.5 rounded font-bold uppercase ml-1 ${getCategoryColor(item.category)}`}>{getCategoryLabel(item.category)}</span>}
+                                                                    </div>
+                                                                    <div className="text-xs text-gray-500 flex flex-wrap gap-2 mt-1">
+                                                                        {item.number && <span className="font-mono bg-white px-1 rounded border">#{item.number}</span>}
+                                                                        <span>•</span>
+                                                                        <span className={days < 0 && !isPaid ? 'text-red-600 font-bold' : ''}>{formatDate(item.dueDate)} {days < 0 && !isPaid && <span className="ml-1 bg-red-100 text-red-600 px-1 rounded">-{Math.abs(days)}d</span>}</span>
+                                                                    </div>
                                                                 </div>
-                                                                <div className="text-xs text-gray-500 flex flex-wrap gap-2 mt-1">
-                                                                    {item.number && <span className="font-mono bg-white px-1 rounded border">#{item.number}</span>}
-                                                                    <span>•</span>
-                                                                    <span className={days < 0 && !isPaid ? 'text-red-600 font-bold' : ''}>{formatDate(item.dueDate)} {days < 0 && !isPaid && <span className="ml-1 bg-red-100 text-red-600 px-1 rounded">-{Math.abs(days)}d</span>}</span>
+                                                                <div className="w-full sm:w-auto flex justify-between sm:justify-end items-center gap-4 pl-0 sm:pl-3 border-t sm:border-t-0 pt-2 sm:pt-0 mt-2 sm:mt-0">
+                                                                    <div className="text-right">
+                                                                        <div className="font-bold text-gray-800">{formatMoney(item.amount)}</div>
+                                                                        {(isPartial || (isPaid && item.paidAmount < item.amount)) && <div className="text-[10px] text-red-500 font-bold">Resta: {formatMoney(item.amount - (item.paidAmount || 0))}</div>}
+                                                                    </div>
+                                                                    <div className="flex gap-1">
+                                                                        <button onClick={() => markFullPayment(item)} className="text-gray-400 hover:text-green-600"><IconCheck className="w-4 h-4"/></button>
+                                                                        {item.status !== 'paid' && mode !== 'expenses' && <button onClick={() => markPartialPayment(item)} className="text-gray-400 hover:text-yellow-600">$</button>}
+                                                                        <button onClick={() => { 
+                                                                            const action = item.type === 'pay' ? 'PAGO' : 'COBRO';
+                                                                            const text = `Hola *${item.payee}*, aviso sobre ${action} (Ref: ${item.number || 'S/N'}) por *${formatMoney(item.amount)}* con fecha: ${new Date(item.dueDate+'T00:00:00').toLocaleDateString('es-AR')}. Saludos, SII PALLETS.`;
+                                                                            window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+                                                                        }} className="text-gray-400 hover:text-green-500"><IconMessage className="w-4 h-4" /></button>
+                                                                        <button onClick={() => handleEdit(item)} className="text-gray-400 hover:text-blue-600"><IconPencil className="w-4 h-4"/></button>
+                                                                        <button onClick={() => deleteItem(item)} className="text-gray-400 hover:text-red-600"><IconTrash className="w-4 h-4"/></button>
+                                                                    </div>
                                                                 </div>
                                                             </div>
-                                                            <div className="w-full sm:w-auto flex justify-between sm:justify-end items-center gap-4 pl-0 sm:pl-3 border-t sm:border-t-0 pt-2 sm:pt-0 mt-2 sm:mt-0">
-                                                                <div className="text-right">
-                                                                    <div className="font-bold text-gray-800">{formatMoney(item.amount)}</div>
-                                                                    {(isPartial || (isPaid && item.paidAmount < item.amount)) && <div className="text-[10px] text-red-500 font-bold">Resta: {formatMoney(item.amount - (item.paidAmount || 0))}</div>}
-                                                                </div>
-                                                                <div className="flex gap-1">
-                                                                    <button onClick={() => markFullPayment(item)} className="text-gray-400 hover:text-green-600"><IconCheck className="w-4 h-4"/></button>
-                                                                    {item.status !== 'paid' && mode !== 'expenses' && <button onClick={() => markPartialPayment(item)} className="text-gray-400 hover:text-yellow-600">$</button>}
-                                                                    <button onClick={() => { 
-                                                                        const action = item.type === 'pay' ? 'PAGO' : 'COBRO';
-                                                                        const text = `Hola *${item.payee}*, aviso sobre ${action} (Ref: ${item.number || 'S/N'}) por *${formatMoney(item.amount)}* con fecha: ${new Date(item.dueDate+'T00:00:00').toLocaleDateString('es-AR')}. Saludos, SII PALLETS.`;
-                                                                        window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
-                                                                    }} className="text-gray-400 hover:text-green-500"><IconMessage className="w-4 h-4" /></button>
-                                                                    <button onClick={() => handleEdit(item)} className="text-gray-400 hover:text-blue-600"><IconPencil className="w-4 h-4"/></button>
-                                                                    <button onClick={() => deleteItem(item)} className="text-gray-400 hover:text-red-600"><IconTrash className="w-4 h-4"/></button>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    );
-                                                })}
-                                            </div>}
-                                        </div>
-                                    );
+                                                        );
+                                                    })}
+                                                </div>}
+                                            </div>
+                                        );
                                     })
                                     )}
                                     {(!groupedView || groupedView.data.length === 0) && <div className="text-center py-10 text-gray-400 italic">No hay registros.</div>}
@@ -983,9 +1100,83 @@
                     {paymentModal.isOpen && (
                         <div className="fixed inset-0 modal-overlay z-50 flex items-center justify-center p-4">
                             <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm animate-fade-in">
-                                <h3 className="text-lg font-bold text-gray-800 mb-4">Confirmar Pago</h3>
-                                {/* Modal Content same as previous steps */}
-                                <div className="mt-6 flex gap-2"><button onClick={() => setPaymentModal({isOpen:false, item:null, method:'transfer', proof:'', type: 'total', amount: ''})} className="flex-1 py-2 border rounded-lg text-gray-500 hover:bg-gray-50">Cancelar</button><button onClick={confirmPayment} className="flex-1 py-2 bg-green-600 text-white rounded-lg font-bold hover:bg-green-700">Confirmar</button></div>
+                                <h3 className="text-lg font-bold text-gray-800 mb-4">Confirmar {paymentModal.item.type === 'collect' ? 'Cobro' : 'Pago'}</h3>
+                                
+                                <div className="bg-gray-50 p-3 rounded-lg mb-4 text-sm text-gray-600">
+                                    <p><strong>{paymentModal.item.payee}</strong></p>
+                                    <p>Nº: {paymentModal.item.number || '-'}</p>
+                                    <p>Vencimiento: {new Date(paymentModal.item.dueDate+'T00:00:00').toLocaleDateString('es-AR')}</p>
+                                    {/* Overdue logic in Modal */}
+                                    {(() => {
+                                        const d = getDays(paymentModal.item.dueDate);
+                                        if (d < 0) return <p className="text-red-500 font-bold mt-1">(Vencida hace {Math.abs(d)} días)</p>;
+                                        return null;
+                                    })()}
+                                    <div className="mt-2 pt-2 border-t border-gray-200">
+                                        Total: {formatMoney(paymentModal.item.amount)}<br/>
+                                        <span className="text-red-500 font-bold">Pendiente: {formatMoney(paymentModal.item.amount - (paymentModal.item.paidAmount||0))}</span>
+                                    </div>
+                                </div>
+                                
+                                <div className="space-y-4">
+                                    {/* TIPO DE PAGO: TOTAL O PARCIAL */}
+                                    <div className="flex gap-2">
+                                        <button 
+                                            onClick={() => setPaymentModal({...paymentModal, type: 'total'})}
+                                            className={`flex-1 py-2 rounded-lg border font-bold text-xs ${paymentModal.type === 'total' ? 'bg-blue-100 border-blue-500 text-blue-700' : 'bg-gray-50 border-gray-200 text-gray-500'}`}
+                                        >
+                                            TOTAL
+                                        </button>
+                                        <button 
+                                            onClick={() => setPaymentModal({...paymentModal, type: 'partial'})}
+                                            className={`flex-1 py-2 rounded-lg border font-bold text-xs ${paymentModal.type === 'partial' ? 'bg-blue-100 border-blue-500 text-blue-700' : 'bg-gray-50 border-gray-200 text-gray-500'}`}
+                                        >
+                                            PARCIAL
+                                        </button>
+                                    </div>
+
+                                    {/* INPUT MONTO (SOLO SI ES PARCIAL) */}
+                                    {paymentModal.type === 'partial' && (
+                                        <div>
+                                            <label className="text-xs text-gray-500 block mb-1">Monto a {paymentModal.item.type === 'collect' ? 'Cobrar' : 'Pagar'} Ahora</label>
+                                            <input 
+                                                type="number" step="0.01"
+                                                className="w-full p-2 border rounded-lg font-bold text-gray-800"
+                                                placeholder="$ 0.00"
+                                                value={paymentModal.amount}
+                                                onChange={e => setPaymentModal({...paymentModal, amount: e.target.value})}
+                                            />
+                                        </div>
+                                    )}
+
+                                    <div>
+                                        <label className="text-xs text-gray-500 block mb-1">Medio</label>
+                                        <select 
+                                            className="w-full p-2 border rounded-lg bg-white"
+                                            value={paymentModal.method}
+                                            onChange={e => setPaymentModal({...paymentModal, method: e.target.value})}
+                                        >
+                                            <option value="transfer">Transferencia</option>
+                                            <option value="cheque">Cheque</option>
+                                            <option value="echeq">E-Cheq</option>
+                                            <option value="cash">Efectivo</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="text-xs text-gray-500 block mb-1">Nº Comprobante / Nota</label>
+                                        <input 
+                                            type="text" 
+                                            className="w-full p-2 border rounded-lg"
+                                            placeholder="Opcional"
+                                            value={paymentModal.proof}
+                                            onChange={e => setPaymentModal({...paymentModal, proof: e.target.value})}
+                                        />
+                                    </div>
+                                </div>
+                                <div className="mt-6 flex gap-2">
+                                    <button onClick={() => setPaymentModal({isOpen:false, item:null, method:'transfer', proof:'', type: 'total', amount: ''})} className="flex-1 py-2 border rounded-lg text-gray-500 hover:bg-gray-50">Cancelar</button>
+                                    <button onClick={confirmPayment} className="flex-1 py-2 bg-green-600 text-white rounded-lg font-bold hover:bg-green-700">Confirmar</button>
+                                </div>
                             </div>
                         </div>
                     )}
