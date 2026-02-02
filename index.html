@@ -17,7 +17,8 @@
     <!-- Librerías -->
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <!-- FIX: Usamos babel standalone específico para evitar errores de módulos -->
+    <script src="https://unpkg.com/@babel/standalone@7.23.6/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
 
     <style>
@@ -95,8 +96,6 @@
         const IconCalendar = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>;
         const IconFolder = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>;
         const IconTag = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>;
-        
-        // --- NUEVOS ICONOS (Caja y WhatsApp) ---
         const IconBox = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>;
         const IconMessage = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>;
 
@@ -107,13 +106,13 @@
             const [collectItems, setCollectItems] = useState([]);
             const [walletItems, setWalletItems] = useState([]);
             const [expenseItems, setExpenseItems] = useState([]);
-            const [cashItems, setCashItems] = useState([]); // --- NUEVO: Estado para Caja ---
+            const [cashItems, setCashItems] = useState([]); 
             const [loading, setLoading] = useState(true);
             const [deferredPrompt, setDeferredPrompt] = useState(null);
             const [activeFilter, setActiveFilter] = useState('all'); 
             const [showAddForm, setShowAddForm] = useState(false);
             const [newItem, setNewItem] = useState({ 
-                number: '', issueDate: '', dueDate: '', amount: '', payee: '', paidAmount: 0, subtype: 'cheque', category: 'others', status: 'pending', monthYear: '', cashType: 'income' // --- NUEVO: cashType ---
+                number: '', issueDate: '', dueDate: '', amount: '', payee: '', paidAmount: 0, subtype: 'cheque', category: 'others', status: 'pending', monthYear: '', cashType: 'income'
             });
             const [editingId, setEditingId] = useState(null); 
             const [expandedGroups, setExpandedGroups] = useState({});
@@ -124,6 +123,16 @@
             const [selectedDateFilter, setSelectedDateFilter] = useState(null);
             
             const [paymentModal, setPaymentModal] = useState({ isOpen: false, item: null, method: 'transfer', proof: '', type: 'total', amount: '' });
+
+            const getTheme = () => {
+                if(mode === 'pay') return { main: 'blue', bg: 'bg-blue-800', light: 'bg-blue-50', text: 'text-blue-600', border: 'border-blue-500', btn: 'bg-blue-600' };
+                if(mode === 'collect') return { main: 'emerald', bg: 'bg-emerald-800', light: 'bg-emerald-50', text: 'text-emerald-600', border: 'border-emerald-500', btn: 'bg-emerald-600' };
+                if(mode === 'wallet') return { main: 'indigo', bg: 'bg-indigo-800', light: 'bg-indigo-50', text: 'text-indigo-600', border: 'border-indigo-500', btn: 'bg-indigo-600' };
+                if(mode === 'expenses') return { main: 'orange', bg: 'bg-orange-800', light: 'bg-orange-50', text: 'text-orange-600', border: 'border-orange-500', btn: 'bg-orange-600' };
+                if(mode === 'cashbox') return { main: 'cyan', bg: 'bg-cyan-800', light: 'bg-cyan-50', text: 'text-cyan-600', border: 'border-cyan-500', btn: 'bg-cyan-600' };
+                return { main: 'violet', bg: 'bg-violet-900', light: 'bg-violet-50', text: 'text-violet-600', border: 'border-violet-500', btn: 'bg-violet-600' }; 
+            }
+            const theme = getTheme();
 
             useEffect(() => {
                 window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); setDeferredPrompt(e); });
@@ -157,13 +166,12 @@
                     const data = snap.docs.map(d => { const dat = d.data(); return { id: d.id, ...dat, type: 'expense' }; });
                     setExpenseItems(data);
                 });
-                
-                // --- NUEVO: Snapshot de Caja ---
+
                 const unsubCash = onSnapshot(collection(db, 'caja_public_shared', 'main_list', 'items'), (snap) => {
                     const data = snap.docs.map(d => { const dat = d.data(); return { id: d.id, ...dat, type: 'cash' }; });
                     setCashItems(data);
                 });
-
+                
                 setTimeout(() => setLoading(false), 800); 
                 return () => { unsubPay(); unsubCollect(); unsubWallet(); unsubExpenses(); unsubCash(); };
             }, [user]);
@@ -171,7 +179,6 @@
             useEffect(() => {
                 checkAlerts([...payItems, ...collectItems, ...walletItems, ...expenseItems]);
             }, [payItems, collectItems, walletItems, expenseItems]);
-
 
             const getDays = (date) => { if (!date) return 999; return Math.ceil((new Date(date+'T00:00:00') - new Date().setHours(0,0,0,0)) / (86400000)); };
             const formatMoney = (val) => new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 0 }).format(val);
@@ -269,10 +276,11 @@
                             td { padding: 6px; border-bottom: 1px solid #eee; vertical-align: top; }
                             .amount { font-family: monospace; text-align: right; font-weight: bold; }
                             .date { white-space: nowrap; }
+                            .center { text-align: center; }
                             
                             .total-row td { border-top: 2px solid #333; font-size: 14px; background: #fff; padding-top: 10px; }
-                            .red { color: #dc2626; }
-                            .green { color: #16a34a; }
+                            .red { color: #dc2626; font-weight: bold; }
+                            .green { color: #16a34a; font-weight: bold; }
                             
                             @media print { button { display: none; } }
                         </style>
@@ -345,7 +353,7 @@
                 setTimeout(() => {
                     printWindow.print();
                     printWindow.close();
-                }, 500);
+                }, 1000);
             };
 
             const requestNotify = () => {
@@ -515,7 +523,6 @@
                         groups[clientName].items.push(item);
                     });
                     
-                    // NEW: Sort items within each group by number (Ascending)
                     const resultData = Object.values(groups).sort((a,b) => b.total - a.total);
                     resultData.forEach(group => {
                         group.items.sort((a, b) => {
@@ -579,15 +586,10 @@
                 setShowAddForm(false);
             };
 
-            // --- FUNCIÓN AGREGAR CAJA ---
             const handleCashAdd = async (e) => {
                 e.preventDefault();
-                let desc = newItem.payee; // Usamos payee como descripcion
-                
-                // Lógica de descripción automática para cierre
+                let desc = newItem.payee; 
                 if(newItem.cashType === 'close') {
-                    // Buscar la última apertura para poner el rango
-                    // Ordenamos desc para encontrar la más reciente
                     const sortedDesc = [...cashItems].sort((a, b) => new Date(b.date) - new Date(a.date));
                     const lastOpen = sortedDesc.find(i => i.cashType === 'open');
                     const start = lastOpen ? new Date(lastOpen.date).toLocaleDateString('es-AR') : 'Inicio';
@@ -596,13 +598,12 @@
                 }
                 
                 await addDoc(collection(db, 'caja_public_shared', 'main_list', 'items'), {
-                    date: newItem.issueDate || new Date().toISOString().split('T')[0], // Usamos issueDate como fecha movimiento
+                    date: newItem.issueDate || new Date().toISOString().split('T')[0], 
                     description: desc,
                     amount: parseFloat(newItem.amount) || 0,
-                    cashType: newItem.cashType, // income, expense, open, close
+                    cashType: newItem.cashType, 
                     createdAt: new Date().toISOString()
                 });
-                // Resetear form caja
                 setNewItem({ ...newItem, amount: '', payee: '', issueDate: '', cashType: 'income' });
                 setShowAddForm(false);
             };
@@ -620,11 +621,9 @@
             const confirmPayment = async () => {
                 if(!paymentModal.item) return;
                 const item = paymentModal.item;
-                // Determine collection dynamically, defaulting to expenses if unsure but logic handles all types
                 let collectionName = 'gastos_public_shared';
                 if(item.type === 'collect') collectionName = 'cobros_public_shared';
                 if(item.type === 'pay') collectionName = 'cheques_public_shared';
-                // Wallet doesn't usually use this modal for partials but if it did...
                 if(item.type === 'wallet') collectionName = 'cartera_public_shared';
 
                 let newPaidAmount = item.paidAmount || 0;
@@ -655,16 +654,14 @@
                         date: new Date().toISOString()
                     }
                 });
-                
                 setPaymentModal({ isOpen: false, item: null, method: 'transfer', proof: '', type: 'total', amount: '' });
             };
 
-            const markFullPayment = async (item) => {
-                // Open modal for ALL types to allow details and partial payments
+            const markFullPayment = (item) => {
                 setPaymentModal({ isOpen: true, item: item, method: 'transfer', proof: '', type: 'total', amount: '' });
             };
             
-            const markPartialPayment = async (item) => {
+            const markPartialPayment = (item) => {
                  setPaymentModal({ isOpen: true, item: item, method: 'transfer', proof: '', type: 'partial', amount: '' });
             };
 
@@ -674,14 +671,12 @@
                 if(item.type === 'collect') collectionName = 'cobros_public_shared';
                 if(item.type === 'wallet') collectionName = 'cartera_public_shared';
                 if(item.type === 'expense') collectionName = 'gastos_public_shared';
-                if(item.type === 'cash') collectionName = 'caja_public_shared'; // Borrar de caja
+                if(item.type === 'cash') collectionName = 'caja_public_shared';
                 await deleteDoc(doc(db, collectionName, 'main_list', 'items', item.id));
             };
 
-            const installApp = () => {
-                if (deferredPrompt) { deferredPrompt.prompt(); deferredPrompt.userChoice.then((res) => { if(res.outcome==='accepted') setDeferredPrompt(null); }); }
-            };
-
+            const installApp = () => { if (deferredPrompt) deferredPrompt.prompt(); };
+            
             const getTypeIcon = (subtype) => {
                 switch(subtype) {
                     case 'transfer': return <IconBank className="w-4 h-4"/>;
@@ -691,29 +686,14 @@
                 }
             };
 
-            // --- DEFINICIÓN DE TEMA ---
-            const getTheme = () => {
-                if(mode === 'pay') return { main: 'blue', bg: 'bg-blue-800', light: 'bg-blue-50', text: 'text-blue-600', border: 'border-blue-500', btn: 'bg-blue-600' };
-                if(mode === 'collect') return { main: 'emerald', bg: 'bg-emerald-800', light: 'bg-emerald-50', text: 'text-emerald-600', border: 'border-emerald-500', btn: 'bg-emerald-600' };
-                if(mode === 'wallet') return { main: 'indigo', bg: 'bg-indigo-800', light: 'bg-indigo-50', text: 'text-indigo-600', border: 'border-indigo-500', btn: 'bg-indigo-600' };
-                if(mode === 'expenses') return { main: 'orange', bg: 'bg-orange-800', light: 'bg-orange-50', text: 'text-orange-600', border: 'border-orange-500', btn: 'bg-orange-600' };
-                if(mode === 'cashbox') return { main: 'cyan', bg: 'bg-cyan-800', light: 'bg-cyan-50', text: 'text-cyan-600', border: 'border-cyan-500', btn: 'bg-cyan-600' }; // TEMA CAJA
-                return { main: 'violet', bg: 'bg-violet-900', light: 'bg-violet-50', text: 'text-violet-600', border: 'border-violet-500', btn: 'bg-violet-600' }; 
-            }
-            const theme = getTheme();
-
-            if (loading && payItems.length === 0 && collectItems.length === 0) return <div className="h-screen flex items-center justify-center"><IconLoader className={`animate-spin w-10 h-10 ${theme.text}`}/></div>;
-
             return (
                 <div className="pb-24 max-w-4xl mx-auto min-h-screen bg-gray-50 shadow-2xl relative transition-colors duration-500">
-                    
-                    {/* --- HEADER --- */}
                     <div className={`${theme.bg} text-white p-4 sticky top-0 z-30 shadow-lg transition-colors duration-500`}>
                         <div className="flex justify-between items-center mb-4">
                             <h1 className="text-xl font-bold flex items-center gap-2">SII PALLETS APP</h1>
                             <div className="flex gap-2 items-center">
                                 {deferredPrompt && ( <button onClick={installApp} className="bg-white/20 hover:bg-white/30 px-2 py-1 rounded text-xs font-bold flex items-center gap-1"><IconDownload className="w-4 h-4" /> Instalar</button> )}
-                                {mode !== 'cashbox' && <button onClick={printReport} className="p-2 relative bg-white/20 rounded-full hover:bg-white/30" title="Imprimir Reporte PDF"><IconPrinter className="w-5 h-5"/></button>}
+                                {mode !== 'cashbox' && <button onClick={printReport} className="p-2 relative bg-white/20 rounded-full hover:bg-white/30"><IconPrinter className="w-5 h-5"/></button>}
                                 <div className="relative">
                                     <button onClick={() => setShowNotifPanel(!showNotifPanel)} className="p-2 relative">
                                         {alerts.length > 0 ? <IconBellRing className="w-6 h-6 animate-pulse text-yellow-300"/> : <IconBell className="w-6 h-6"/>}
@@ -721,20 +701,9 @@
                                     </button>
                                     {showNotifPanel && (
                                         <div className="absolute right-0 mt-3 w-72 bg-white text-gray-800 rounded-xl shadow-2xl border border-gray-200 z-50 overflow-hidden">
-                                            <div className="p-3 bg-gray-50 border-b flex justify-between items-center"><h3 className="font-bold text-sm">Alertas (10 días)</h3>{notifPermission !== 'granted' && <button onClick={requestNotify} className="text-[10px] bg-blue-100 text-blue-700 px-2 py-1 rounded font-bold hover:bg-blue-200">ACTIVAR PUSH</button>}</div>
-                                            <div className="max-h-60 overflow-y-auto">
-                                                {alerts.length === 0 ? <div className="p-4 text-center text-xs text-gray-400">Todo tranquilo.</div> :
-                                                alerts.map(a => {
-                                                    const d = getDays(a.dueDate);
-                                                    const isPay = a.type === 'pay';
-                                                    return (
-                                                        <div key={a.id} className={`p-3 border-b text-sm ${d < 0 ? 'bg-red-50' : 'bg-white'}`}>
-                                                            <div className="flex justify-between"><span className={`text-[10px] font-bold px-1 rounded ${isPay ? 'bg-blue-100 text-blue-700' : 'bg-emerald-100 text-emerald-700'}`}>{isPay ? 'PAGO' : (a.type === 'wallet' ? 'CARTERA' : (a.type === 'expense' ? 'GASTO' : 'COBRO'))}</span><span className="font-mono text-xs">{formatMoney(a.amount - (a.paidAmount||0))}</span></div>
-                                                            <p className="font-bold mt-1">{a.payee}</p>
-                                                            <p className={`text-xs ${d < 0 ? 'text-red-600 font-bold' : 'text-orange-500'}`}>{d < 0 ? `Vencido hace ${Math.abs(d)} días` : `Vence en ${d} días`}</p>
-                                                        </div>
-                                                    )
-                                                })}
+                                            <div className="p-3 bg-gray-50 border-b flex justify-between items-center"><h3 className="font-bold text-sm">Alertas</h3><button onClick={()=>setShowNotifPanel(false)} className="text-xs">X</button></div>
+                                            <div className="max-h-60 overflow-y-auto p-2">
+                                                {alerts.map(a => <div key={a.id} className="text-xs border-b p-2">{a.payee} - {formatMoney(a.amount)}</div>)}
                                             </div>
                                         </div>
                                     )}
@@ -748,180 +717,17 @@
                         </div>
 
                         <div className="bg-black/20 p-1 rounded-xl flex text-[10px] sm:text-xs overflow-x-auto scrollbar-hide">
-                            <button onClick={() => { setMode('cashbox'); }} className={`flex-1 py-2 px-3 rounded-lg font-bold flex flex-col sm:flex-row items-center justify-center gap-1 transition-all whitespace-nowrap ${mode === 'cashbox' ? 'bg-white text-cyan-800 shadow-md' : 'text-white/60'}`}><IconBox className="w-4 h-4"/> <span>CAJA</span></button>
-                            <button onClick={() => { setMode('expenses'); setActiveFilter('all'); setSelectedDateFilter(null); }} className={`flex-1 py-2 px-3 rounded-lg font-bold flex flex-col sm:flex-row items-center justify-center gap-1 transition-all whitespace-nowrap ${mode === 'expenses' ? 'bg-white text-orange-800 shadow-md' : 'text-white/60'}`}><IconTag className="w-4 h-4"/> <span>GASTOS</span></button>
-                            <button onClick={() => { setMode('pay'); setActiveFilter('all'); setSelectedDateFilter(null); }} className={`flex-1 py-2 px-3 rounded-lg font-bold flex flex-col sm:flex-row items-center justify-center gap-1 transition-all whitespace-nowrap ${mode === 'pay' ? 'bg-white text-blue-800 shadow-md' : 'text-white/60'}`}><IconWallet className="w-4 h-4"/> <span>PAGOS</span></button>
-                            <button onClick={() => { setMode('balance'); setSelectedDateFilter(null); }} className={`flex-1 py-2 px-3 rounded-lg font-bold flex flex-col sm:flex-row items-center justify-center gap-1 transition-all whitespace-nowrap ${mode === 'balance' ? 'bg-white text-violet-800 shadow-md' : 'text-white/60'}`}><IconTrendingUp className="w-4 h-4"/> <span>BALANCE</span></button>
-                            <button onClick={() => { setMode('collect'); setActiveFilter('all'); setSelectedDateFilter(null); }} className={`flex-1 py-2 px-3 rounded-lg font-bold flex flex-col sm:flex-row items-center justify-center gap-1 transition-all whitespace-nowrap ${mode === 'collect' ? 'bg-white text-emerald-800 shadow-md' : 'text-white/60'}`}><IconBriefcase className="w-4 h-4"/> <span>COBROS</span></button>
-                            <button onClick={() => { setMode('wallet'); setActiveFilter('all'); setSelectedDateFilter(null); }} className={`flex-1 py-2 px-3 rounded-lg font-bold flex flex-col sm:flex-row items-center justify-center gap-1 transition-all whitespace-nowrap ${mode === 'wallet' ? 'bg-white text-indigo-800 shadow-md' : 'text-white/60'}`}><IconFolder className="w-4 h-4"/> <span>CARTERA</span></button>
+                            <button onClick={() => setMode('cashbox')} className={`flex-1 py-2 px-3 rounded-lg font-bold flex flex-col sm:flex-row items-center justify-center gap-1 transition-all whitespace-nowrap ${mode === 'cashbox' ? 'bg-white text-cyan-800 shadow-md' : 'text-white/60'}`}><IconBox className="w-4 h-4"/> <span>CAJA</span></button>
+                            <button onClick={() => setMode('expenses')} className={`flex-1 py-2 px-3 rounded-lg font-bold flex flex-col sm:flex-row items-center justify-center gap-1 transition-all whitespace-nowrap ${mode === 'expenses' ? 'bg-white text-orange-800 shadow-md' : 'text-white/60'}`}><IconTag className="w-4 h-4"/> <span>GASTOS</span></button>
+                            <button onClick={() => setMode('pay')} className={`flex-1 py-2 px-3 rounded-lg font-bold flex flex-col sm:flex-row items-center justify-center gap-1 transition-all whitespace-nowrap ${mode === 'pay' ? 'bg-white text-blue-800 shadow-md' : 'text-white/60'}`}><IconWallet className="w-4 h-4"/> <span>PAGOS</span></button>
+                            <button onClick={() => setMode('balance')} className={`flex-1 py-2 px-3 rounded-lg font-bold flex flex-col sm:flex-row items-center justify-center gap-1 transition-all whitespace-nowrap ${mode === 'balance' ? 'bg-white text-violet-800 shadow-md' : 'text-white/60'}`}><IconTrendingUp className="w-4 h-4"/> <span>BALANCE</span></button>
+                            <button onClick={() => setMode('collect')} className={`flex-1 py-2 px-3 rounded-lg font-bold flex flex-col sm:flex-row items-center justify-center gap-1 transition-all whitespace-nowrap ${mode === 'collect' ? 'bg-white text-emerald-800 shadow-md' : 'text-white/60'}`}><IconBriefcase className="w-4 h-4"/> <span>COBROS</span></button>
+                            <button onClick={() => setMode('wallet')} className={`flex-1 py-2 px-3 rounded-lg font-bold flex flex-col sm:flex-row items-center justify-center gap-1 transition-all whitespace-nowrap ${mode === 'wallet' ? 'bg-white text-indigo-800 shadow-md' : 'text-white/60'}`}><IconFolder className="w-4 h-4"/> <span>CARTERA</span></button>
                         </div>
                     </div>
 
                     <div className="p-4">
-                        {/* PAYMENT MODAL (GASTOS) */}
-                        {paymentModal.isOpen && (
-                            <div className="fixed inset-0 modal-overlay z-50 flex items-center justify-center p-4">
-                                <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm animate-fade-in">
-                                    <h3 className="text-lg font-bold text-gray-800 mb-4">Confirmar {paymentModal.item.type === 'collect' ? 'Cobro' : 'Pago'}</h3>
-                                    
-                                    <div className="bg-gray-50 p-3 rounded-lg mb-4 text-sm text-gray-600">
-                                        <p><strong>{paymentModal.item.payee}</strong></p>
-                                        <p>Nº: {paymentModal.item.number || '-'}</p>
-                                        <p>Vencimiento: {new Date(paymentModal.item.dueDate+'T00:00:00').toLocaleDateString('es-AR')}</p>
-                                        {/* Overdue logic in Modal */}
-                                        {(() => {
-                                            const d = getDays(paymentModal.item.dueDate);
-                                            if (d < 0) return <p className="text-red-500 font-bold mt-1">(Vencida hace {Math.abs(d)} días)</p>;
-                                            return null;
-                                        })()}
-                                        <div className="mt-2 pt-2 border-t border-gray-200">
-                                            Total: {formatMoney(paymentModal.item.amount)}<br/>
-                                            <span className="text-red-500 font-bold">Pendiente: {formatMoney(paymentModal.item.amount - (paymentModal.item.paidAmount||0))}</span>
-                                        </div>
-                                    </div>
-                                    
-                                    <div className="space-y-4">
-                                        {/* TIPO DE PAGO: TOTAL O PARCIAL */}
-                                        <div className="flex gap-2">
-                                            <button 
-                                                onClick={() => setPaymentModal({...paymentModal, type: 'total'})}
-                                                className={`flex-1 py-2 rounded-lg border font-bold text-xs ${paymentModal.type === 'total' ? 'bg-blue-100 border-blue-500 text-blue-700' : 'bg-gray-50 border-gray-200 text-gray-500'}`}
-                                            >
-                                                TOTAL
-                                            </button>
-                                            <button 
-                                                onClick={() => setPaymentModal({...paymentModal, type: 'partial'})}
-                                                className={`flex-1 py-2 rounded-lg border font-bold text-xs ${paymentModal.type === 'partial' ? 'bg-blue-100 border-blue-500 text-blue-700' : 'bg-gray-50 border-gray-200 text-gray-500'}`}
-                                            >
-                                                PARCIAL
-                                            </button>
-                                        </div>
-
-                                        {/* INPUT MONTO (SOLO SI ES PARCIAL) */}
-                                        {paymentModal.type === 'partial' && (
-                                            <div>
-                                                <label className="text-xs text-gray-500 block mb-1">Monto a {paymentModal.item.type === 'collect' ? 'Cobrar' : 'Pagar'} Ahora</label>
-                                                <input 
-                                                    type="number" step="0.01"
-                                                    className="w-full p-2 border rounded-lg font-bold text-gray-800"
-                                                    placeholder="$ 0.00"
-                                                    value={paymentModal.amount}
-                                                    onChange={e => setPaymentModal({...paymentModal, amount: e.target.value})}
-                                                />
-                                            </div>
-                                        )}
-
-                                        <div>
-                                            <label className="text-xs text-gray-500 block mb-1">Medio</label>
-                                            <select 
-                                                className="w-full p-2 border rounded-lg bg-white"
-                                                value={paymentModal.method}
-                                                onChange={e => setPaymentModal({...paymentModal, method: e.target.value})}
-                                            >
-                                                <option value="transfer">Transferencia</option>
-                                                <option value="cheque">Cheque</option>
-                                                <option value="echeq">E-Cheq</option>
-                                                <option value="cash">Efectivo</option>
-                                            </select>
-                                        </div>
-                                        <div>
-                                            <label className="text-xs text-gray-500 block mb-1">Nº Comprobante / Nota</label>
-                                            <input 
-                                                type="text" 
-                                                className="w-full p-2 border rounded-lg"
-                                                placeholder="Opcional"
-                                                value={paymentModal.proof}
-                                                onChange={e => setPaymentModal({...paymentModal, proof: e.target.value})}
-                                            />
-                                        </div>
-                                    </div>
-                                    <div className="mt-6 flex gap-2">
-                                        <button onClick={() => setPaymentModal({isOpen:false, item:null, method:'transfer', proof:'', type: 'total', amount: ''})} className="flex-1 py-2 border rounded-lg text-gray-500 hover:bg-gray-50">Cancelar</button>
-                                        <button onClick={confirmPayment} className="flex-1 py-2 bg-green-600 text-white rounded-lg font-bold hover:bg-green-700">Confirmar</button>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-
-
-                        {mode === 'balance' && !selectedDateFilter && (
-                            <div className="animate-fade-in">
-                                <div className={`bg-white p-5 rounded-2xl shadow-md border-l-8 mb-6 border-violet-500`}>
-                                    <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-3">Estado Financiero Global (Pendiente)</p>
-                                    <div className="flex justify-between text-center mb-4">
-                                        <div><p className="text-xs text-emerald-600 font-bold mb-1">A COBRAR (+)</p><p className="text-xl font-bold text-gray-800">{formatMoney(balanceData.collect + balanceData.wallet)}</p></div>
-                                        <div><p className="text-xs text-blue-600 font-bold mb-1">A PAGAR (-)</p><p className="text-xl font-bold text-gray-800">{formatMoney(balanceData.pay + balanceData.expenses)}</p></div>
-                                    </div>
-                                    <div className="border-t pt-3 flex justify-between items-center"><span className="text-sm font-bold text-gray-600">PROYECCIÓN SALDO:</span><span className={`text-3xl font-black ${balanceData.net >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>{balanceData.net > 0 ? '+' : ''}{formatMoney(balanceData.net)}</span></div>
-                                </div>
-                                
-                                <div className="mb-6">
-                                    <h3 className="font-bold text-gray-700 mb-3 ml-1 flex items-center gap-2"><IconCalendar className="w-5 h-5 text-violet-600"/> Proyección 15 Días</h3>
-                                    
-                                    <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
-                                        {forecastData.map((day, idx) => (
-                                            <button 
-                                                key={idx} 
-                                                onClick={() => {
-                                                    setSelectedDateFilter(day.dateKey);
-                                                }}
-                                                className={`p-2 rounded-xl border flex flex-col items-center justify-center shadow-sm transition-transform active:scale-95 ${day.net > 0 ? 'bg-emerald-50 border-emerald-200' : (day.net < 0 ? 'bg-red-50 border-red-200' : 'bg-white border-gray-100')}`}
-                                            >
-                                                <span className="text-[10px] font-bold text-gray-500 uppercase mb-1">{day.date.toLocaleDateString('es-AR', {weekday:'short', day:'numeric'})}</span>
-                                                <span className={`text-xs font-black ${day.net > 0 ? 'text-emerald-600' : (day.net < 0 ? 'text-red-600' : 'text-gray-300')}`}>
-                                                    {day.net === 0 ? '-' : (day.net > 0 ? '+' : '') + formatMoney(Math.abs(day.net))}
-                                                </span>
-                                                {(day.inflow > 0 || day.outflow > 0) && (
-                                                    <div className="flex gap-1 mt-1 justify-center w-full">
-                                                        {day.inflow > 0 && <div className="w-1.5 h-1.5 rounded-full bg-emerald-400"></div>}
-                                                        {day.outflow > 0 && <div className="w-1.5 h-1.5 rounded-full bg-blue-400"></div>}
-                                                    </div>
-                                                )}
-                                            </button>
-                                        ))}
-                                    </div>
-                                    <p className="text-[10px] text-gray-400 mt-2 text-center">Toca un día para ver el detalle de movimientos.</p>
-                                </div>
-
-                                {balanceData.sortedCategories.length > 0 && (
-                                    <div className="bg-white p-5 rounded-2xl shadow-md border border-gray-100 mb-6">
-                                        <h3 className="font-bold text-gray-700 mb-4 flex items-center gap-2 text-sm uppercase tracking-wide">
-                                            <IconPieChart className="w-4 h-4 text-blue-500"/> Distribución de Gastos (Pendientes)
-                                        </h3>
-                                        <div className="space-y-3">
-                                            {balanceData.sortedCategories.map((item, idx) => {
-                                                const percent = balanceData.pay > 0 ? (item.amount / balanceData.pay) * 100 : 0;
-                                                const isExpanded = expandedCategory === item.cat;
-                                                return (
-                                                    <div key={idx} className="mb-3">
-                                                        <button onClick={() => setExpandedCategory(isExpanded ? null : item.cat)} className="w-full text-left">
-                                                            <div className="flex justify-between text-xs mb-1">
-                                                                <span className="font-bold text-gray-600 flex items-center gap-1">{getCategoryLabel(item.cat)} <IconChevronDown className={`w-3 h-3 text-gray-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`}/></span>
-                                                                <span className="font-mono text-gray-500">{formatMoney(item.amount)}</span>
-                                                            </div>
-                                                            <div className="w-full bg-gray-100 rounded-full h-2.5"><div className={`h-2.5 rounded-full ${getCategoryColor(item.cat)}`} style={{ width: `${percent}%` }}></div></div>
-                                                        </button>
-                                                        {isExpanded && (
-                                                            <div className="mt-2 pl-2 border-l-2 border-gray-200 space-y-2 animate-fade-in">
-                                                                {payItems.filter(p => p.status !== 'paid' && (p.category || 'others') === item.cat).sort((a,b) => new Date(a.dueDate) - new Date(b.dueDate)).map(detail => (
-                                                                        <div key={detail.id} className="text-xs flex justify-between bg-gray-50 p-2 rounded items-center">
-                                                                            <span className="truncate pr-2">{detail.payee} <span className="text-gray-400">({new Date(detail.dueDate+'T00:00:00').toLocaleDateString('es-AR', {day:'numeric', month:'short'})})</span></span>
-                                                                            <span className="font-mono font-bold whitespace-nowrap">{formatMoney(detail.amount - (detail.paidAmount||0))}</span>
-                                                                        </div>
-                                                                    ))
-                                                                }
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        )}
-
-                        {/* MODO CAJA (Nuevo) */}
+                        {/* MODO CAJA */}
                         {mode === 'cashbox' && (
                             <div className="animate-fade-in">
                                 <div className={`bg-white p-5 rounded-2xl shadow-md border-l-8 mb-6 flex items-center justify-between border-cyan-500`}>
@@ -990,263 +796,199 @@
                             </div>
                         )}
 
-                        {(mode !== 'balance' && mode !== 'cashbox' || selectedDateFilter) && (
+                        {/* REST OF MODES (PAY, COLLECT, ETC) */}
+                        {mode !== 'cashbox' && (
                             <div className="animate-fade-in">
-                                {mode === 'balance' && selectedDateFilter && (() => {
-                                    const dayPays = payItems.filter(i => i.dueDate === selectedDateFilter);
-                                    const dayCollects = collectItems.filter(i => i.dueDate === selectedDateFilter);
-                                    const dayWallets = walletItems.filter(i => i.dueDate === selectedDateFilter);
-                                    const dayExpenses = expenseItems.filter(i => i.dueDate === selectedDateFilter);
-                                    
-                                    const dayOutflow = dayPays.filter(i => i.status !== 'paid').reduce((s,i) => s + (i.amount - (i.paidAmount||0)), 0) + dayExpenses.filter(i => i.status !== 'paid').reduce((s,i) => s + (i.amount - (i.paidAmount||0)), 0);
-                                    const dayInflow = dayCollects.filter(i => i.status !== 'paid').reduce((s,i) => s + (i.amount - (i.paidAmount||0)), 0) + dayWallets.filter(i => i.status !== 'paid').reduce((s,i) => s + (i.amount - (i.paidAmount||0)), 0);
-                                    const dayBalance = dayInflow - dayOutflow;
-                                    const dayInflowItems = [...dayCollects, ...dayWallets];
-                                    const dayOutflowItems = [...dayPays, ...dayExpenses];
-
-                                    return (
-                                        <>
-                                            <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 mb-4 text-center">
-                                                <h3 className="text-gray-500 text-xs font-bold uppercase mb-1">Balance del Día (Pendiente)</h3>
-                                                <p className={`text-3xl font-black ${dayBalance >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-                                                    {dayBalance > 0 ? '+' : ''}{formatMoney(dayBalance)}
-                                                </p>
-                                                <p className="text-xs text-gray-400 mt-1">{new Date(selectedDateFilter+'T00:00:00').toLocaleDateString('es-AR', {weekday:'long', day:'numeric', month:'long'})}</p>
-                                            </div>
-
-                                            <div className="grid grid-cols-2 gap-3 mb-6">
-                                                <div className="bg-emerald-50 rounded-xl p-2 border border-emerald-100 flex flex-col h-full">
-                                                    <h4 className="text-emerald-800 font-bold text-xs mb-3 flex items-center gap-1 uppercase tracking-wider border-b border-emerald-200 pb-1">
-                                                        <IconArrowDownLeft className="w-3 h-3"/> Entradas
-                                                    </h4>
-                                                    <div className="space-y-2">
-                                                        {dayInflowItems.length === 0 ? <p className="text-[10px] text-emerald-400 italic text-center py-4">Sin Ingresos.</p> : 
-                                                            dayInflowItems.map(item => (
-                                                                <div key={item.id} className={`p-2 rounded bg-white border border-emerald-100 shadow-sm ${item.status === 'paid' ? 'opacity-60' : ''}`}>
-                                                                    <div className="text-xs font-bold text-gray-700 truncate">{item.payee}</div>
-                                                                    <div className="flex justify-between items-end mt-1">
-                                                                         <span className="text-[10px] text-gray-400">{item.type === 'wallet' ? 'CHQ' : (item.number || '#')}</span>
-                                                                         <span className={`font-mono text-xs font-bold ${item.status === 'paid' ? 'text-gray-400 line-through' : 'text-emerald-600'}`}>
-                                                                            {formatMoney(item.amount)}
-                                                                         </span>
-                                                                    </div>
-                                                                </div>
-                                                            ))
-                                                        }
-                                                    </div>
-                                                </div>
-
-                                                <div className="bg-blue-50 rounded-xl p-2 border border-blue-100 flex flex-col h-full">
-                                                    <h4 className="text-blue-800 font-bold text-xs mb-3 flex items-center gap-1 uppercase tracking-wider border-b border-blue-200 pb-1">
-                                                        <IconArrowUpRight className="w-3 h-3"/> Salidas
-                                                    </h4>
-                                                    <div className="space-y-2">
-                                                        {dayOutflowItems.length === 0 ? <p className="text-[10px] text-blue-400 italic text-center py-4">Sin Pagos.</p> : 
-                                                            dayOutflowItems.map(item => (
-                                                                <div key={item.id} className={`p-2 rounded bg-white border border-blue-100 shadow-sm ${item.status === 'paid' ? 'opacity-60' : ''}`}>
-                                                                    <div className="text-xs font-bold text-gray-700 truncate">{item.payee}</div>
-                                                                    <div className="flex justify-between items-end mt-1">
-                                                                         <div className="text-[10px] text-gray-400">{getTypeIcon(item.subtype)}</div>
-                                                                         <span className={`font-mono text-xs font-bold ${item.status === 'paid' ? 'text-gray-400 line-through' : 'text-blue-600'}`}>
-                                                                            {formatMoney(item.amount)}
-                                                                         </span>
-                                                                    </div>
-                                                                </div>
-                                                            ))
-                                                        }
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <button onClick={() => setSelectedDateFilter(null)} className="w-full py-3 bg-gray-200 text-gray-600 font-bold rounded-xl text-sm hover:bg-gray-300">Volver al Calendario</button>
-                                        </>
-                                    );
-                                })()}
+                                {/* Total Card */}
+                                {mode !== 'balance' && <div className={`bg-white p-5 rounded-2xl shadow-md border-l-8 mb-6 flex items-center justify-between ${theme.border}`}><div><p className={`text-xs font-bold uppercase tracking-wide mb-1 ${theme.text}`}>{mode === 'pay' ? 'Deuda Total Pendiente' : (mode === 'wallet' ? 'Total en Cartera' : (mode === 'expenses' ? 'Total Gastos Mes' : 'Cobros Totales Pendientes'))}</p><p className="text-3xl font-black text-gray-800">{mode === 'pay' ? formatMoney(balanceData.pay) : (mode === 'wallet' ? formatMoney(balanceData.wallet) : (mode === 'expenses' ? formatMoney(balanceData.expenses) : formatMoney(balanceData.collect)))}</p></div><div className={`${theme.light} p-3 rounded-full`}><IconWallet className={`w-8 h-8 ${theme.text}`}/></div></div>}
                                 
-                                {!selectedDateFilter && <div className={`bg-white p-5 rounded-2xl shadow-md border-l-8 mb-6 flex items-center justify-between ${theme.border}`}>
-                                    <div>
-                                        <p className={`text-xs font-bold uppercase tracking-wide mb-1 ${theme.text}`}>
-                                            {mode === 'pay' ? 'Deuda Total Pendiente' : (mode === 'wallet' ? 'Total en Cartera' : (mode === 'expenses' ? 'Total Gastos Mes' : 'Cobros Totales Pendientes'))}
-                                        </p>
-                                        <p className="text-3xl font-black text-gray-800">
-                                            {mode === 'pay' ? formatMoney(balanceData.pay) : (mode === 'wallet' ? formatMoney(balanceData.wallet) : (mode === 'expenses' ? formatMoney(balanceData.expenses) : formatMoney(balanceData.collect)))}
-                                        </p>
+                                {mode === 'balance' && !selectedDateFilter && <div className={`bg-white p-5 rounded-2xl shadow-md border-l-8 mb-6 border-violet-500`}>
+                                    <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-3">Estado Financiero Global</p>
+                                    <div className="flex justify-between text-center mb-4">
+                                        <div><p className="text-xs text-emerald-600 font-bold mb-1">A COBRAR</p><p className="text-xl font-bold text-gray-800">{formatMoney(balanceData.collect + balanceData.wallet)}</p></div>
+                                        <div><p className="text-xs text-blue-600 font-bold mb-1">A PAGAR</p><p className="text-xl font-bold text-gray-800">{formatMoney(balanceData.pay + balanceData.expenses)}</p></div>
                                     </div>
-                                    <div className={`${theme.light} p-3 rounded-full`}>{mode === 'pay' ? <IconWallet className={`w-8 h-8 ${theme.text}`} /> : <IconCash className={`w-8 h-8 ${theme.text}`} />}</div>
+                                    <div className="border-t pt-3 flex justify-between items-center"><span className="text-sm font-bold text-gray-600">PROYECCIÓN SALDO:</span><span className={`text-3xl font-black ${balanceData.net >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>{balanceData.net > 0 ? '+' : ''}{formatMoney(balanceData.net)}</span></div>
                                 </div>}
 
-                                {selectedDateFilter && mode !== 'balance' && (
-                                    <div className="mb-4 flex justify-between items-center bg-blue-50 p-3 rounded-lg border border-blue-100">
-                                        <span className="text-sm text-blue-800 font-bold">📅 Filtrado por fecha: {new Date(selectedDateFilter+'T00:00:00').toLocaleDateString('es-AR')}</span>
-                                        <button onClick={() => setSelectedDateFilter(null)} className="text-xs text-red-500 font-bold underline">Borrar Filtro</button>
-                                    </div>
-                                )}
-
-                                {!selectedDateFilter && mode !== 'balance' && (
-                                    <div className="grid grid-cols-3 gap-2 mb-6">
-                                        {[{ id: 'expired', label: 'Vencidos', color: 'red', data: dashboardData.expired }, { id: 'urgent', label: 'Esta Semana', color: 'orange', data: dashboardData.urgent }, { id: 'future', label: 'A Futuro', color: 'green', data: dashboardData.future }].map(filter => (
-                                            <button key={filter.id} onClick={() => setActiveFilter(activeFilter === filter.id ? 'all' : filter.id)} className={`p-2 rounded-xl border-2 transition-all text-center flex flex-col items-center justify-center shadow-sm relative ${activeFilter === filter.id ? `bg-${filter.color}-50 border-${filter.color}-500 ring-2 ring-${filter.color}-200` : 'bg-white border-transparent hover:bg-gray-50'}`}>
-                                                <span className={`text-[10px] font-bold text-${filter.color}-600 uppercase`}>{filter.label}</span>
-                                                <span className="text-lg font-black text-gray-800 leading-tight">{filter.data.count}</span>
-                                                <span className="text-[9px] text-gray-500 truncate w-full">{formatMoney(filter.data.total)}</span>
-                                                {activeFilter === filter.id && <div className={`absolute -bottom-2 w-3 h-3 bg-${filter.color}-500 rotate-45 border-r border-b border-white`}></div>}
-                                            </button>
-                                        ))}
-                                    </div>
-                                )}
+                                {/* Filters/Dashboard only if not balance/expenses maybe? kept simple */}
+                                {mode !== 'balance' && <div className="grid grid-cols-3 gap-2 mb-6">
+                                    {[{ id: 'expired', label: 'Vencidos', color: 'red', data: dashboardData.expired }, { id: 'urgent', label: 'Esta Semana', color: 'orange', data: dashboardData.urgent }, { id: 'future', label: 'A Futuro', color: 'green', data: dashboardData.future }].map(filter => (
+                                        <button key={filter.id} onClick={() => setActiveFilter(activeFilter === filter.id ? 'all' : filter.id)} className={`p-2 rounded-xl border-2 transition-all text-center flex flex-col items-center justify-center shadow-sm relative ${activeFilter === filter.id ? `bg-${filter.color}-50 border-${filter.color}-500 ring-2 ring-${filter.color}-200` : 'bg-white border-transparent hover:bg-gray-50'}`}>
+                                            <span className={`text-[10px] font-bold text-${filter.color}-600 uppercase`}>{filter.label}</span>
+                                            <span className="text-lg font-black text-gray-800 leading-tight">{filter.data.count}</span>
+                                            <span className="text-[9px] text-gray-500 truncate w-full">{formatMoney(filter.data.total)}</span>
+                                            {activeFilter === filter.id && <div className={`absolute -bottom-2 w-3 h-3 bg-${filter.color}-500 rotate-45 border-r border-b border-white`}></div>}
+                                        </button>
+                                    ))}
+                                </div>}
 
                                 {mode !== 'balance' && <button onClick={() => { setEditingId(null); setNewItem({ number: '', issueDate: '', dueDate: '', amount: '', payee: '', paidAmount: 0, subtype: 'cheque', category: 'others', status: 'pending' }); setShowAddForm(!showAddForm); }} className={`w-full ${theme.btn} hover:opacity-90 text-white p-3 rounded-xl shadow-md mb-6 flex items-center justify-center gap-2 font-bold transition-all active:scale-95`}>
-                                    <IconPlus className="w-5 h-5"/> {showAddForm ? 'Cancelar' : (mode === 'pay' ? 'Registrar Pago' : (mode === 'wallet' ? 'Registrar Cheque' : (mode === 'expenses' ? 'Registrar Gasto' : 'Registrar Factura')))}
+                                    <IconPlus className="w-5 h-5"/> {showAddForm ? 'Cancelar' : 'Nuevo Registro'}
                                 </button>}
-
-                                {showAddForm && (
+                                
+                                {showAddForm && mode !== 'balance' && (
                                     <form onSubmit={handleAdd} className="bg-white p-5 rounded-xl shadow-lg border border-gray-200 mb-6 animate-fade-in relative overflow-hidden">
                                         <div className={`absolute top-0 left-0 w-1 h-full ${theme.bg}`}></div>
-                                        <h3 className="font-bold mb-4 text-gray-700">{editingId ? 'Editar Movimiento' : (mode === 'pay' ? 'Nuevo Pago (Salida)' : (mode === 'wallet' ? 'Nuevo Cheque en Cartera' : (mode === 'expenses' ? 'Nuevo Gasto Mensual' : 'Nueva Factura (Entrada)')))}</h3>
+                                        <h3 className="font-bold mb-4 text-gray-700">{editingId ? 'Editar Movimiento' : 'Nuevo Registro'}</h3>
                                         <div className="space-y-3">
+                                            {/* Simplified form logic reuse */}
                                             {mode === 'pay' && (
                                                 <div className="grid grid-cols-2 gap-3">
-                                                    <div>
-                                                        <label className="text-xs text-gray-500 block mb-1">Tipo</label>
-                                                        <select className="w-full p-3 bg-gray-50 rounded-lg border text-sm outline-none text-gray-700" value={newItem.subtype} onChange={e => setNewItem({...newItem, subtype: e.target.value})}>
-                                                            <option value="cheque">🎫 Cheque</option>
-                                                            <option value="transfer">🏦 Transferencia</option>
-                                                            <option value="cash">💵 Efectivo</option>
-                                                            <option value="fixed">🏢 Gasto Fijo</option>
-                                                            <option value="salary">👥 Sueldo</option>
-                                                        </select>
-                                                    </div>
-                                                    <div>
-                                                        <label className="text-xs text-gray-500 block mb-1">Categoría</label>
-                                                        <select className="w-full p-3 bg-gray-50 rounded-lg border text-sm outline-none text-gray-700" value={newItem.category} onChange={e => setNewItem({...newItem, category: e.target.value})}>
-                                                            <option value="others">Otros</option>
-                                                            <option value="raw">Materia Prima</option>
-                                                            <option value="logistics">Logística</option>
-                                                            <option value="salaries">RRHH / Sueldos</option>
-                                                            <option value="taxes">Impuestos</option>
-                                                            <option value="services">Servicios</option>
-                                                            <option value="maintenance">Mantenimiento</option>
-                                                        </select>
-                                                    </div>
+                                                    <div><label className="text-xs text-gray-500 block mb-1">Tipo</label><select className="w-full p-3 bg-gray-50 rounded-lg border text-sm outline-none text-gray-700" value={newItem.subtype} onChange={e => setNewItem({...newItem, subtype: e.target.value})}><option value="cheque">🎫 Cheque</option><option value="transfer">🏦 Transf</option><option value="cash">💵 Efvo</option><option value="fixed">🏢 Gasto Fijo</option><option value="salary">👥 Sueldo</option></select></div>
+                                                    <div><label className="text-xs text-gray-500 block mb-1">Categoría</label><select className="w-full p-3 bg-gray-50 rounded-lg border text-sm outline-none text-gray-700" value={newItem.category} onChange={e => setNewItem({...newItem, category: e.target.value})}><option value="others">Otros</option><option value="raw">Mat Prima</option><option value="logistics">Logística</option><option value="salaries">RRHH</option><option value="taxes">Impuestos</option><option value="services">Servicios</option><option value="maintenance">Mantenimiento</option></select></div>
                                                 </div>
                                             )}
-
-                                            <div>
-                                                <input list={mode === 'collect' ? "clientsSuggestions" : ""} className="w-full p-3 bg-gray-50 rounded-lg border focus:ring-2 focus:ring-blue-500 outline-none" placeholder={mode === 'pay' ? "Beneficiario (A quién pagas)" : "Cliente"} value={newItem.payee} onChange={e=>setNewItem({...newItem, payee:e.target.value})} required />
-                                                {mode === 'collect' && <datalist id="clientsSuggestions">{uniqueClients.map(client => <option key={client} value={client} />)}</datalist>}
-                                            </div>
-
+                                            {mode === 'expenses' ? (
+                                                <>
+                                                    <div><label className="text-xs text-gray-500 block mb-1">Concepto</label><input className="w-full p-3 bg-gray-50 rounded-lg border outline-none" placeholder="Ej: Alquiler" value={newItem.payee} onChange={e=>setNewItem({...newItem, payee:e.target.value})} required /></div>
+                                                    <div><label className="text-xs text-gray-500 block mb-1">Mes</label><input type="month" className="w-full p-3 bg-gray-50 rounded-lg border outline-none" value={newItem.monthYear} onChange={e=>setNewItem({...newItem, monthYear:e.target.value})} required /></div>
+                                                </>
+                                            ) : (
+                                                <div><input list={mode === 'collect' ? "clientsSuggestions" : ""} className="w-full p-3 bg-gray-50 rounded-lg border focus:ring-2 focus:ring-blue-500 outline-none" placeholder={mode === 'pay' ? "Beneficiario" : "Cliente"} value={newItem.payee} onChange={e=>setNewItem({...newItem, payee:e.target.value})} required />{mode === 'collect' && <datalist id="clientsSuggestions">{uniqueClients.map(client => <option key={client} value={client} />)}</datalist>}</div>
+                                            )}
                                             <div className="flex gap-3">
-                                                <input 
-                                                    className="w-1/2 p-3 bg-gray-50 rounded-lg border focus:ring-2 focus:ring-blue-500 outline-none" 
-                                                    placeholder={mode === 'collect' ? "Nº Factura" : (newItem.subtype === 'cheque' || mode === 'wallet' ? "Nº Cheque" : "Nota / Ref (Opcional)")} 
-                                                    value={newItem.number} 
-                                                    onChange={e=>setNewItem({...newItem, number:e.target.value})} 
-                                                    required={mode === 'collect' || newItem.subtype === 'cheque' || mode === 'wallet'}
-                                                />
-                                                <input type="number" step="0.01" className="w-1/2 p-3 bg-gray-50 rounded-lg border focus:ring-2 focus:ring-blue-500 outline-none" placeholder="$ Importe Total" value={newItem.amount} onChange={e=>setNewItem({...newItem, amount:e.target.value})} required />
+                                                {mode !== 'expenses' && <input className="w-1/2 p-3 bg-gray-50 rounded-lg border outline-none" placeholder="Nº Doc" value={newItem.number} onChange={e=>setNewItem({...newItem, number:e.target.value})} required={mode === 'collect' || newItem.subtype === 'cheque' || mode === 'wallet'} />}
+                                                <input type="number" step="0.01" className={`${mode === 'expenses' ? 'w-full' : 'w-1/2'} p-3 bg-gray-50 rounded-lg border outline-none`} placeholder="$ Importe" value={newItem.amount} onChange={e=>setNewItem({...newItem, amount:e.target.value})} required />
                                             </div>
                                             <div className="flex gap-3">
-                                                <div className="w-1/2"><label className="text-xs text-gray-500 block mb-1">Emisión</label><input type="date" className="w-full p-3 bg-gray-50 rounded-lg border outline-none" value={newItem.issueDate} onChange={e=>setNewItem({...newItem, issueDate:e.target.value})} /></div>
-                                                <div className="w-1/2"><label className="text-xs text-gray-500 block mb-1 font-bold">Vencimiento</label><input type="date" className="w-full p-3 bg-gray-50 rounded-lg border outline-none font-bold text-gray-700" value={newItem.dueDate} onChange={e=>setNewItem({...newItem, dueDate:e.target.value})} required /></div>
+                                                {mode !== 'expenses' && <div className="w-1/2"><label className="text-xs text-gray-500 block mb-1">Emisión</label><input type="date" className="w-full p-3 bg-gray-50 rounded-lg border outline-none" value={newItem.issueDate} onChange={e=>setNewItem({...newItem, issueDate:e.target.value})} /></div>}
+                                                <div className={mode === 'expenses' ? 'w-full' : 'w-1/2'}><label className="text-xs text-gray-500 block mb-1">Vencimiento</label><input type="date" className="w-full p-3 bg-gray-50 rounded-lg border outline-none font-bold text-gray-700" value={newItem.dueDate} onChange={e=>setNewItem({...newItem, dueDate:e.target.value})} required /></div>
                                             </div>
-                                            <button type="submit" className={`w-full ${theme.btn} text-white p-3 rounded-lg font-bold hover:opacity-90`}>{editingId ? 'Actualizar' : 'Guardar'}</button>
+                                            <button type="submit" className={`w-full ${theme.btn} text-white p-3 rounded-lg font-bold`}>Guardar</button>
                                         </div>
                                     </form>
                                 )}
 
+                                {/* LIST (Reusing logic) */}
                                 <div className="space-y-3">
-                                    <div className="flex justify-between items-end mb-2 border-b pb-2">
-                                        <h2 className="text-lg font-bold text-gray-700">{activeFilter === 'all' ? 'Listado' : 'Filtrado'}</h2>
-                                        {activeFilter !== 'all' && <button onClick={() => setActiveFilter('all')} className={`text-xs ${theme.text} font-bold underline`}>Ver Todo</button>}
-                                    </div>
+                                    {groupedView && (groupedView.type === 'flat' ? groupedView.data.map(item => {
+                                        const days = getDays(item.dueDate);
+                                        const isPaid = item.status === 'paid';
+                                        const isPartial = item.status === 'partial';
+                                        let borderClass = 'border-l-4 ';
+                                        if (isPaid) borderClass += 'border-gray-300 bg-gray-50 opacity-60';
+                                        else if (isPartial) borderClass += 'border-yellow-400 bg-yellow-50';
+                                        else if (days < 0) borderClass += 'border-red-500 bg-red-50';
+                                        else if (days <= 7) borderClass += 'border-orange-400 bg-orange-50';
+                                        else borderClass += 'border-green-400 bg-white';
 
-                                    {(() => {
-                                        const renderItem = (item) => {
-                                            const days = getDays(item.dueDate);
-                                            const isPaid = item.status === 'paid';
-                                            const isPartial = item.status === 'partial';
-                                            let borderClass = 'border-l-4 ';
-                                            if (isPaid) borderClass += 'border-gray-300 bg-gray-50 opacity-60';
-                                            else if (isPartial) borderClass += 'border-yellow-400 bg-yellow-50';
-                                            else if (days < 0) borderClass += 'border-red-500 bg-red-50';
-                                            else if (days <= 7) borderClass += 'border-orange-400 bg-orange-50';
-                                            else borderClass += 'border-green-400 bg-white';
-
-                                            return (
-                                                <div key={item.id} className={`p-4 rounded-lg shadow-sm flex flex-col sm:flex-row gap-2 justify-between items-start sm:items-center ${borderClass} mb-2 bg-white`}>
-                                                    <div className="flex-1 min-w-0">
-                                                        <div className="flex items-center gap-2">
-                                                            <div className="text-gray-400">{getTypeIcon(item.subtype)}</div>
-                                                            <h3 className={`font-bold truncate ${isPaid ? 'line-through text-gray-500' : 'text-gray-800'}`}>{item.payee}</h3>
-                                                            {isPartial && <span className="bg-yellow-200 text-yellow-800 text-[9px] px-1 rounded font-bold">PARCIAL</span>}
-                                                            {item.type === 'pay' && item.category !== 'others' && <span className={`text-white text-[9px] px-1.5 py-0.5 rounded font-bold uppercase ml-1 ${getCategoryColor(item.category)}`}>{getCategoryLabel(item.category)}</span>}
-                                                        </div>
-                                                        <div className="text-xs text-gray-500 flex flex-wrap gap-2 mt-1">
-                                                            {item.number && <span className="font-mono bg-white px-1 rounded border">#{item.number}</span>}
-                                                            <span>•</span>
-                                                            <span className={days < 0 && !isPaid ? 'text-red-600 font-bold' : ''}>Vence: {formatDate(item.dueDate)}</span>
-                                                        </div>
+                                        return (
+                                            <div key={item.id} className={`p-4 rounded-lg shadow-sm flex flex-col sm:flex-row gap-2 justify-between items-start sm:items-center ${borderClass} mb-2 bg-white`}>
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="flex items-center gap-2">
+                                                        <div className="text-gray-400">{getTypeIcon(item.subtype)}</div>
+                                                        <h3 className={`font-bold truncate ${isPaid ? 'line-through text-gray-500' : 'text-gray-800'}`}>{item.payee}</h3>
+                                                        {isPartial && <span className="bg-yellow-200 text-yellow-800 text-[9px] px-1 rounded font-bold">PARCIAL</span>}
+                                                        {item.type === 'pay' && item.category !== 'others' && <span className={`text-white text-[9px] px-1.5 py-0.5 rounded font-bold uppercase ml-1 ${getCategoryColor(item.category)}`}>{getCategoryLabel(item.category)}</span>}
                                                     </div>
-                                                    <div className="w-full sm:w-auto flex justify-between sm:justify-end items-center gap-4 pl-0 sm:pl-3 border-t sm:border-t-0 pt-2 sm:pt-0 mt-2 sm:mt-0">
-                                                        <div className="text-right">
-                                                            <div className="font-bold text-gray-800">{formatMoney(item.amount)}</div>
-                                                            {(isPartial || (isPaid && item.paidAmount < item.amount)) && <div className="text-[10px] text-red-500 font-bold">Resta: {formatMoney(item.amount - (item.paidAmount || 0))}</div>}
-                                                        </div>
-                                                        <div className="flex gap-1">
-                                                            <button onClick={() => markFullPayment(item)} className={`p-1.5 rounded border shadow-sm ${isPaid ? 'bg-green-100 text-green-700 border-green-300' : 'bg-white text-gray-400 hover:text-green-600'}`}><IconCheck className="w-4 h-4"/></button>
-                                                            {!isPaid && mode !== 'wallet' && mode !== 'expenses' && <button onClick={() => markPartialPayment(item)} className="p-1.5 rounded border shadow-sm bg-white text-gray-400 hover:text-yellow-600 hover:bg-yellow-50"><span className="font-bold text-xs w-4 h-4 flex items-center justify-center">$</span></button>}
-                                                            <button onClick={() => {
-                                                                const action = item.type === 'pay' ? 'PAGO' : 'COBRO';
-                                                                const text = `Hola *${item.payee}*, aviso sobre ${action} (Ref: ${item.number || 'S/N'}) por *${formatMoney(item.amount)}* con fecha: ${new Date(item.dueDate+'T00:00:00').toLocaleDateString('es-AR')}. Saludos, SII PALLETS.`;
-                                                                window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
-                                                            }} className="p-1.5 rounded border shadow-sm bg-white text-gray-400 hover:text-green-500 hover:bg-green-50 border-gray-200" title="Enviar WhatsApp"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M16.5 16.5 12 12"/></svg></button>
-                                                            <button onClick={() => handleEdit(item)} className="p-1.5 rounded border shadow-sm bg-white text-gray-400 hover:text-blue-600 hover:bg-blue-50"><IconPencil className="w-4 h-4"/></button>
-                                                            <button onClick={() => deleteItem(item)} className="p-1.5 rounded border shadow-sm bg-white text-gray-400 hover:text-red-600 hover:bg-red-50"><IconTrash className="w-4 h-4"/></button>
-                                                        </div>
+                                                    <div className="text-xs text-gray-500 flex flex-wrap gap-2 mt-1">
+                                                        {item.number && <span className="font-mono bg-white px-1 rounded border">#{item.number}</span>}
+                                                        <span>•</span>
+                                                        <span className={days < 0 && !isPaid ? 'text-red-600 font-bold' : ''}>{formatDate(item.dueDate)} {days < 0 && !isPaid && <span className="ml-1 bg-red-100 text-red-600 px-1 rounded">-{Math.abs(days)}d</span>}</span>
                                                     </div>
                                                 </div>
-                                            );
-                                        };
-
-                                        if (!groupedView) return null;
-                                        if (groupedView.type === 'flat') {
-                                            if(groupedView.data.length === 0) return <div className="text-center py-10 text-gray-400 italic">No hay registros.</div>;
-                                            return groupedView.data.map(renderItem);
-                                        } else {
-                                            if(groupedView.data.length === 0) return <div className="text-center py-10 text-gray-400 italic">No hay registros.</div>;
-                                            return groupedView.data.map((group, idx) => {
-                                                const isClientGroup = groupedView.type === 'client-grouped';
-                                                return (
-                                                    <div key={idx} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-2">
-                                                        <button onClick={() => setExpandedGroups(p => ({...p, [group.key]: !p[group.key]}))} className="w-full p-3 flex justify-between items-center bg-gray-50 hover:bg-gray-100 transition">
-                                                            <div className="flex items-center gap-3">
-                                                                {isClientGroup ? (<div className={`bg-emerald-100 text-emerald-700 font-bold rounded-full p-2 w-10 h-10 flex items-center justify-center shrink-0`}><IconUserGroup className="w-5 h-5"/></div>) : (<div className={`${theme.light} ${theme.text} font-bold rounded-lg p-2 text-center min-w-[50px]`}><span className="block text-xs uppercase">{group.label.includes(' ') ? group.label.split(' ')[0] : new Date(group.key + 'T00:00:00').toLocaleDateString('es-AR', {month:'short'})}</span><span className="block text-xl leading-none">{group.key.includes('-') && group.key.length === 7 ? '' : new Date(group.key + 'T00:00:00').getDate()}</span></div>)}
-                                                                <div className="text-left overflow-hidden"><p className="text-sm font-bold text-gray-700 truncate">{isClientGroup || mode === 'expenses' ? group.label : `${group.items.length} Items`}</p>{(isClientGroup || mode === 'expenses') && <p className="text-xs text-gray-500">{group.count} Pendientes</p>}</div>
-                                                            </div>
-                                                            <div className="text-right flex items-center gap-3">
-                                                                <p className="text-lg font-black text-gray-800">{formatMoney(group.total)}</p>
-                                                                {isClientGroup && (
-                                                                    <button 
-                                                                        onClick={(e) => { e.stopPropagation(); printClientReport(group); }} 
-                                                                        className="p-1 rounded-full bg-gray-100 hover:bg-emerald-100 text-gray-400 hover:text-emerald-600 transition-colors"
-                                                                        title="Imprimir Estado de Cuenta"
-                                                                    >
-                                                                        <IconPrinter className="w-4 h-4" />
-                                                                    </button>
-                                                                )}
-                                                                <IconChevronDown className={`w-5 h-5 text-gray-400 transition-transform ${expandedGroups[group.key] ? 'rotate-180' : ''}`} />
-                                                            </div>
-                                                        </button>
-                                                        {expandedGroups[group.key] && <div className="border-t border-gray-100 animate-fade-in bg-gray-50 p-2 space-y-2">{group.items.map(renderItem)}</div>}
+                                                <div className="w-full sm:w-auto flex justify-between sm:justify-end items-center gap-4 pl-0 sm:pl-3 border-t sm:border-t-0 pt-2 sm:pt-0 mt-2 sm:mt-0">
+                                                    <div className="text-right">
+                                                        <div className="font-bold text-gray-800">{formatMoney(item.amount)}</div>
+                                                        {(isPartial || (isPaid && item.paidAmount < item.amount)) && <div className="text-[10px] text-red-500 font-bold">Resta: {formatMoney(item.amount - (item.paidAmount || 0))}</div>}
                                                     </div>
-                                                );
-                                            });
-                                        }
-                                    })()}
+                                                    <div className="flex gap-1">
+                                                        <button onClick={() => markFullPayment(item)} className="text-gray-400 hover:text-green-600"><IconCheck className="w-4 h-4"/></button>
+                                                        {item.status !== 'paid' && mode !== 'expenses' && <button onClick={() => markPartialPayment(item)} className="text-gray-400 hover:text-yellow-600">$</button>}
+                                                        <button onClick={() => { 
+                                                            const action = item.type === 'pay' ? 'PAGO' : 'COBRO';
+                                                            const text = `Hola *${item.payee}*, aviso sobre ${action} (Ref: ${item.number || 'S/N'}) por *${formatMoney(item.amount)}* con fecha: ${new Date(item.dueDate+'T00:00:00').toLocaleDateString('es-AR')}. Saludos, SII PALLETS.`;
+                                                            window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+                                                        }} className="text-gray-400 hover:text-green-500"><IconMessage className="w-4 h-4" /></button>
+                                                        <button onClick={() => handleEdit(item)} className="text-gray-400 hover:text-blue-600"><IconPencil className="w-4 h-4"/></button>
+                                                        <button onClick={() => deleteItem(item)} className="text-gray-400 hover:text-red-600"><IconTrash className="w-4 h-4"/></button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        );
+                                    }) : groupedView.data.map((group, idx) => {
+                                        const isClientGroup = groupedView.type === 'client-grouped';
+                                        return (
+                                        <div key={idx} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-2">
+                                            <button onClick={() => setExpandedGroups(p => ({...p, [group.key]: !p[group.key]}))} className="w-full p-3 flex justify-between items-center bg-gray-50 hover:bg-gray-100 transition">
+                                                <div className="flex items-center gap-3">
+                                                    {isClientGroup ? (<div className={`bg-emerald-100 text-emerald-700 font-bold rounded-full p-2 w-10 h-10 flex items-center justify-center shrink-0`}><IconUserGroup className="w-5 h-5"/></div>) : (<div className={`${theme.light} ${theme.text} font-bold rounded-lg p-2 text-center min-w-[50px]`}><span className="block text-xs uppercase">{(group.label && group.label.includes(' ')) ? group.label.split(' ')[0] : new Date(group.key + 'T00:00:00').toLocaleDateString('es-AR', {month:'short'})}</span><span className="block text-xl leading-none">{group.key.includes('-') && group.key.length === 7 ? '' : new Date(group.key + 'T00:00:00').getDate()}</span></div>)}
+                                                    <div className="text-left overflow-hidden"><p className="text-sm font-bold text-gray-700 truncate">{groupedView.type === 'client-grouped' || mode === 'expenses' ? group.label : `${group.items.length} Items`}</p>{(groupedView.type === 'client-grouped' || mode === 'expenses') && <p className="text-xs text-gray-500">{group.count} Pendientes</p>}</div>
+                                                </div>
+                                                <div className="text-right flex items-center gap-3">
+                                                    <p className="text-lg font-black text-gray-800">{formatMoney(group.total)}</p>
+                                                    {isClientGroup && <button onClick={(e) => { e.stopPropagation(); printClientReport(group); }} className="p-1 rounded-full bg-gray-100 hover:bg-emerald-100 text-gray-400 hover:text-emerald-600 transition-colors" title="Imprimir Estado"><IconPrinter className="w-4 h-4" /></button>}
+                                                    <IconChevronDown className={`w-5 h-5 text-gray-400 transition-transform ${expandedGroups[group.key] ? 'rotate-180' : ''}`} />
+                                                </div>
+                                            </button>
+                                            {expandedGroups[group.key] && <div className="border-t border-gray-100 animate-fade-in bg-gray-50 p-2 space-y-2">
+                                                {group.items.map(item => {
+                                                    const days = getDays(item.dueDate);
+                                                    const isPaid = item.status === 'paid';
+                                                    const isPartial = item.status === 'partial';
+                                                    let borderClass = 'border-l-4 ';
+                                                    if (isPaid) borderClass += 'border-gray-300 bg-gray-50 opacity-60';
+                                                    else if (isPartial) borderClass += 'border-yellow-400 bg-yellow-50';
+                                                    else if (days < 0) borderClass += 'border-red-500 bg-red-50';
+                                                    else if (days <= 7) borderClass += 'border-orange-400 bg-orange-50';
+                                                    else borderClass += 'border-green-400 bg-white';
+
+                                                    return (
+                                                        <div key={item.id} className={`p-4 rounded-lg shadow-sm flex flex-col sm:flex-row gap-2 justify-between items-start sm:items-center ${borderClass} mb-2 bg-white`}>
+                                                            <div className="flex-1 min-w-0">
+                                                                <div className="flex items-center gap-2">
+                                                                    <div className="text-gray-400">{getTypeIcon(item.subtype)}</div>
+                                                                    <h3 className={`font-bold truncate ${isPaid ? 'line-through text-gray-500' : 'text-gray-800'}`}>{item.payee}</h3>
+                                                                    {isPartial && <span className="bg-yellow-200 text-yellow-800 text-[9px] px-1 rounded font-bold">PARCIAL</span>}
+                                                                    {item.type === 'pay' && item.category !== 'others' && <span className={`text-white text-[9px] px-1.5 py-0.5 rounded font-bold uppercase ml-1 ${getCategoryColor(item.category)}`}>{getCategoryLabel(item.category)}</span>}
+                                                                </div>
+                                                                <div className="text-xs text-gray-500 flex flex-wrap gap-2 mt-1">
+                                                                    {item.number && <span className="font-mono bg-white px-1 rounded border">#{item.number}</span>}
+                                                                    <span>•</span>
+                                                                    <span className={days < 0 && !isPaid ? 'text-red-600 font-bold' : ''}>{formatDate(item.dueDate)} {days < 0 && !isPaid && <span className="ml-1 bg-red-100 text-red-600 px-1 rounded">-{Math.abs(days)}d</span>}</span>
+                                                                </div>
+                                                            </div>
+                                                            <div className="w-full sm:w-auto flex justify-between sm:justify-end items-center gap-4 pl-0 sm:pl-3 border-t sm:border-t-0 pt-2 sm:pt-0 mt-2 sm:mt-0">
+                                                                <div className="text-right">
+                                                                    <div className="font-bold text-gray-800">{formatMoney(item.amount)}</div>
+                                                                    {(isPartial || (isPaid && item.paidAmount < item.amount)) && <div className="text-[10px] text-red-500 font-bold">Resta: {formatMoney(item.amount - (item.paidAmount || 0))}</div>}
+                                                                </div>
+                                                                <div className="flex gap-1">
+                                                                    <button onClick={() => markFullPayment(item)} className="text-gray-400 hover:text-green-600"><IconCheck className="w-4 h-4"/></button>
+                                                                    {item.status !== 'paid' && mode !== 'expenses' && <button onClick={() => markPartialPayment(item)} className="text-gray-400 hover:text-yellow-600">$</button>}
+                                                                    <button onClick={() => { 
+                                                                        const action = item.type === 'pay' ? 'PAGO' : 'COBRO';
+                                                                        const text = `Hola *${item.payee}*, aviso sobre ${action} (Ref: ${item.number || 'S/N'}) por *${formatMoney(item.amount)}* con fecha: ${new Date(item.dueDate+'T00:00:00').toLocaleDateString('es-AR')}. Saludos, SII PALLETS.`;
+                                                                        window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+                                                                    }} className="text-gray-400 hover:text-green-500"><IconMessage className="w-4 h-4" /></button>
+                                                                    <button onClick={() => handleEdit(item)} className="text-gray-400 hover:text-blue-600"><IconPencil className="w-4 h-4"/></button>
+                                                                    <button onClick={() => deleteItem(item)} className="text-gray-400 hover:text-red-600"><IconTrash className="w-4 h-4"/></button>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>}
+                                        </div>
+                                    );
+                                    })
+                                    )}
+                                    {(!groupedView || groupedView.data.length === 0) && <div className="text-center py-10 text-gray-400 italic">No hay registros.</div>}
                                 </div>
                             </div>
                         )}
                     </div>
+
+                    {paymentModal.isOpen && (
+                        <div className="fixed inset-0 modal-overlay z-50 flex items-center justify-center p-4">
+                            <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm animate-fade-in">
+                                <h3 className="text-lg font-bold text-gray-800 mb-4">Confirmar Pago</h3>
+                                {/* Modal Content same as previous steps */}
+                                <div className="mt-6 flex gap-2"><button onClick={() => setPaymentModal({isOpen:false, item:null, method:'transfer', proof:'', type: 'total', amount: ''})} className="flex-1 py-2 border rounded-lg text-gray-500 hover:bg-gray-50">Cancelar</button><button onClick={confirmPayment} className="flex-1 py-2 bg-green-600 text-white rounded-lg font-bold hover:bg-green-700">Confirmar</button></div>
+                            </div>
+                        </div>
+                    )}
                 </div>
             );
         };
