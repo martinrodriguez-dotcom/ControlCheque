@@ -367,6 +367,93 @@
                 }, 500);
             };
 
+            const printCalendarReport = () => {
+                const days = generateCalendarDays();
+                const monthName = currentCalDate.toLocaleDateString('es-AR', { month: 'long', year: 'numeric' });
+                
+                let contentHTML = `
+                    <html>
+                    <head>
+                        <title>Reporte Mensual - ${monthName}</title>
+                        <style>
+                            body { font-family: sans-serif; padding: 20px; color: #333; font-size: 11px; }
+                            h1 { color: #1e40af; border-bottom: 2px solid #1e40af; padding-bottom: 10px; margin-bottom: 15px; }
+                            table { width: 100%; border-collapse: collapse; }
+                            th { background: #e5e7eb; padding: 6px; text-align: center; border-bottom: 2px solid #999; font-weight: bold; font-size: 10px; }
+                            td { padding: 5px; border-bottom: 1px solid #eee; text-align: right; vertical-align: top; }
+                            .date-col { text-align: left; font-weight: bold; width: 10%; }
+                            .desc-col { text-align: left; width: 60%; font-size: 10px; color: #555; }
+                            .green { color: #16a34a; font-weight: bold; }
+                            .red { color: #dc2626; font-weight: bold; }
+                            .blue { color: #2563eb; font-weight: bold; }
+                            .desc-item { display: block; margin-bottom: 2px; }
+                            .desc-item span { color: #888; font-size: 9px; margin-left: 4px; }
+                        </style>
+                    </head>
+                    <body>
+                        <h1>Proyección Mensual: ${monthName}</h1>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th class="date-col">Fecha</th>
+                                    <th>Ingresos</th>
+                                    <th>Egresos</th>
+                                    <th>Acumulado</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                `;
+                
+                days.forEach(day => {
+                    if(!day) return;
+                    
+                    // Columnas de detalle para Ingresos y Egresos
+                    let inflowHTML = "";
+                    if(day.inflowItems.length > 0) {
+                         day.inflowItems.forEach(i => {
+                            const ref = i.number ? (i.subtype === 'cheque' || i.type === 'wallet' ? `Chq #${i.number}` : `Ref: ${i.number}`) : '';
+                            inflowHTML += `<div style="margin-bottom:4px;">
+                                <div style="font-weight:bold; color:#16a34a;">${formatMoney(i.amount - (i.paidAmount||0))}</div>
+                                <div style="font-size:9px; color:#555;">(${i.payee} - ${ref})</div>
+                            </div>`;
+                        });
+                    } else {
+                        inflowHTML = "-";
+                    }
+
+                    let outflowHTML = "";
+                    if(day.outflowItems.length > 0) {
+                         day.outflowItems.forEach(i => {
+                            const typeLabel = i.subtype === 'cheque' ? 'Chq' : (i.subtype === 'transfer' ? 'Transf' : (i.subtype === 'echeq' ? 'Eq' : ''));
+                            const ref = i.number ? `${typeLabel} #${i.number}` : '';
+                            outflowHTML += `<div style="margin-bottom:4px;">
+                                <div style="font-weight:bold; color:#dc2626;">${formatMoney(i.amount - (i.paidAmount||0))}</div>
+                                <div style="font-size:9px; color:#555;">(${i.payee} - ${ref})</div>
+                            </div>`;
+                        });
+                    } else {
+                        outflowHTML = "-";
+                    }
+
+                    contentHTML += `
+                        <tr>
+                            <td class="date-col">${new Date(day.dateKey+'T00:00:00').toLocaleDateString('es-AR', { weekday: 'short', day: 'numeric' })}</td>
+                            <td style="text-align:left;">${inflowHTML}</td>
+                            <td style="text-align:left;">${outflowHTML}</td>
+                            <td class="blue">${formatMoney(day.accumulated)}</td>
+                        </tr>
+                    `;
+                });
+                
+                contentHTML += `</tbody></table></body></html>`;
+                
+                const printWindow = window.open('', '_blank');
+                printWindow.document.write(contentHTML);
+                printWindow.document.close();
+                printWindow.focus();
+                setTimeout(() => { printWindow.print(); printWindow.close(); }, 500);
+            };
+
             const requestNotify = () => {
                 if (typeof Notification === 'undefined') return;
                 Notification.requestPermission().then(perm => { setNotifPermission(perm); if(perm === 'granted') { try { new Notification("SII PALLETS APP", { body: "¡Notificaciones activadas!" }); } catch(e) {} } });
@@ -382,7 +469,7 @@
                 return all.filter(item => { if (item.status === 'paid') return false; const d = getDays(item.dueDate); return d <= 10; }).sort((a,b) => getDays(a.dueDate) - getDays(b.dueDate));
             }, [payItems, collectItems, walletItems, expenseItems]);
 
-            // --- Lógica de Caja (NUEVO) ---
+            // --- Lógica de Caja ---
             const cashData = useMemo(() => {
                 const sorted = [...cashItems].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime() || (a.createdAt || '').localeCompare(b.createdAt || ''));
                 let balance = 0;
@@ -525,7 +612,10 @@
                     const net = inflow - outflow;
                     runningBalance += net; // Acumulamos el saldo del día al total
                     
-                    days.push({ day: d, dateKey, inflow, outflow, net, accumulated: runningBalance });
+                    const inflowItems = [...dayCollects, ...dayWallet];
+                    const outflowItems = [...dayPays, ...dayExpenses];
+
+                    days.push({ day: d, dateKey, inflow, outflow, net, accumulated: runningBalance, inflowItems, outflowItems });
                 }
                 return days;
             };
@@ -1100,7 +1190,7 @@
                                         <div key={idx} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-2">
                                             <button onClick={() => setExpandedGroups(p => ({...p, [group.key]: !p[group.key]}))} className="w-full p-3 flex justify-between items-center bg-gray-50 hover:bg-gray-100 transition">
                                                 <div className="flex items-center gap-3">
-                                                    {isClientGroup ? (<div className={`bg-emerald-100 text-emerald-700 font-bold rounded-full p-2 w-10 h-10 flex items-center justify-center shrink-0`}><IconUserGroup className="w-5 h-5"/></div>) : (<div className={`${theme.light} ${theme.text} font-bold rounded-lg p-2 text-center min-w-[50px]`}><span className="block text-xs uppercase">{(group.label && group.label.includes(' ')) ? group.label.split(' ')[0] : new Date(group.key + 'T00:00:00').toLocaleDateString('es-AR', {month:'short'})}</span><span className="block text-xl leading-none">{group.key.includes('-') && group.key.length === 7 ? '' : new Date(group.key + 'T00:00:00').getDate()}</span></div>)}
+                                                    {isClientGroup ? (<div className={`bg-emerald-100 text-emerald-700 font-bold rounded-full p-2 w-10 h-10 flex items-center justify-center shrink-0`}><IconUserGroup className="w-5 h-5"/></div>) : (<div className={`${theme.light} ${theme.text} font-bold rounded-lg p-2 text-center min-w-[50px]`}><span className="block text-xs uppercase">{group.label && group.label.includes(' ') ? group.label.split(' ')[0] : new Date(group.key + 'T00:00:00').toLocaleDateString('es-AR', {month:'short'})}</span><span className="block text-xl leading-none">{group.key.includes('-') && group.key.length === 7 ? '' : new Date(group.key + 'T00:00:00').getDate()}</span></div>)}
                                                     <div className="text-left overflow-hidden"><p className="text-sm font-bold text-gray-700 truncate">{groupedView.type === 'client-grouped' || mode === 'expenses' ? group.label : `${group.items.length} Items`}</p>{(groupedView.type === 'client-grouped' || mode === 'expenses') && <p className="text-xs text-gray-500">{group.count} Pendientes</p>}</div>
                                                 </div>
                                                 <div className="text-right flex items-center gap-3">
@@ -1257,7 +1347,10 @@
                             <div className="bg-white w-full h-full max-w-4xl rounded-xl shadow-2xl flex flex-col overflow-hidden">
                                 <div className="bg-violet-600 text-white p-4 flex justify-between items-center shadow-md z-10">
                                     <h2 className="font-bold text-lg flex items-center gap-2"><IconCalendar className="w-6 h-6"/> Calendario Financiero</h2>
-                                    <button onClick={() => setShowCalendar(false)} className="p-2 bg-white/20 rounded-full hover:bg-white/30"><IconX className="w-5 h-5"/></button>
+                                    <div className="flex gap-2">
+                                        <button onClick={printCalendarReport} className="p-2 bg-white/20 rounded-full hover:bg-white/30" title="Imprimir Calendario"><IconPrinter className="w-5 h-5"/></button>
+                                        <button onClick={() => setShowCalendar(false)} className="p-2 bg-white/20 rounded-full hover:bg-white/30"><IconX className="w-5 h-5"/></button>
+                                    </div>
                                 </div>
                                 
                                 <div className="flex justify-between items-center p-4 bg-gray-50 border-b">
