@@ -39,7 +39,7 @@
 
         /* Calendario Styles */
         .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
-        .calendar-day { min-height: 80px; font-size: 10px; position: relative; }
+        .calendar-day { min-height: 90px; font-size: 10px; position: relative; } 
     </style>
 </head>
 <body class="bg-gray-100 text-gray-800 font-sans">
@@ -364,7 +364,7 @@
                 setTimeout(() => {
                     printWindow.print();
                     printWindow.close();
-                }, 1000);
+                }, 500);
             };
 
             const requestNotify = () => {
@@ -485,13 +485,29 @@
                 return days;
             }, [payItems, collectItems, walletItems, expenseItems]);
 
-            // --- Lógica del Calendario Mensual ---
+            // --- Lógica del Calendario Mensual con Acumulado ---
             const generateCalendarDays = () => {
                 const year = currentCalDate.getFullYear();
                 const month = currentCalDate.getMonth();
                 const daysInMonth = new Date(year, month + 1, 0).getDate();
                 const firstDay = new Date(year, month, 1).getDay(); // 0 is Sunday
                 
+                const firstDateStr = `${year}-${String(month + 1).padStart(2, '0')}-01`;
+                
+                // Calculamos el saldo acumulado previo al mes actual (deuda/crédito histórico pendiente)
+                let runningBalance = 0;
+                [...payItems, ...collectItems, ...walletItems, ...expenseItems].forEach(item => {
+                    if (item.status === 'paid') return;
+                    if (item.dueDate < firstDateStr) {
+                        // Si es pago/gasto resta, si es cobro/cartera suma
+                        if (item.type === 'pay' || item.type === 'expense') {
+                             runningBalance -= (item.amount - (item.paidAmount || 0));
+                        } else {
+                             runningBalance += (item.amount - (item.paidAmount || 0));
+                        }
+                    }
+                });
+
                 const days = [];
                 for (let i = 0; i < firstDay; i++) days.push(null);
                 
@@ -506,7 +522,10 @@
                     const outflow = dayPays.reduce((s,i)=>s+(i.amount-(i.paidAmount||0)),0) + dayExpenses.reduce((s,i)=>s+(i.amount-(i.paidAmount||0)),0);
                     const inflow = dayCollects.reduce((s,i)=>s+(i.amount-(i.paidAmount||0)),0) + dayWallet.reduce((s,i)=>s+(i.amount-(i.paidAmount||0)),0);
                     
-                    days.push({ day: d, dateKey, inflow, outflow, net: inflow - outflow });
+                    const net = inflow - outflow;
+                    runningBalance += net; // Acumulamos el saldo del día al total
+                    
+                    days.push({ day: d, dateKey, inflow, outflow, net, accumulated: runningBalance });
                 }
                 return days;
             };
@@ -604,6 +623,7 @@
                     filtered.forEach(item => {
                         const dateKey = item.dueDate;
                         if (!dateKey) return;
+                        // FIX: check group.label existence before includes
                         if (!groups[dateKey]) groups[dateKey] = { key: dateKey, total: 0, items: [] };
                         groups[dateKey].total += (item.amount - (item.paidAmount || 0)); 
                         groups[dateKey].items.push(item);
@@ -997,7 +1017,7 @@
                                             </div>
                                         )}
 
-                                        {/* AGENDA FINANCIERA EN BALANCE (RESTAURADO) */}
+                                        {/* AGENDA FINANCIERA EN BALANCE */}
                                         <div className="bg-white p-5 rounded-2xl shadow-md border border-gray-100">
                                             <h3 className="font-bold text-gray-700 mb-4 flex items-center gap-2 text-sm uppercase tracking-wide">
                                                 <IconCalendar className="w-4 h-4 text-violet-500"/> Agenda Financiera
@@ -1080,7 +1100,7 @@
                                         <div key={idx} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-2">
                                             <button onClick={() => setExpandedGroups(p => ({...p, [group.key]: !p[group.key]}))} className="w-full p-3 flex justify-between items-center bg-gray-50 hover:bg-gray-100 transition">
                                                 <div className="flex items-center gap-3">
-                                                    {isClientGroup ? (<div className={`bg-emerald-100 text-emerald-700 font-bold rounded-full p-2 w-10 h-10 flex items-center justify-center shrink-0`}><IconUserGroup className="w-5 h-5"/></div>) : (<div className={`${theme.light} ${theme.text} font-bold rounded-lg p-2 text-center min-w-[50px]`}><span className="block text-xs uppercase">{group.label && group.label.includes(' ') ? group.label.split(' ')[0] : new Date(group.key + 'T00:00:00').toLocaleDateString('es-AR', {month:'short'})}</span><span className="block text-xl leading-none">{group.key.includes('-') && group.key.length === 7 ? '' : new Date(group.key + 'T00:00:00').getDate()}</span></div>)}
+                                                    {isClientGroup ? (<div className={`bg-emerald-100 text-emerald-700 font-bold rounded-full p-2 w-10 h-10 flex items-center justify-center shrink-0`}><IconUserGroup className="w-5 h-5"/></div>) : (<div className={`${theme.light} ${theme.text} font-bold rounded-lg p-2 text-center min-w-[50px]`}><span className="block text-xs uppercase">{(group.label && group.label.includes(' ')) ? group.label.split(' ')[0] : new Date(group.key + 'T00:00:00').toLocaleDateString('es-AR', {month:'short'})}</span><span className="block text-xl leading-none">{group.key.includes('-') && group.key.length === 7 ? '' : new Date(group.key + 'T00:00:00').getDate()}</span></div>)}
                                                     <div className="text-left overflow-hidden"><p className="text-sm font-bold text-gray-700 truncate">{groupedView.type === 'client-grouped' || mode === 'expenses' ? group.label : `${group.items.length} Items`}</p>{(groupedView.type === 'client-grouped' || mode === 'expenses') && <p className="text-xs text-gray-500">{group.count} Pendientes</p>}</div>
                                                 </div>
                                                 <div className="text-right flex items-center gap-3">
@@ -1150,7 +1170,7 @@
                     {paymentModal.isOpen && (
                         <div className="fixed inset-0 modal-overlay z-50 flex items-center justify-center p-4">
                             <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm animate-fade-in">
-                                <h3 className="text-lg font-bold text-gray-800 mb-4">Confirmar {paymentModal.item.type === 'collect' ? 'Cobro' : 'Pago'}</h3>
+                                <h3 className="text-lg font-bold text-gray-800 mb-4">Confirmar Pago</h3>
                                 
                                 <div className="bg-gray-50 p-3 rounded-lg mb-4 text-sm text-gray-600">
                                     <p><strong>{paymentModal.item.payee}</strong></p>
@@ -1300,8 +1320,13 @@
                                                             </div>
                                                         </>
                                                     ) : (
-                                                        <div className="text-center text-gray-300 text-[10px] mt-2">-</div>
+                                                        <div className="text-center text-gray-300 text-[10px] mb-2">-</div>
                                                     )}
+                                                    
+                                                    {/* Acumulado SIEMPRE visible o solo con actividad? El usuario pidio ver la proyeccion. Verlo siempre es mejor */}
+                                                    <div className={`text-center text-[9px] font-black mt-auto pt-1 border-t border-dashed border-gray-100 ${day.accumulated >= 0 ? 'text-blue-600' : 'text-orange-600'}`}>
+                                                        {formatMoney(day.accumulated).replace('$','')}
+                                                    </div>
                                                 </button>
                                             );
                                         })}
