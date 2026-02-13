@@ -382,10 +382,12 @@
                             th { background: #e5e7eb; padding: 6px; text-align: center; border-bottom: 2px solid #999; font-weight: bold; font-size: 10px; }
                             td { padding: 5px; border-bottom: 1px solid #eee; text-align: right; vertical-align: top; }
                             .date-col { text-align: left; font-weight: bold; width: 10%; }
-                            .desc-col { text-align: left; width: 60%; font-size: 10px; color: #555; }
                             .green { color: #16a34a; font-weight: bold; }
                             .red { color: #dc2626; font-weight: bold; }
-                            .blue { color: #2563eb; font-weight: bold; }
+                            /* Correccion: Color acumulado segun signo */
+                            .green-acum { color: #16a34a; font-weight: bold; }
+                            .red-acum { color: #dc2626; font-weight: bold; }
+                            
                             .desc-item { display: block; margin-bottom: 2px; }
                             .desc-item span { color: #888; font-size: 9px; margin-left: 4px; }
                         </style>
@@ -407,12 +409,13 @@
                 days.forEach(day => {
                     if(!day) return;
                     
-                    // Columnas de detalle para Ingresos y Egresos
+                    // Columnas de detalle para Ingresos
                     let inflowHTML = "";
                     if(day.inflowItems.length > 0) {
                          day.inflowItems.forEach(i => {
-                            const ref = i.number ? (i.subtype === 'cheque' || i.type === 'wallet' ? `Chq #${i.number}` : `Ref: ${i.number}`) : '';
-                            inflowHTML += `<div style="margin-bottom:4px;">
+                            // Correccion: detalle simplificado "Ref: #"
+                            const ref = i.number ? `Ref: ${i.number}` : '';
+                            inflowHTML += `<div style="margin-bottom:6px;">
                                 <div style="font-weight:bold; color:#16a34a;">${formatMoney(i.amount - (i.paidAmount||0))}</div>
                                 <div style="font-size:9px; color:#555;">(${i.payee} - ${ref})</div>
                             </div>`;
@@ -421,12 +424,13 @@
                         inflowHTML = "-";
                     }
 
+                    // Columnas de detalle para Egresos
                     let outflowHTML = "";
                     if(day.outflowItems.length > 0) {
                          day.outflowItems.forEach(i => {
-                            const typeLabel = i.subtype === 'cheque' ? 'Chq' : (i.subtype === 'transfer' ? 'Transf' : (i.subtype === 'echeq' ? 'Eq' : ''));
-                            const ref = i.number ? `${typeLabel} #${i.number}` : '';
-                            outflowHTML += `<div style="margin-bottom:4px;">
+                            // Correccion: detalle simplificado "Ref: #"
+                            const ref = i.number ? `Ref: ${i.number}` : '';
+                            outflowHTML += `<div style="margin-bottom:6px;">
                                 <div style="font-weight:bold; color:#dc2626;">${formatMoney(i.amount - (i.paidAmount||0))}</div>
                                 <div style="font-size:9px; color:#555;">(${i.payee} - ${ref})</div>
                             </div>`;
@@ -434,13 +438,16 @@
                     } else {
                         outflowHTML = "-";
                     }
+                    
+                    // Color dinamico para acumulado
+                    const acumClass = day.accumulated >= 0 ? 'green-acum' : 'red-acum';
 
                     contentHTML += `
                         <tr>
                             <td class="date-col">${new Date(day.dateKey+'T00:00:00').toLocaleDateString('es-AR', { weekday: 'short', day: 'numeric' })}</td>
-                            <td style="text-align:left;">${inflowHTML}</td>
-                            <td style="text-align:left;">${outflowHTML}</td>
-                            <td class="blue">${formatMoney(day.accumulated)}</td>
+                            <td style="text-align:right;">${inflowHTML}</td>
+                            <td style="text-align:right;">${outflowHTML}</td>
+                            <td class="${acumClass}">${formatMoney(day.accumulated)}</td>
                         </tr>
                     `;
                 });
@@ -1417,7 +1424,7 @@
                                                     )}
                                                     
                                                     {/* Acumulado SIEMPRE visible o solo con actividad? El usuario pidio ver la proyeccion. Verlo siempre es mejor */}
-                                                    <div className={`text-center text-[9px] font-black mt-auto pt-1 border-t border-dashed border-gray-100 ${day.accumulated >= 0 ? 'text-blue-600' : 'text-orange-600'}`}>
+                                                    <div className={`text-center text-[9px] font-black mt-auto pt-1 border-t border-dashed border-gray-100 ${day.accumulated >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                                                         {formatMoney(day.accumulated).replace('$','')}
                                                     </div>
                                                 </button>
