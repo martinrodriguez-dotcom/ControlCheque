@@ -20,6 +20,8 @@
     <!-- FIX: Versión específica de Babel para evitar error de esmodules -->
     <script src="https://unpkg.com/@babel/standalone@7.23.6/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Librería para Generar PDF (Soluciona impresión en celulares) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" xintegrity="sha512-GsLlZN/3F2ErC5ifS5QtgpiJtWd43JWSuIgh7mbzZ8zBps+dvLusV+eNQATqgA/HdeKFVgA5v3S/cIrLF7QnIg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 
     <style>
         @keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
@@ -118,9 +120,13 @@
             const [deferredPrompt, setDeferredPrompt] = useState(null);
             const [activeFilter, setActiveFilter] = useState('all'); 
             const [showAddForm, setShowAddForm] = useState(false);
+            
+            // FIX: Agregamos campos isRecurring y installments
             const [newItem, setNewItem] = useState({ 
-                number: '', issueDate: '', dueDate: '', amount: '', payee: '', paidAmount: 0, subtype: 'cheque', category: 'others', status: 'pending', monthYear: '', cashType: 'income'
+                number: '', issueDate: '', dueDate: '', amount: '', payee: '', paidAmount: 0, subtype: 'cheque', category: 'others', status: 'pending', monthYear: '', cashType: 'income',
+                isRecurring: false, installments: 2
             });
+            
             const [editingId, setEditingId] = useState(null); 
             const [expandedGroups, setExpandedGroups] = useState({});
             const [expandedCategory, setExpandedCategory] = useState(null);
@@ -129,7 +135,6 @@
             const [notifPermission, setNotifPermission] = useState(typeof Notification !== 'undefined' ? Notification.permission : 'default');
             const [selectedDateFilter, setSelectedDateFilter] = useState(null);
             
-            // --- ESTADOS PARA EL CALENDARIO ---
             const [showCalendar, setShowCalendar] = useState(false);
             const [currentCalDate, setCurrentCalDate] = useState(new Date());
 
@@ -212,17 +217,89 @@
                 return map[cat] || 'bg-gray-400';
             };
 
-            const printReport = () => {
-                if (!groupedView || !groupedView.data || groupedView.data.length === 0) return alert("No hay datos para imprimir.");
+            const handleReportAction = (title, bodyContent, action, filename) => {
+                const reportCSS = `
+                    body, .report-container { font-family: sans-serif; padding: 20px; color: #333; font-size: 11px; position: relative; background: #fff; }
+                    h1 { color: #1e40af; border-bottom: 2px solid #1e40af; padding-bottom: 5px; font-size: 16px; margin-bottom: 5px; width: 80%; }
+                    .meta { color: #666; font-size: 9px; margin-bottom: 10px; }
+                    table { width: 100%; border-collapse: collapse; margin-top: 5px; }
+                    th { background: #e5e7eb; padding: 6px; text-align: left; font-size: 11px; border-bottom: 1px solid #999; font-weight: bold; }
+                    td { padding: 6px; border-bottom: 1px solid #eee; vertical-align: top; }
+                    .group-row td { background: #e5e7eb; font-weight: bold; padding: 4px; font-size: 11px; border-top: 1px solid #ccc; }
+                    .amount { font-family: monospace; text-align: right; font-weight: bold; }
+                    .date { white-space: nowrap; }
+                    .center { text-align: center; }
+                    .red { color: #dc2626; font-weight: bold; }
+                    .green { color: #16a34a; font-weight: bold; }
+                    .blue { color: #2563eb; font-weight: bold; }
+                    .green-acum { color: #16a34a; font-weight: bold; }
+                    .red-acum { color: #dc2626; font-weight: bold; }
+                    .total-box { padding: 8px; background: #f0f9ff; border: 1px solid #bae6fd; margin-bottom: 10px; border-radius: 4px; font-weight: bold; font-size: 12px; }
+                    .client-info { background: #f3f4f6; padding: 10px; border-radius: 4px; margin-bottom: 20px; border: 1px solid #e5e7eb; }
+                    .client-name { font-size: 16px; font-weight: bold; color: #111; }
+                    .total-row td { border-top: 2px solid #333; font-size: 14px; background: #fff; padding-top: 10px; font-weight: bold; }
+                    .desc-col { text-align: left; width: 60%; font-size: 10px; color: #555; }
+                    .desc-item { display: block; margin-bottom: 2px; }
+                    .desc-item span { color: #888; font-size: 9px; margin-left: 4px; }
+                `;
+
+                if (action === 'print') {
+                    const htmlString = `<html><head><title>${title}</title><style>${reportCSS}</style></head><body><div class="report-container">${bodyContent}</div></body></html>`;
+                    const printWindow = window.open('', '_blank');
+                    if (printWindow) {
+                        printWindow.document.write(htmlString);
+                        printWindow.document.close();
+                        printWindow.focus();
+                        setTimeout(() => { printWindow.print(); printWindow.close(); }, 500);
+                    } else {
+                        alert("Por favor, permite las ventanas emergentes (pop-ups) en tu navegador para imprimir.");
+                    }
+                } else if (action === 'download') {
+                    if (typeof html2pdf === 'undefined') {
+                        alert("La librería de PDF se está cargando. Por favor, espera un momento y vuelve a intentar.");
+                        return;
+                    }
+                    
+                    const tempDiv = document.createElement('div');
+                    tempDiv.innerHTML = `<style>${reportCSS}</style><div class="report-container">${bodyContent}</div>`;
+                    
+                    tempDiv.style.position = 'absolute';
+                    tempDiv.style.left = '-9999px';
+                    tempDiv.style.top = '-9999px';
+                    tempDiv.style.width = '800px'; 
+                    tempDiv.style.backgroundColor = 'white';
+                    document.body.appendChild(tempDiv);
+                    
+                    const opt = {
+                        margin:       10,
+                        filename:     filename + '.pdf',
+                        image:        { type: 'jpeg', quality: 0.98 },
+                        html2canvas:  { scale: 2, useCORS: true, logging: false },
+                        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+                    };
+                    
+                    html2pdf().set(opt).from(tempDiv).save().then(() => {
+                        document.body.removeChild(tempDiv);
+                    }).catch(err => {
+                        console.error("Error generando PDF: ", err);
+                        document.body.removeChild(tempDiv);
+                        alert("Hubo un error al generar el PDF.");
+                    });
+                }
+            };
+
+            const triggerMainReport = (action) => {
+                if (!groupedView || !groupedView.data || groupedView.data.length === 0) return alert("No hay datos para procesar.");
                 let titleMode = mode === 'pay' ? 'Pagos' : (mode === 'collect' ? 'Cobros' : (mode === 'wallet' ? 'Cartera Cheques' : (mode === 'expenses' ? 'Gastos Mensuales' : 'Balance')));
-                let contentHTML = `<html><head><title>Reporte SII PALLETS</title><style>body { font-family: sans-serif; padding: 20px; color: #333; font-size: 11px; } h1 { color: #1e40af; border-bottom: 2px solid #1e40af; padding-bottom: 5px; font-size: 16px; margin-bottom: 5px; } .meta { color: #666; font-size: 9px; margin-bottom: 10px; } table { width: 100%; border-collapse: collapse; margin-top: 5px; } th { background: #f3f4f6; padding: 4px; text-align: left; font-size: 10px; border-bottom: 1px solid #999; font-weight: bold; } td { padding: 3px 4px; border-bottom: 1px solid #eee; vertical-align: top; } .group-row td { background: #e5e7eb; font-weight: bold; padding: 4px; font-size: 11px; border-top: 1px solid #ccc; } .amount { font-family: monospace; text-align: right; } .date { white-space: nowrap; } .red { color: #dc2626; font-weight: bold; } .green { color: #16a34a; font-weight: bold; } .total-box { padding: 8px; background: #f0f9ff; border: 1px solid #bae6fd; margin-bottom: 10px; border-radius: 4px; font-weight: bold; font-size: 12px; } @media print { button { display: none; } }</style></head><body><h1>Reporte de ${titleMode}</h1><p class="meta">Generado: ${new Date().toLocaleDateString('es-AR')} • SII PALLETS APP</p>`;
+                
+                let bodyHTML = `<h1>Reporte de ${titleMode}</h1><p class="meta">Generado: ${new Date().toLocaleDateString('es-AR')} • SII PALLETS APP</p>`;
 
                 if (mode === 'balance') {
-                    contentHTML += `<div class="total-box">Neto Proyectado: ${formatMoney(balanceData.net)}</div><table><thead><tr><th>Fecha</th><th style="text-align:right">Entradas</th><th style="text-align:right">Salidas</th><th style="text-align:right">Neto</th></tr></thead><tbody>`;
+                    bodyHTML += `<div class="total-box">Neto Proyectado: ${formatMoney(balanceData.net)}</div><table><thead><tr><th>Fecha</th><th style="text-align:right">Entradas</th><th style="text-align:right">Salidas</th><th style="text-align:right">Neto</th></tr></thead><tbody>`;
                     balanceData.dailyAgenda.forEach(day => {
-                        contentHTML += `<tr><td>${new Date(day.date + 'T00:00:00').toLocaleDateString('es-AR')}</td><td class="amount green">${day.inflow > 0 ? formatMoney(day.inflow) : '-'}</td><td class="amount" style="color:blue">${day.outflow > 0 ? formatMoney(day.outflow) : '-'}</td><td class="amount">${formatMoney(day.net)}</td></tr>`;
+                        bodyHTML += `<tr><td>${new Date(day.date + 'T00:00:00').toLocaleDateString('es-AR')}</td><td class="amount green">${day.inflow > 0 ? formatMoney(day.inflow) : '-'}</td><td class="amount" style="color:blue">${day.outflow > 0 ? formatMoney(day.outflow) : '-'}</td><td class="amount">${formatMoney(day.net)}</td></tr>`;
                     });
-                    contentHTML += `</tbody></table>`;
+                    bodyHTML += `</tbody></table>`;
                 } else {
                     let modeTotal = 0;
                     if(mode === 'pay') modeTotal = balanceData.pay;
@@ -230,7 +307,7 @@
                     else if(mode === 'expenses') modeTotal = balanceData.expenses;
                     else modeTotal = balanceData.collect;
 
-                    contentHTML += `<div class="total-box">Total Pendiente: ${formatMoney(modeTotal)}</div><table><thead><tr><th style="width:30%">Referencia</th><th style="width:15%">Vencimiento</th><th style="text-align:right;width:15%">Total</th><th style="text-align:right;width:20%">Pendiente</th><th style="text-align:right;width:20%">Acumulado</th></tr></thead><tbody>`;
+                    bodyHTML += `<div class="total-box">Total Pendiente: ${formatMoney(modeTotal)}</div><table><thead><tr><th style="width:30%">Referencia</th><th style="width:15%">Vencimiento</th><th style="text-align:right;width:15%">Total</th><th style="text-align:right;width:20%">Pendiente</th><th style="text-align:right;width:20%">Acumulado</th></tr></thead><tbody>`;
                     
                     let runningAccumulator = 0;
                     groupedView.data.forEach(group => {
@@ -240,7 +317,7 @@
                         else groupTitle = new Date(group.key + 'T00:00:00').toLocaleDateString('es-AR');
 
                         const sortedItems = [...group.items].sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
-                        contentHTML += `<tr class="group-row"><td colspan="2">${groupTitle}</td><td class="amount" colspan="3">Grupo: ${formatMoney(group.total)}</td></tr>`;
+                        bodyHTML += `<tr class="group-row"><td colspan="2">${groupTitle}</td><td class="amount" colspan="3">Grupo: ${formatMoney(group.total)}</td></tr>`;
                         
                         sortedItems.forEach(item => {
                             const details = item.number ? `Ref: ${item.number}` : '';
@@ -248,76 +325,42 @@
                             const isPaid = item.status === 'paid';
                             if (!isPaid) runningAccumulator += remaining;
                             
-                            contentHTML += `<tr><td>${item.payee} <br/><span style="color:#666;font-size:9px">${details}</span></td><td class="date">${new Date(item.dueDate+'T00:00:00').toLocaleDateString('es-AR')}</td><td class="amount">${formatMoney(item.amount)}</td><td class="amount ${isPaid ? 'green' : 'red'}">${isPaid ? 'PAGADO' : formatMoney(remaining)}</td><td class="amount" style="color:#555;font-weight:bold">${formatMoney(runningAccumulator)}</td></tr>`;
+                            bodyHTML += `<tr><td>${item.payee} <br/><span style="color:#666;font-size:9px">${details}</span></td><td class="date">${new Date(item.dueDate+'T00:00:00').toLocaleDateString('es-AR')}</td><td class="amount">${formatMoney(item.amount)}</td><td class="amount ${isPaid ? 'green' : 'red'}">${isPaid ? 'PAGADO' : formatMoney(remaining)}</td><td class="amount" style="color:#555;font-weight:bold">${formatMoney(runningAccumulator)}</td></tr>`;
                         });
                     });
-                    contentHTML += `</tbody></table>`;
+                    bodyHTML += `</tbody></table>`;
                 }
-                contentHTML += `</body></html>`;
-                const printWindow = window.open('', '_blank');
-                printWindow.document.write(contentHTML);
-                printWindow.document.close();
-                printWindow.focus();
-                setTimeout(() => { printWindow.print(); printWindow.close(); }, 500);
+                
+                handleReportAction(`Reporte ${titleMode}`, bodyHTML, action, `Reporte_${titleMode}`);
             };
 
-            const printClientReport = (group) => {
+            const triggerClientReport = (group, action) => {
                 const pendingItems = group.items.filter(i => i.status !== 'paid').sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
-                
                 if (pendingItems.length === 0) return alert("Este cliente no tiene facturas pendientes.");
-
+                
                 const totalPending = pendingItems.reduce((acc, item) => acc + (item.amount - (item.paidAmount || 0)), 0);
 
-                const logoUrl = window.location.origin + window.location.pathname.replace('index.html', '') + 'logo.png';
+                let bodyHTML = `
+                    <h1>Estado de Cuenta</h1>
+                    <p class="meta">Generado: ${new Date().toLocaleDateString('es-AR')} • SII PALLETS APP</p>
+                    
+                    <div class="client-info">
+                        <div class="client-name">${group.label}</div>
+                        <div>Total Pendiente: <strong>${formatMoney(totalPending)}</strong></div>
+                    </div>
 
-                let contentHTML = `
-                    <html>
-                    <head>
-                        <title>Estado de Cuenta - ${group.label}</title>
-                        <style>
-                            body { font-family: sans-serif; padding: 20px; color: #333; font-size: 12px; position: relative; }
-                            h1 { color: #1e40af; border-bottom: 2px solid #1e40af; padding-bottom: 10px; margin-bottom: 5px; width: 80%; }
-                            .meta { color: #666; font-size: 10px; margin-bottom: 20px; }
-                            .logo-top-right { position: absolute; top: 20px; right: 20px; width: 80px; height: auto; object-fit: contain; }
-                            .client-info { background: #f3f4f6; padding: 10px; border-radius: 4px; margin-bottom: 20px; border: 1px solid #e5e7eb; }
-                            .client-name { font-size: 16px; font-weight: bold; color: #111; }
-                            
-                            table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-                            th { background: #e5e7eb; padding: 6px; text-align: left; font-size: 11px; border-bottom: 1px solid #999; font-weight: bold; }
-                            td { padding: 6px; border-bottom: 1px solid #eee; vertical-align: top; }
-                            .amount { font-family: monospace; text-align: right; font-weight: bold; }
-                            .date { white-space: nowrap; }
-                            .center { text-align: center; }
-                            
-                            .total-row td { border-top: 2px solid #333; font-size: 14px; background: #fff; padding-top: 10px; }
-                            .red { color: #dc2626; font-weight: bold; }
-                            .green { color: #16a34a; font-weight: bold; }
-                            
-                            @media print { button { display: none; } }
-                        </style>
-                    </head>
-                    <body>
-                        <img src="${logoUrl}" class="logo-top-right" />
-                        <h1>Estado de Cuenta</h1>
-                        <p class="meta">Generado: ${new Date().toLocaleDateString('es-AR')} • SII PALLETS APP</p>
-                        
-                        <div class="client-info">
-                            <div class="client-name">${group.label}</div>
-                            <div>Total Pendiente: <strong>${formatMoney(totalPending)}</strong></div>
-                        </div>
-
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Factura / Ref</th>
-                                    <th>Vencimiento</th>
-                                    <th style="text-align:center">Estado / Días</th>
-                                    <th style="text-align:right">Importe Original</th>
-                                    <th style="text-align:right">A Cuenta / Parcial</th>
-                                    <th style="text-align:right">Saldo Pendiente</th>
-                                </tr>
-                            </thead>
-                            <tbody>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Factura / Ref</th>
+                                <th>Vencimiento</th>
+                                <th style="text-align:center">Estado / Días</th>
+                                <th style="text-align:right">Importe Original</th>
+                                <th style="text-align:right">A Cuenta / Parcial</th>
+                                <th style="text-align:right">Saldo Pendiente</th>
+                            </tr>
+                        </thead>
+                        <tbody>
                 `;
 
                 pendingItems.forEach(item => {
@@ -330,7 +373,7 @@
                     const daysText = d < 0 ? `Vencida (${Math.abs(d)} días)` : `Faltan ${d} días`;
                     const daysClass = d < 0 ? 'red' : 'green';
 
-                    contentHTML += `
+                    bodyHTML += `
                         <tr>
                             <td>${details}</td>
                             <td class="date">${new Date(item.dueDate + 'T00:00:00').toLocaleDateString('es-AR')}</td>
@@ -342,123 +385,82 @@
                     `;
                 });
 
-                contentHTML += `
+                bodyHTML += `
                             <tr class="total-row">
-                                <td colspan="5" style="text-align:right; font-weight:bold;">TOTAL A PAGAR:</td>
+                                <td colspan="5" style="text-align:right;">TOTAL A PAGAR:</td>
                                 <td class="amount red">${formatMoney(totalPending)}</td>
                             </tr>
                         </tbody>
                     </table>
-                    
                     <div style="margin-top: 40px; font-size: 10px; color: #888; text-align: center;">
                         Documento generado automáticamente por SII PALLETS APP
                     </div>
-                </body>
-                </html>
                 `;
 
-                const printWindow = window.open('', '_blank');
-                printWindow.document.write(contentHTML);
-                printWindow.document.close();
-                printWindow.focus();
-                setTimeout(() => {
-                    printWindow.print();
-                    printWindow.close();
-                }, 500);
+                handleReportAction(`Estado de Cuenta - ${group.label}`, bodyHTML, action, `Estado_Cuenta_${group.label.replace(/\s+/g, '_')}`);
             };
 
-            const printCalendarReport = () => {
+            const triggerCalendarReport = (action) => {
                 const days = generateCalendarDays();
                 const monthName = currentCalDate.toLocaleDateString('es-AR', { month: 'long', year: 'numeric' });
                 
-                let contentHTML = `
-                    <html>
-                    <head>
-                        <title>Reporte Mensual - ${monthName}</title>
-                        <style>
-                            body { font-family: sans-serif; padding: 20px; color: #333; font-size: 11px; }
-                            h1 { color: #1e40af; border-bottom: 2px solid #1e40af; padding-bottom: 10px; margin-bottom: 15px; }
-                            table { width: 100%; border-collapse: collapse; }
-                            th { background: #e5e7eb; padding: 6px; text-align: center; border-bottom: 2px solid #999; font-weight: bold; font-size: 10px; }
-                            td { padding: 5px; border-bottom: 1px solid #eee; text-align: right; vertical-align: top; }
-                            .date-col { text-align: left; font-weight: bold; width: 10%; }
-                            .green { color: #16a34a; font-weight: bold; }
-                            .red { color: #dc2626; font-weight: bold; }
-                            /* Correccion: Color acumulado segun signo */
-                            .green-acum { color: #16a34a; font-weight: bold; }
-                            .red-acum { color: #dc2626; font-weight: bold; }
-                            
-                            .desc-item { display: block; margin-bottom: 2px; }
-                            .desc-item span { color: #888; font-size: 9px; margin-left: 4px; }
-                        </style>
-                    </head>
-                    <body>
-                        <h1>Proyección Mensual: ${monthName}</h1>
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th class="date-col">Fecha</th>
-                                    <th>Ingresos</th>
-                                    <th>Egresos</th>
-                                    <th>Acumulado</th>
-                                </tr>
-                            </thead>
-                            <tbody>
+                let bodyHTML = `
+                    <h1>Proyección Mensual: ${monthName}</h1>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th class="date-col">Fecha</th>
+                                <th>Ingresos</th>
+                                <th>Egresos</th>
+                                <th>Acumulado</th>
+                            </tr>
+                        </thead>
+                        <tbody>
                 `;
                 
                 days.forEach(day => {
                     if(!day) return;
                     
-                    // Columnas de detalle para Ingresos
                     let inflowHTML = "";
                     if(day.inflowItems.length > 0) {
                          day.inflowItems.forEach(i => {
-                            // Correccion: detalle simplificado "Ref: #"
                             const ref = i.number ? `Ref: ${i.number}` : '';
                             inflowHTML += `<div style="margin-bottom:6px;">
                                 <div style="font-weight:bold; color:#16a34a;">${formatMoney(i.amount - (i.paidAmount||0))}</div>
-                                <div style="font-size:9px; color:#555;">(${i.payee} - ${ref})</div>
+                                <div style="font-size:9px; color:#555;">(${i.payee} ${ref ? '- '+ref : ''})</div>
                             </div>`;
                         });
                     } else {
                         inflowHTML = "-";
                     }
 
-                    // Columnas de detalle para Egresos
                     let outflowHTML = "";
                     if(day.outflowItems.length > 0) {
                          day.outflowItems.forEach(i => {
-                            // Correccion: detalle simplificado "Ref: #"
                             const ref = i.number ? `Ref: ${i.number}` : '';
                             outflowHTML += `<div style="margin-bottom:6px;">
                                 <div style="font-weight:bold; color:#dc2626;">${formatMoney(i.amount - (i.paidAmount||0))}</div>
-                                <div style="font-size:9px; color:#555;">(${i.payee} - ${ref})</div>
+                                <div style="font-size:9px; color:#555;">(${i.payee} ${ref ? '- '+ref : ''})</div>
                             </div>`;
                         });
                     } else {
                         outflowHTML = "-";
                     }
                     
-                    // Color dinamico para acumulado
                     const acumClass = day.accumulated >= 0 ? 'green-acum' : 'red-acum';
 
-                    contentHTML += `
+                    bodyHTML += `
                         <tr>
                             <td class="date-col">${new Date(day.dateKey+'T00:00:00').toLocaleDateString('es-AR', { weekday: 'short', day: 'numeric' })}</td>
                             <td style="text-align:right;">${inflowHTML}</td>
                             <td style="text-align:right;">${outflowHTML}</td>
-                            <td class="${acumClass}">${formatMoney(day.accumulated)}</td>
+                            <td class="amount ${acumClass}">${formatMoney(day.accumulated)}</td>
                         </tr>
                     `;
                 });
                 
-                contentHTML += `</tbody></table></body></html>`;
-                
-                const printWindow = window.open('', '_blank');
-                printWindow.document.write(contentHTML);
-                printWindow.document.close();
-                printWindow.focus();
-                setTimeout(() => { printWindow.print(); printWindow.close(); }, 500);
+                bodyHTML += `</tbody></table>`;
+                handleReportAction(`Reporte Mensual - ${monthName}`, bodyHTML, action, `Calendario_${monthName.replace(/\s+/g, '_')}`);
             };
 
             const requestNotify = () => {
@@ -499,9 +501,7 @@
                     groups[monthKey].items.push(item);
                 });
 
-                // Ordenar grupos desc (mes más reciente primero) pero items asc (cronológico)
                 const sortedGroups = Object.values(groups).sort((a, b) => b.key.localeCompare(a.key));
-                
                 return { balance, groups: sortedGroups };
             }, [cashItems]);
 
@@ -634,9 +634,7 @@
             };
 
             const groupedView = useMemo(() => {
-                // *** CORRECCIÓN: Evitar error si no hay filtro de fecha en balance ***
                 if (mode === 'balance' && !selectedDateFilter) return null;
-                // *** NUEVO: Caja no usa esta vista agrupada ***
                 if (mode === 'cashbox') return null;
 
                 let items = [];
@@ -683,7 +681,6 @@
                         groups[clientName].items.push(item);
                     });
                     
-                    // NEW: Sort items within each group by number (Ascending)
                     const resultData = Object.values(groups).sort((a,b) => b.total - a.total);
                     resultData.forEach(group => {
                         group.items.sort((a, b) => {
@@ -696,10 +693,9 @@
                     return { type: 'client-grouped', data: resultData };
 
                 } else if (mode === 'expenses' && !selectedDateFilter) {
-                    // Agrupación por Mes para Gastos
                     const groups = {};
                     filtered.forEach(item => {
-                        const monthKey = item.monthYear || item.dueDate.substring(0, 7); // YYYY-MM
+                        const monthKey = item.monthYear || item.dueDate.substring(0, 7);
                         if (!groups[monthKey]) {
                             const [y, m] = monthKey.split('-');
                             const dateObj = new Date(y, m-1);
@@ -713,14 +709,12 @@
                     });
                     return { type: 'month-grouped', data: Object.values(groups).sort((a,b) => b.key.localeCompare(a.key)) };
                 } else {
-                    // Default logic (Pay, Wallet, etc.) - Ensure sorted by Due Date
                     filtered.sort((a,b) => new Date(a.dueDate) - new Date(b.dueDate));
                     if ((activeFilter === 'all' && !selectedDateFilter) || (mode === 'balance' && selectedDateFilter)) return { type: 'flat', data: filtered };
                     const groups = {};
                     filtered.forEach(item => {
                         const dateKey = item.dueDate;
                         if (!dateKey) return;
-                        // FIX: check group.label existence before includes
                         if (!groups[dateKey]) groups[dateKey] = { key: dateKey, total: 0, items: [] };
                         groups[dateKey].total += (item.amount - (item.paidAmount || 0)); 
                         groups[dateKey].items.push(item);
@@ -729,6 +723,7 @@
                 }
             }, [payItems, collectItems, walletItems, expenseItems, activeFilter, mode, searchTerm, selectedDateFilter]);
 
+            // --- LÓGICA DE AGREGAR ITEM (CON CUOTAS) ---
             const handleAdd = async (e) => {
                 e.preventDefault();
                 let targetCollection = 'cheques_public_shared';
@@ -737,18 +732,64 @@
                 if(mode === 'expenses') targetCollection = 'gastos_public_shared';
 
                 const itemData = {
-                    number: newItem.number, issueDate: newItem.issueDate, dueDate: newItem.dueDate, amount: parseFloat(newItem.amount), payee: newItem.payee,
+                    number: newItem.number, amount: parseFloat(newItem.amount), payee: newItem.payee,
                     paidAmount: newItem.paidAmount || 0, subtype: newItem.subtype || 'cheque', category: newItem.category || 'others', status: newItem.status || 'pending',
-                    monthYear: newItem.monthYear || '' // Para gastos
                 };
-                if (editingId) { await updateDoc(doc(db, targetCollection, 'main_list', 'items', editingId), itemData); } 
-                else { await addDoc(collection(db, targetCollection, 'main_list', 'items'), { ...itemData, createdAt: new Date().toISOString() }); }
-                setNewItem({ number: '', issueDate: '', dueDate: '', amount: '', payee: '', paidAmount: 0, subtype: 'cheque', category: 'others', status: 'pending', monthYear: '' });
+
+                if (editingId) { 
+                    await updateDoc(doc(db, targetCollection, 'main_list', 'items', editingId), {
+                        ...itemData, issueDate: newItem.issueDate, dueDate: newItem.dueDate, monthYear: newItem.monthYear || ''
+                    }); 
+                } 
+                else { 
+                    // FIX: Logica de Cuotas solo para Gastos (Creditos, etc)
+                    if (mode === 'expenses' && newItem.isRecurring && newItem.installments > 1) {
+                        let baseDate = new Date(newItem.dueDate + 'T00:00:00');
+                        if (isNaN(baseDate.getTime())) baseDate = new Date(); 
+
+                        let [baseYear, baseMonth] = newItem.monthYear ? newItem.monthYear.split('-').map(Number) : [baseDate.getFullYear(), baseDate.getMonth() + 1];
+
+                        for (let i = 0; i < newItem.installments; i++) {
+                            let nextMonth = baseMonth + i;
+                            let nextYear = baseYear;
+                            while (nextMonth > 12) {
+                                nextMonth -= 12;
+                                nextYear++;
+                            }
+                            
+                            const currentMonthYear = `${nextYear}-${String(nextMonth).padStart(2, '0')}`;
+                            
+                            let nextDueDateStr = newItem.dueDate;
+                            if (newItem.dueDate) {
+                                const d = new Date(newItem.dueDate + 'T00:00:00');
+                                d.setMonth(d.getMonth() + i);
+                                nextDueDateStr = d.toISOString().split('T')[0];
+                            }
+
+                            const currentPayee = `${newItem.payee} (Cuota ${i + 1}/${newItem.installments})`;
+
+                            await addDoc(collection(db, targetCollection, 'main_list', 'items'), { 
+                                ...itemData, 
+                                payee: currentPayee,
+                                monthYear: currentMonthYear,
+                                dueDate: nextDueDateStr,
+                                issueDate: newItem.issueDate, // Misma fecha emision
+                                createdAt: new Date().toISOString() 
+                            });
+                        }
+                    } else {
+                        // Flujo normal 1 solo registro
+                        await addDoc(collection(db, targetCollection, 'main_list', 'items'), { 
+                            ...itemData, issueDate: newItem.issueDate, dueDate: newItem.dueDate, monthYear: newItem.monthYear || '', createdAt: new Date().toISOString() 
+                        }); 
+                    }
+                }
+                
+                setNewItem({ number: '', issueDate: '', dueDate: '', amount: '', payee: '', paidAmount: 0, subtype: 'cheque', category: 'others', status: 'pending', monthYear: '', cashType: 'income', isRecurring: false, installments: 2 });
                 setEditingId(null);
                 setShowAddForm(false);
             };
 
-            // --- NUEVO: FUNCIÓN PARA AGREGAR A CAJA ---
             const handleCashAdd = async (e) => {
                 e.preventDefault();
                 let desc = newItem.payee; 
@@ -767,7 +808,7 @@
                     cashType: newItem.cashType, 
                     createdAt: new Date().toISOString()
                 });
-                setNewItem({ ...newItem, amount: '', payee: '', issueDate: '', cashType: 'income' });
+                setNewItem({ ...newItem, amount: '', payee: '', issueDate: '', cashType: 'income', isRecurring: false, installments: 2 });
                 setShowAddForm(false);
             };
 
@@ -775,7 +816,8 @@
                 setNewItem({
                     number: item.number || '', issueDate: item.issueDate || '', dueDate: item.dueDate || '', amount: item.amount, payee: item.payee,
                     paidAmount: item.paidAmount || 0, subtype: item.subtype || 'cheque', category: item.category || 'others', status: item.status || 'pending',
-                    monthYear: item.monthYear || ''
+                    monthYear: item.monthYear || '',
+                    isRecurring: false, installments: 2
                 });
                 setEditingId(item.id);
                 setShowAddForm(true);
@@ -784,11 +826,9 @@
             const confirmPayment = async () => {
                 if(!paymentModal.item) return;
                 const item = paymentModal.item;
-                // Determine collection dynamically, defaulting to expenses if unsure but logic handles all types
                 let collectionName = 'gastos_public_shared';
                 if(item.type === 'collect') collectionName = 'cobros_public_shared';
                 if(item.type === 'pay') collectionName = 'cheques_public_shared';
-                // Wallet doesn't usually use this modal for partials but if it did...
                 if(item.type === 'wallet') collectionName = 'cartera_public_shared';
 
                 let newPaidAmount = item.paidAmount || 0;
@@ -824,7 +864,6 @@
             };
 
             const markFullPayment = async (item) => {
-                // Open modal for ALL types to allow details and partial payments
                 setPaymentModal({ isOpen: true, item: item, method: 'transfer', proof: '', type: 'total', amount: '' });
             };
             
@@ -838,7 +877,6 @@
                 if(item.type === 'collect') collectionName = 'cobros_public_shared';
                 if(item.type === 'wallet') collectionName = 'cartera_public_shared';
                 if(item.type === 'expense') collectionName = 'gastos_public_shared';
-                // --- NUEVO: Borrar caja ---
                 if(item.type === 'cash') collectionName = 'caja_public_shared';
                 await deleteDoc(doc(db, collectionName, 'main_list', 'items', item.id));
             };
@@ -861,10 +899,15 @@
                     <div className={`${theme.bg} text-white p-4 sticky top-0 z-30 shadow-lg transition-colors duration-500`}>
                         <div className="flex justify-between items-center mb-4">
                             <h1 className="text-xl font-bold flex items-center gap-2">SII PALLETS APP</h1>
-                            <div className="flex gap-2 items-center">
-                                {deferredPrompt && ( <button onClick={installApp} className="bg-white/20 hover:bg-white/30 px-2 py-1 rounded text-xs font-bold flex items-center gap-1"><IconDownload className="w-4 h-4" /> Instalar</button> )}
-                                {mode !== 'cashbox' && <button onClick={printReport} className="p-2 relative bg-white/20 rounded-full hover:bg-white/30" title="Imprimir Reporte PDF"><IconPrinter className="w-5 h-5"/></button>}
-                                <div className="relative">
+                            <div className="flex gap-1 items-center">
+                                {deferredPrompt && ( <button onClick={installApp} className="bg-white/20 hover:bg-white/30 px-2 py-1 rounded text-xs font-bold flex items-center gap-1 mr-1"><IconDownload className="w-4 h-4" /> Instalar</button> )}
+                                {mode !== 'cashbox' && (
+                                    <>
+                                        <button onClick={() => triggerMainReport('print')} className="p-2 relative bg-white/20 rounded-full hover:bg-white/30" title="Imprimir Reporte"><IconPrinter className="w-5 h-5"/></button>
+                                        <button onClick={() => triggerMainReport('download')} className="p-2 relative bg-white/20 rounded-full hover:bg-white/30" title="Descargar PDF"><IconDownload className="w-5 h-5"/></button>
+                                    </>
+                                )}
+                                <div className="relative ml-1">
                                     <button onClick={() => setShowNotifPanel(!showNotifPanel)} className="p-2 relative">
                                         {alerts.length > 0 ? <IconBellRing className="w-6 h-6 animate-pulse text-yellow-300"/> : <IconBell className="w-6 h-6"/>}
                                         {alerts.length > 0 && <span className="absolute top-1 right-1 bg-red-500 text-white text-[10px] font-bold px-1.5 rounded-full">{alerts.length}</span>}
@@ -1004,7 +1047,7 @@
                                     ))}
                                 </div>}
 
-                                {mode !== 'balance' && <button onClick={() => { setEditingId(null); setNewItem({ number: '', issueDate: '', dueDate: '', amount: '', payee: '', paidAmount: 0, subtype: 'cheque', category: 'others', status: 'pending' }); setShowAddForm(!showAddForm); }} className={`w-full ${theme.btn} hover:opacity-90 text-white p-3 rounded-xl shadow-md mb-6 flex items-center justify-center gap-2 font-bold transition-all active:scale-95`}>
+                                {mode !== 'balance' && <button onClick={() => { setEditingId(null); setNewItem({ number: '', issueDate: '', dueDate: '', amount: '', payee: '', paidAmount: 0, subtype: 'cheque', category: 'others', status: 'pending', isRecurring: false, installments: 2 }); setShowAddForm(!showAddForm); }} className={`w-full ${theme.btn} hover:opacity-90 text-white p-3 rounded-xl shadow-md mb-6 flex items-center justify-center gap-2 font-bold transition-all active:scale-95`}>
                                     <IconPlus className="w-5 h-5"/> {showAddForm ? 'Cancelar' : 'Nuevo Registro'}
                                 </button>}
                                 
@@ -1036,7 +1079,22 @@
                                                 {mode !== 'expenses' && <div className="w-1/2"><label className="text-xs text-gray-500 block mb-1">Emisión</label><input type="date" className="w-full p-3 bg-gray-50 rounded-lg border outline-none" value={newItem.issueDate} onChange={e=>setNewItem({...newItem, issueDate:e.target.value})} /></div>}
                                                 <div className={mode === 'expenses' ? 'w-full' : 'w-1/2'}><label className="text-xs text-gray-500 block mb-1">Vencimiento</label><input type="date" className="w-full p-3 bg-gray-50 rounded-lg border outline-none font-bold text-gray-700" value={newItem.dueDate} onChange={e=>setNewItem({...newItem, dueDate:e.target.value})} required /></div>
                                             </div>
-                                            <button type="submit" className={`w-full ${theme.btn} text-white p-3 rounded-lg font-bold`}>Guardar</button>
+                                            {/* CHECKBOX PARA GASTOS RECURRENTES / CUOTAS */}
+                                            {mode === 'expenses' && !editingId && (
+                                                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border mt-2">
+                                                    <label className="flex items-center gap-2 text-sm font-bold text-gray-700 cursor-pointer">
+                                                        <input type="checkbox" checked={newItem.isRecurring} onChange={e => setNewItem({...newItem, isRecurring: e.target.checked})} className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500" />
+                                                        Gasto Recurrente / Cuotas
+                                                    </label>
+                                                    {newItem.isRecurring && (
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="text-xs text-gray-500">Cantidad:</span>
+                                                            <input type="number" min="2" max="120" value={newItem.installments} onChange={e => setNewItem({...newItem, installments: parseInt(e.target.value) || 2})} className="w-16 p-1 border rounded-lg outline-none text-sm text-center" />
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+                                            <button type="submit" className={`w-full ${theme.btn} text-white p-3 rounded-lg font-bold mt-2`}>Guardar</button>
                                         </div>
                                     </form>
                                 )}
@@ -1144,8 +1202,15 @@
                                     </>
                                 )}
 
-                                {/* LIST (Reusing logic for brevity in this specific artifact, assume full list logic is here as per previous step) */}
+                                {/* LIST */}
                                 <div className="space-y-3">
+                                    {selectedDateFilter && (
+                                        <div className="mb-4 flex justify-between items-center bg-violet-50 p-3 rounded-lg border border-violet-100 mt-4">
+                                            <span className="text-sm text-violet-800 font-bold flex items-center gap-2"><IconCalendar className="w-4 h-4"/> Filtrado: {new Date(selectedDateFilter+'T00:00:00').toLocaleDateString('es-AR')}</span>
+                                            <button onClick={() => setSelectedDateFilter(null)} className="text-xs bg-white text-red-500 border border-red-200 px-2 py-1 rounded font-bold hover:bg-red-50">Borrar</button>
+                                        </div>
+                                    )}
+
                                     {groupedView && (groupedView.type === 'flat' ? groupedView.data.map(item => {
                                         const days = getDays(item.dueDate);
                                         const isPaid = item.status === 'paid';
@@ -1200,10 +1265,15 @@
                                                     {isClientGroup ? (<div className={`bg-emerald-100 text-emerald-700 font-bold rounded-full p-2 w-10 h-10 flex items-center justify-center shrink-0`}><IconUserGroup className="w-5 h-5"/></div>) : (<div className={`${theme.light} ${theme.text} font-bold rounded-lg p-2 text-center min-w-[50px]`}><span className="block text-xs uppercase">{group.label && group.label.includes(' ') ? group.label.split(' ')[0] : new Date(group.key + 'T00:00:00').toLocaleDateString('es-AR', {month:'short'})}</span><span className="block text-xl leading-none">{group.key.includes('-') && group.key.length === 7 ? '' : new Date(group.key + 'T00:00:00').getDate()}</span></div>)}
                                                     <div className="text-left overflow-hidden"><p className="text-sm font-bold text-gray-700 truncate">{groupedView.type === 'client-grouped' || mode === 'expenses' ? group.label : `${group.items.length} Items`}</p>{(groupedView.type === 'client-grouped' || mode === 'expenses') && <p className="text-xs text-gray-500">{group.count} Pendientes</p>}</div>
                                                 </div>
-                                                <div className="text-right flex items-center gap-3">
+                                                <div className="text-right flex items-center gap-2">
                                                     <p className="text-lg font-black text-gray-800">{formatMoney(group.total)}</p>
-                                                    {isClientGroup && <button onClick={(e) => { e.stopPropagation(); printClientReport(group); }} className="p-1 rounded-full bg-gray-100 hover:bg-emerald-100 text-gray-400 hover:text-emerald-600 transition-colors" title="Imprimir Estado"><IconPrinter className="w-4 h-4" /></button>}
-                                                    <IconChevronDown className={`w-5 h-5 text-gray-400 transition-transform ${expandedGroups[group.key] ? 'rotate-180' : ''}`} />
+                                                    {isClientGroup && (
+                                                        <div className="flex gap-1 ml-2 border-l pl-2">
+                                                            <button onClick={(e) => { e.stopPropagation(); triggerClientReport(group, 'print'); }} className="p-1.5 rounded-lg bg-gray-100 hover:bg-emerald-100 text-gray-400 hover:text-emerald-700 transition-colors" title="Imprimir Estado"><IconPrinter className="w-4 h-4" /></button>
+                                                            <button onClick={(e) => { e.stopPropagation(); triggerClientReport(group, 'download'); }} className="p-1.5 rounded-lg bg-gray-100 hover:bg-emerald-100 text-gray-400 hover:text-emerald-700 transition-colors" title="Descargar PDF"><IconDownload className="w-4 h-4" /></button>
+                                                        </div>
+                                                    )}
+                                                    <IconChevronDown className={`w-5 h-5 text-gray-400 transition-transform ml-1 ${expandedGroups[group.key] ? 'rotate-180' : ''}`} />
                                                 </div>
                                             </button>
                                             {expandedGroups[group.key] && <div className="border-t border-gray-100 animate-fade-in bg-gray-50 p-2 space-y-2">
@@ -1259,21 +1329,26 @@
                                     })
                                     )}
                                     {(!groupedView || groupedView.data.length === 0) && <div className="text-center py-10 text-gray-400 italic">No hay registros.</div>}
+                                    {selectedDateFilter && (
+                                        <button onClick={() => setSelectedDateFilter(null)} className="w-full mt-4 py-4 bg-gray-200 text-gray-600 font-bold rounded-xl text-sm hover:bg-gray-300 shadow-inner flex items-center justify-center gap-2">
+                                            <IconChevronLeft className="w-4 h-4" /> Volver a ver todo
+                                        </button>
+                                    )}
                                 </div>
                             </div>
                         )}
                     </div>
 
+                    {/* MODAL DE CONFIRMACIÓN DE PAGO RESTAURADO */}
                     {paymentModal.isOpen && (
                         <div className="fixed inset-0 modal-overlay z-50 flex items-center justify-center p-4">
                             <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm animate-fade-in">
-                                <h3 className="text-lg font-bold text-gray-800 mb-4">Confirmar Pago</h3>
+                                <h3 className="text-lg font-bold text-gray-800 mb-4">Confirmar {paymentModal.item.type === 'collect' ? 'Cobro' : 'Pago'}</h3>
                                 
                                 <div className="bg-gray-50 p-3 rounded-lg mb-4 text-sm text-gray-600">
                                     <p><strong>{paymentModal.item.payee}</strong></p>
                                     <p>Nº: {paymentModal.item.number || '-'}</p>
                                     <p>Vencimiento: {new Date(paymentModal.item.dueDate+'T00:00:00').toLocaleDateString('es-AR')}</p>
-                                    {/* Overdue logic in Modal */}
                                     {(() => {
                                         const d = getDays(paymentModal.item.dueDate);
                                         if (d < 0) return <p className="text-red-500 font-bold mt-1">(Vencida hace {Math.abs(d)} días)</p>;
@@ -1286,29 +1361,27 @@
                                 </div>
                                 
                                 <div className="space-y-4">
-                                    {/* TIPO DE PAGO: TOTAL O PARCIAL */}
                                     <div className="flex gap-2">
                                         <button 
                                             onClick={() => setPaymentModal({...paymentModal, type: 'total'})}
-                                            className={`flex-1 py-2 rounded-lg border font-bold text-xs ${paymentModal.type === 'total' ? 'bg-blue-100 border-blue-500 text-blue-700' : 'bg-gray-50 border-gray-200 text-gray-500'}`}
+                                            className={`flex-1 py-2 rounded-lg border font-bold text-xs transition-colors ${paymentModal.type === 'total' ? 'bg-blue-100 border-blue-500 text-blue-700' : 'bg-gray-50 border-gray-200 text-gray-500'}`}
                                         >
                                             TOTAL
                                         </button>
                                         <button 
                                             onClick={() => setPaymentModal({...paymentModal, type: 'partial'})}
-                                            className={`flex-1 py-2 rounded-lg border font-bold text-xs ${paymentModal.type === 'partial' ? 'bg-blue-100 border-blue-500 text-blue-700' : 'bg-gray-50 border-gray-200 text-gray-500'}`}
+                                            className={`flex-1 py-2 rounded-lg border font-bold text-xs transition-colors ${paymentModal.type === 'partial' ? 'bg-blue-100 border-blue-500 text-blue-700' : 'bg-gray-50 border-gray-200 text-gray-500'}`}
                                         >
                                             PARCIAL
                                         </button>
                                     </div>
 
-                                    {/* INPUT MONTO (SOLO SI ES PARCIAL) */}
                                     {paymentModal.type === 'partial' && (
                                         <div>
                                             <label className="text-xs text-gray-500 block mb-1">Monto a {paymentModal.item.type === 'collect' ? 'Cobrar' : 'Pagar'} Ahora</label>
                                             <input 
                                                 type="number" step="0.01"
-                                                className="w-full p-2 border rounded-lg font-bold text-gray-800"
+                                                className="w-full p-2 border rounded-lg font-bold text-gray-800 focus:ring-2 focus:ring-blue-500 outline-none"
                                                 placeholder="$ 0.00"
                                                 value={paymentModal.amount}
                                                 onChange={e => setPaymentModal({...paymentModal, amount: e.target.value})}
@@ -1319,7 +1392,7 @@
                                     <div>
                                         <label className="text-xs text-gray-500 block mb-1">Medio</label>
                                         <select 
-                                            className="w-full p-2 border rounded-lg bg-white"
+                                            className="w-full p-2 border rounded-lg bg-white focus:ring-2 focus:ring-blue-500 outline-none"
                                             value={paymentModal.method}
                                             onChange={e => setPaymentModal({...paymentModal, method: e.target.value})}
                                         >
@@ -1333,7 +1406,7 @@
                                         <label className="text-xs text-gray-500 block mb-1">Nº Comprobante / Nota</label>
                                         <input 
                                             type="text" 
-                                            className="w-full p-2 border rounded-lg"
+                                            className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                                             placeholder="Opcional"
                                             value={paymentModal.proof}
                                             onChange={e => setPaymentModal({...paymentModal, proof: e.target.value})}
@@ -1341,8 +1414,8 @@
                                     </div>
                                 </div>
                                 <div className="mt-6 flex gap-2">
-                                    <button onClick={() => setPaymentModal({isOpen:false, item:null, method:'transfer', proof:'', type: 'total', amount: ''})} className="flex-1 py-2 border rounded-lg text-gray-500 hover:bg-gray-50">Cancelar</button>
-                                    <button onClick={confirmPayment} className="flex-1 py-2 bg-green-600 text-white rounded-lg font-bold hover:bg-green-700">Confirmar</button>
+                                    <button onClick={() => setPaymentModal({isOpen:false, item:null, method:'transfer', proof:'', type: 'total', amount: ''})} className="flex-1 py-2 border rounded-lg text-gray-500 hover:bg-gray-50 font-bold transition-colors">Cancelar</button>
+                                    <button onClick={confirmPayment} className="flex-1 py-2 bg-green-600 text-white rounded-lg font-bold hover:bg-green-700 transition-colors">Confirmar</button>
                                 </div>
                             </div>
                         </div>
@@ -1351,34 +1424,26 @@
                     {/* --- MODAL DE CALENDARIO MENSUAL --- */}
                     {showCalendar && (
                         <div className="fixed inset-0 modal-overlay z-50 flex items-center justify-center p-2">
-                            <div className="bg-white w-full h-full max-w-4xl rounded-xl shadow-2xl flex flex-col overflow-hidden">
+                            <div className="bg-white w-full h-full max-w-4xl rounded-xl shadow-2xl flex flex-col overflow-hidden animate-fade-in">
                                 <div className="bg-violet-600 text-white p-4 flex justify-between items-center shadow-md z-10">
                                     <h2 className="font-bold text-lg flex items-center gap-2"><IconCalendar className="w-6 h-6"/> Calendario Financiero</h2>
                                     <div className="flex gap-2">
-                                        <button onClick={printCalendarReport} className="p-2 bg-white/20 rounded-full hover:bg-white/30" title="Imprimir Calendario"><IconPrinter className="w-5 h-5"/></button>
-                                        <button onClick={() => setShowCalendar(false)} className="p-2 bg-white/20 rounded-full hover:bg-white/30"><IconX className="w-5 h-5"/></button>
+                                        <button onClick={() => triggerCalendarReport('print')} className="p-2 bg-white/20 rounded-full hover:bg-white/30 transition-colors" title="Imprimir Calendario"><IconPrinter className="w-5 h-5"/></button>
+                                        <button onClick={() => triggerCalendarReport('download')} className="p-2 bg-white/20 rounded-full hover:bg-white/30 transition-colors" title="Descargar Calendario PDF"><IconDownload className="w-5 h-5"/></button>
+                                        <div className="w-px bg-white/30 mx-1"></div>
+                                        <button onClick={() => setShowCalendar(false)} className="p-2 bg-red-500/80 rounded-full hover:bg-red-500 transition-colors"><IconX className="w-5 h-5"/></button>
                                     </div>
                                 </div>
                                 
                                 <div className="flex justify-between items-center p-4 bg-gray-50 border-b">
-                                    <button onClick={() => {
-                                        const newDate = new Date(currentCalDate);
-                                        newDate.setMonth(newDate.getMonth() - 1);
-                                        setCurrentCalDate(newDate);
-                                    }} className="p-2 rounded hover:bg-gray-200"><IconChevronLeft className="w-5 h-5 text-gray-600"/></button>
-                                    
-                                    <span className="font-bold text-lg text-gray-700 capitalize">
+                                    <button onClick={() => changeMonth(-1)} className="p-2 rounded hover:bg-gray-200"><IconChevronLeft className="w-6 h-6 text-gray-600"/></button>
+                                    <span className="font-black text-xl text-gray-700 capitalize">
                                         {currentCalDate.toLocaleDateString('es-AR', { month: 'long', year: 'numeric' })}
                                     </span>
-                                    
-                                    <button onClick={() => {
-                                        const newDate = new Date(currentCalDate);
-                                        newDate.setMonth(newDate.getMonth() + 1);
-                                        setCurrentCalDate(newDate);
-                                    }} className="p-2 rounded hover:bg-gray-200"><IconChevronRight className="w-5 h-5 text-gray-600"/></button>
+                                    <button onClick={() => changeMonth(1)} className="p-2 rounded hover:bg-gray-200"><IconChevronRight className="w-6 h-6 text-gray-600"/></button>
                                 </div>
 
-                                <div className="flex-1 overflow-y-auto p-4 bg-gray-100">
+                                <div className="flex-1 overflow-y-auto p-2 sm:p-4 bg-gray-100">
                                     {/* GRID HEADER */}
                                     <div className="calendar-grid mb-2">
                                         {['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'].map(d => (
@@ -1401,9 +1466,9 @@
                                                         setSelectedDateFilter(day.dateKey);
                                                         setShowCalendar(false);
                                                     }}
-                                                    className={`calendar-day bg-white rounded-lg border border-gray-200 p-1 flex flex-col justify-between hover:border-violet-400 transition-colors ${isToday ? 'ring-2 ring-violet-500' : ''}`}
+                                                    className={`calendar-day bg-white rounded-lg border border-gray-200 p-1 flex flex-col justify-between hover:border-violet-400 hover:shadow-md transition-all ${isToday ? 'ring-2 ring-violet-500 bg-violet-50' : ''}`}
                                                 >
-                                                    <div className="text-right font-bold text-gray-400 mb-1">{day.day}</div>
+                                                    <div className={`text-right font-bold ${isToday ? 'text-violet-700' : 'text-gray-400'} mb-1`}>{day.day}</div>
                                                     
                                                     {hasActivity ? (
                                                         <>
@@ -1423,8 +1488,7 @@
                                                         <div className="text-center text-gray-300 text-[10px] mb-2">-</div>
                                                     )}
                                                     
-                                                    {/* Acumulado SIEMPRE visible o solo con actividad? El usuario pidio ver la proyeccion. Verlo siempre es mejor */}
-                                                    <div className={`text-center text-[9px] font-black mt-auto pt-1 border-t border-dashed border-gray-100 ${day.accumulated >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                                    <div className={`text-center text-[10px] font-black mt-auto pt-1 border-t border-dashed border-gray-200 ${day.accumulated >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                                                         {formatMoney(day.accumulated).replace('$','')}
                                                     </div>
                                                 </button>
@@ -1432,8 +1496,8 @@
                                         })}
                                     </div>
                                 </div>
-                                <div className="p-4 bg-gray-50 border-t flex justify-end">
-                                     <button onClick={() => setShowCalendar(false)} className="bg-gray-200 text-gray-600 px-4 py-2 rounded-lg font-bold hover:bg-gray-300">Cerrar</button>
+                                <div className="p-3 bg-white border-t flex justify-end">
+                                     <button onClick={() => setShowCalendar(false)} className="bg-gray-200 text-gray-700 px-6 py-2 rounded-xl font-bold hover:bg-gray-300 transition-colors">Volver</button>
                                 </div>
                             </div>
                         </div>
