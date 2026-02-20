@@ -501,7 +501,9 @@
                     groups[monthKey].items.push(item);
                 });
 
+                // Ordenar grupos desc (mes más reciente primero) pero items asc (cronológico)
                 const sortedGroups = Object.values(groups).sort((a, b) => b.key.localeCompare(a.key));
+                
                 return { balance, groups: sortedGroups };
             }, [cashItems]);
 
@@ -707,7 +709,16 @@
                         groups[monthKey].count += 1;
                         groups[monthKey].items.push(item);
                     });
-                    return { type: 'month-grouped', data: Object.values(groups).sort((a,b) => b.key.localeCompare(a.key)) };
+                    
+                    // Ordenar meses de más antiguo/actual a más futuro (Ascendente)
+                    const resultData = Object.values(groups).sort((a,b) => a.key.localeCompare(b.key));
+                    
+                    // Ordenar los items dentro de cada mes por fecha
+                    resultData.forEach(group => {
+                        group.items.sort((itemA, itemB) => new Date(itemA.dueDate) - new Date(itemB.dueDate));
+                    });
+                    
+                    return { type: 'month-grouped', data: resultData };
                 } else {
                     filtered.sort((a,b) => new Date(a.dueDate) - new Date(b.dueDate));
                     if ((activeFilter === 'all' && !selectedDateFilter) || (mode === 'balance' && selectedDateFilter)) return { type: 'flat', data: filtered };
@@ -723,7 +734,6 @@
                 }
             }, [payItems, collectItems, walletItems, expenseItems, activeFilter, mode, searchTerm, selectedDateFilter]);
 
-            // --- LÓGICA DE AGREGAR ITEM (CON CUOTAS) ---
             const handleAdd = async (e) => {
                 e.preventDefault();
                 let targetCollection = 'cheques_public_shared';
@@ -742,7 +752,6 @@
                     }); 
                 } 
                 else { 
-                    // FIX: Logica de Cuotas solo para Gastos (Creditos, etc)
                     if (mode === 'expenses' && newItem.isRecurring && newItem.installments > 1) {
                         let baseDate = new Date(newItem.dueDate + 'T00:00:00');
                         if (isNaN(baseDate.getTime())) baseDate = new Date(); 
@@ -773,12 +782,11 @@
                                 payee: currentPayee,
                                 monthYear: currentMonthYear,
                                 dueDate: nextDueDateStr,
-                                issueDate: newItem.issueDate, // Misma fecha emision
+                                issueDate: newItem.issueDate, 
                                 createdAt: new Date().toISOString() 
                             });
                         }
                     } else {
-                        // Flujo normal 1 solo registro
                         await addDoc(collection(db, targetCollection, 'main_list', 'items'), { 
                             ...itemData, issueDate: newItem.issueDate, dueDate: newItem.dueDate, monthYear: newItem.monthYear || '', createdAt: new Date().toISOString() 
                         }); 
