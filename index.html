@@ -311,21 +311,25 @@
                     
                     let runningAccumulator = 0;
                     groupedView.data.forEach(group => {
+                        const sortedItems = [...group.items]
+                            .filter(item => item.status !== 'paid')
+                            .sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
+                            
+                        if (sortedItems.length === 0) return;
+
                         let groupTitle = '';
                         if (groupedView.type === 'client-grouped') { groupTitle = group.label; runningAccumulator = 0; } 
                         else if (groupedView.type === 'month-grouped') { groupTitle = group.label; } 
                         else groupTitle = new Date(group.key + 'T00:00:00').toLocaleDateString('es-AR');
 
-                        const sortedItems = [...group.items].sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
                         bodyHTML += `<tr class="group-row"><td colspan="2">${groupTitle}</td><td class="amount" colspan="3">Grupo: ${formatMoney(group.total)}</td></tr>`;
                         
                         sortedItems.forEach(item => {
                             const details = item.number ? `Ref: ${item.number}` : '';
                             const remaining = item.amount - (item.paidAmount||0);
-                            const isPaid = item.status === 'paid';
-                            if (!isPaid) runningAccumulator += remaining;
+                            runningAccumulator += remaining;
                             
-                            bodyHTML += `<tr><td>${item.payee} <br/><span style="color:#666;font-size:9px">${details}</span></td><td class="date">${new Date(item.dueDate+'T00:00:00').toLocaleDateString('es-AR')}</td><td class="amount">${formatMoney(item.amount)}</td><td class="amount ${isPaid ? 'green' : 'red'}">${isPaid ? 'PAGADO' : formatMoney(remaining)}</td><td class="amount" style="color:#555;font-weight:bold">${formatMoney(runningAccumulator)}</td></tr>`;
+                            bodyHTML += `<tr><td>${item.payee} <br/><span style="color:#666;font-size:9px">${details}</span></td><td class="date">${new Date(item.dueDate+'T00:00:00').toLocaleDateString('es-AR')}</td><td class="amount">${formatMoney(item.amount)}</td><td class="amount red">${formatMoney(remaining)}</td><td class="amount" style="color:#555;font-weight:bold">${formatMoney(runningAccumulator)}</td></tr>`;
                         });
                     });
                     bodyHTML += `</tbody></table>`;
@@ -636,7 +640,9 @@
             };
 
             const groupedView = useMemo(() => {
+                // *** CORRECCIÓN: Evitar error si no hay filtro de fecha en balance ***
                 if (mode === 'balance' && !selectedDateFilter) return null;
+                // *** NUEVO: Caja no usa esta vista agrupada ***
                 if (mode === 'cashbox') return null;
 
                 let items = [];
@@ -683,6 +689,7 @@
                         groups[clientName].items.push(item);
                     });
                     
+                    // NEW: Sort items within each group by number (Ascending)
                     const resultData = Object.values(groups).sort((a,b) => b.total - a.total);
                     resultData.forEach(group => {
                         group.items.sort((a, b) => {
@@ -695,9 +702,10 @@
                     return { type: 'client-grouped', data: resultData };
 
                 } else if (mode === 'expenses' && !selectedDateFilter) {
+                    // Agrupación por Mes para Gastos
                     const groups = {};
                     filtered.forEach(item => {
-                        const monthKey = item.monthYear || item.dueDate.substring(0, 7);
+                        const monthKey = item.monthYear || item.dueDate.substring(0, 7); // YYYY-MM
                         if (!groups[monthKey]) {
                             const [y, m] = monthKey.split('-');
                             const dateObj = new Date(y, m-1);
@@ -720,12 +728,14 @@
                     
                     return { type: 'month-grouped', data: resultData };
                 } else {
+                    // Default logic (Pay, Wallet, etc.) - Ensure sorted by Due Date
                     filtered.sort((a,b) => new Date(a.dueDate) - new Date(b.dueDate));
                     if ((activeFilter === 'all' && !selectedDateFilter) || (mode === 'balance' && selectedDateFilter)) return { type: 'flat', data: filtered };
                     const groups = {};
                     filtered.forEach(item => {
                         const dateKey = item.dueDate;
                         if (!dateKey) return;
+                        // FIX: check group.label existence before includes
                         if (!groups[dateKey]) groups[dateKey] = { key: dateKey, total: 0, items: [] };
                         groups[dateKey].total += (item.amount - (item.paidAmount || 0)); 
                         groups[dateKey].items.push(item);
