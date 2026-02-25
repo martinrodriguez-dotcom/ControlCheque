@@ -17,10 +17,8 @@
     <!-- Librerías -->
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    <!-- FIX: Versión específica de Babel para evitar error de esmodules -->
     <script src="https://unpkg.com/@babel/standalone@7.23.6/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Librería para Generar PDF (Soluciona impresión en celulares) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" xintegrity="sha512-GsLlZN/3F2ErC5ifS5QtgpiJtWd43JWSuIgh7mbzZ8zBps+dvLusV+eNQATqgA/HdeKFVgA5v3S/cIrLF7QnIg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 
     <style>
@@ -30,7 +28,6 @@
         input, select, textarea { font-size: 16px !important; }
         .scrollbar-hide::-webkit-scrollbar { display: none; }
         .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
-        /* Modal Overlay */
         .modal-overlay { background-color: rgba(0, 0, 0, 0.5); backdrop-filter: blur(2px); }
         
         /* Estilos Tabla Caja */
@@ -48,7 +45,6 @@
     
     <div id="root"></div>
 
-    <!-- Error Handler -->
     <div id="error-display" style="display:none; padding: 20px; background: #fee; color: #b00; border: 1px solid #b00; margin: 10px; border-radius: 5px; z-index:9999; position:relative;">
         <h3>Error de Carga</h3><pre id="error-message" style="font-size: 12px;"></pre>
     </div>
@@ -81,15 +77,12 @@
         const IconCheck = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><polyline points="20 6 9 17 4 12"/></svg>;
         const IconTrash = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>;
         const IconPlus = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>;
-        const IconLoader = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>;
         const IconChevronDown = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><polyline points="6 9 12 15 18 9"/></svg>;
         const IconWallet = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/></svg>;
         const IconDownload = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>;
         const IconBriefcase = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>;
         const IconCash = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>;
         const IconTrendingUp = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>;
-        const IconArrowUpRight = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/></svg>;
-        const IconArrowDownLeft = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><line x1="17" y1="7" x2="7" y2="17"/><polyline points="17 17 7 17 7 7"/></svg>;
         const IconUserGroup = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>;
         const IconBell = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>;
         const IconBellRing = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/><path d="M4 2C2.8 3.7 2 5.7 2 8"/><path d="M22 8c0-2.3-.8-4.3-2-6"/></svg>;
@@ -107,9 +100,10 @@
         const IconX = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>;
         const IconChevronLeft = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><polyline points="15 18 9 12 15 6"/></svg>;
         const IconChevronRight = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><polyline points="9 18 15 12 9 6"/></svg>;
+        const IconLayers = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>;
 
         const CheqControl = () => {
-            const [mode, setMode] = useState('pay'); 
+            const [mode, setMode] = useState('pallets');
             const [user, setUser] = useState(null); 
             const [payItems, setPayItems] = useState([]);
             const [collectItems, setCollectItems] = useState([]);
@@ -121,7 +115,6 @@
             const [activeFilter, setActiveFilter] = useState('all'); 
             const [showAddForm, setShowAddForm] = useState(false);
             
-            // FIX: Agregamos campos isRecurring y installments
             const [newItem, setNewItem] = useState({ 
                 number: '', issueDate: '', dueDate: '', amount: '', payee: '', paidAmount: 0, subtype: 'cheque', category: 'others', status: 'pending', monthYear: '', cashType: 'income',
                 isRecurring: false, installments: 2
@@ -134,11 +127,25 @@
             const [showNotifPanel, setShowNotifPanel] = useState(false);
             const [notifPermission, setNotifPermission] = useState(typeof Notification !== 'undefined' ? Notification.permission : 'default');
             const [selectedDateFilter, setSelectedDateFilter] = useState(null);
-            
             const [showCalendar, setShowCalendar] = useState(false);
             const [currentCalDate, setCurrentCalDate] = useState(new Date());
-
             const [paymentModal, setPaymentModal] = useState({ isOpen: false, item: null, method: 'transfer', proof: '', type: 'total', amount: '' });
+
+            // ==========================================
+            // NUEVOS ESTADOS: MÓDULO PALLETS
+            // ==========================================
+            const [palletTab, setPalletTab] = useState('costos'); // 'costos' | 'modelos' | 'presupuestos'
+            const [costosMadres, setCostosMadres] = useState([]);
+            const [palletsTemplates, setPalletsTemplates] = useState([]);
+            const [presupuestos, setPresupuestos] = useState([]);
+
+            // Formulario Costos Madres
+            const [newCosto, setNewCosto] = useState({ nombre: '', tipo: 'Fijo', costoTotal: '', cantidad: 1, unidad: 'u', alto: '', ancho: '', largo: '' });
+            // Formulario Nuevo Pallet (Receta)
+            const [newPallet, setNewPallet] = useState({ nombre: '', items: [] });
+            // Formulario Nuevo Presupuesto
+            const [newQuote, setNewQuote] = useState({ cliente: '', items: [] });
+            // ==========================================
 
             const getTheme = () => {
                 if(mode === 'pay') return { main: 'blue', bg: 'bg-blue-800', light: 'bg-blue-50', text: 'text-blue-600', border: 'border-blue-500', btn: 'bg-blue-600' };
@@ -146,6 +153,7 @@
                 if(mode === 'wallet') return { main: 'indigo', bg: 'bg-indigo-800', light: 'bg-indigo-50', text: 'text-indigo-600', border: 'border-indigo-500', btn: 'bg-indigo-600' };
                 if(mode === 'expenses') return { main: 'orange', bg: 'bg-orange-800', light: 'bg-orange-50', text: 'text-orange-600', border: 'border-orange-500', btn: 'bg-orange-600' };
                 if(mode === 'cashbox') return { main: 'cyan', bg: 'bg-cyan-800', light: 'bg-cyan-50', text: 'text-cyan-600', border: 'border-cyan-500', btn: 'bg-cyan-600' };
+                if(mode === 'pallets') return { main: 'teal', bg: 'bg-teal-800', light: 'bg-teal-50', text: 'text-teal-600', border: 'border-teal-500', btn: 'bg-teal-600' };
                 return { main: 'violet', bg: 'bg-violet-900', light: 'bg-violet-50', text: 'text-violet-600', border: 'border-violet-500', btn: 'bg-violet-600' }; 
             }
             const theme = getTheme();
@@ -187,17 +195,26 @@
                     const data = snap.docs.map(d => { const dat = d.data(); return { id: d.id, ...dat, type: 'cash' }; });
                     setCashItems(data);
                 });
+
+                // NUEVAS SUBSCRIPCIONES PALLETS
+                const unsubCostos = onSnapshot(collection(db, 'costos_madres_sii', 'main_list', 'items'), (snap) => {
+                    setCostosMadres(snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt)));
+                });
+                const unsubPallets = onSnapshot(collection(db, 'pallets_templates_sii', 'main_list', 'items'), (snap) => {
+                    setPalletsTemplates(snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt)));
+                });
+                const unsubQuotes = onSnapshot(collection(db, 'presupuestos_sii', 'main_list', 'items'), (snap) => {
+                    setPresupuestos(snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a,b) => new Date(b.date) - new Date(a.date)));
+                });
                 
                 setTimeout(() => setLoading(false), 800); 
-                return () => { unsubPay(); unsubCollect(); unsubWallet(); unsubExpenses(); unsubCash(); };
+                return () => { unsubPay(); unsubCollect(); unsubWallet(); unsubExpenses(); unsubCash(); unsubCostos(); unsubPallets(); unsubQuotes(); };
             }, [user]);
 
-            useEffect(() => {
-                checkAlerts([...payItems, ...collectItems, ...walletItems, ...expenseItems]);
-            }, [payItems, collectItems, walletItems, expenseItems]);
+            useEffect(() => { checkAlerts([...payItems, ...collectItems, ...walletItems, ...expenseItems]); }, [payItems, collectItems, walletItems, expenseItems]);
 
             const getDays = (date) => { if (!date) return 999; return Math.ceil((new Date(date+'T00:00:00') - new Date().setHours(0,0,0,0)) / (86400000)); };
-            const formatMoney = (val) => new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 0 }).format(val);
+            const formatMoney = (val) => new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 0 }).format(val || 0);
             const formatDate = (dateStr) => { if(!dateStr) return '-'; const date = new Date(dateStr + 'T00:00:00'); return date.toLocaleDateString('es-AR', { weekday: 'short', day: 'numeric', month: 'short' }); };
 
             const uniqueClients = useMemo(() => {
@@ -259,230 +276,85 @@
                         alert("La librería de PDF se está cargando. Por favor, espera un momento y vuelve a intentar.");
                         return;
                     }
-                    
                     const tempDiv = document.createElement('div');
                     tempDiv.innerHTML = `<style>${reportCSS}</style><div class="report-container">${bodyContent}</div>`;
-                    
-                    tempDiv.style.position = 'absolute';
-                    tempDiv.style.left = '-9999px';
-                    tempDiv.style.top = '-9999px';
-                    tempDiv.style.width = '800px'; 
-                    tempDiv.style.backgroundColor = 'white';
+                    tempDiv.style.position = 'absolute'; tempDiv.style.left = '-9999px'; tempDiv.style.top = '-9999px'; tempDiv.style.width = '800px'; tempDiv.style.backgroundColor = 'white';
                     document.body.appendChild(tempDiv);
-                    
-                    const opt = {
-                        margin:       10,
-                        filename:     filename + '.pdf',
-                        image:        { type: 'jpeg', quality: 0.98 },
-                        html2canvas:  { scale: 2, useCORS: true, logging: false },
-                        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
-                    };
-                    
-                    html2pdf().set(opt).from(tempDiv).save().then(() => {
-                        document.body.removeChild(tempDiv);
-                    }).catch(err => {
-                        console.error("Error generando PDF: ", err);
-                        document.body.removeChild(tempDiv);
-                        alert("Hubo un error al generar el PDF.");
-                    });
+                    const opt = { margin: 10, filename: filename + '.pdf', image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2, useCORS: true, logging: false }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } };
+                    html2pdf().set(opt).from(tempDiv).save().then(() => { document.body.removeChild(tempDiv); }).catch(err => { console.error(err); document.body.removeChild(tempDiv); alert("Error al generar PDF."); });
                 }
             };
 
             const triggerMainReport = (action) => {
                 if (!groupedView || !groupedView.data || groupedView.data.length === 0) return alert("No hay datos para procesar.");
                 let titleMode = mode === 'pay' ? 'Pagos' : (mode === 'collect' ? 'Cobros' : (mode === 'wallet' ? 'Cartera Cheques' : (mode === 'expenses' ? 'Gastos Mensuales' : 'Balance')));
-                
                 let bodyHTML = `<h1>Reporte de ${titleMode}</h1><p class="meta">Generado: ${new Date().toLocaleDateString('es-AR')} • SII PALLETS APP</p>`;
 
                 if (mode === 'balance') {
                     bodyHTML += `<div class="total-box">Neto Proyectado: ${formatMoney(balanceData.net)}</div><table><thead><tr><th>Fecha</th><th style="text-align:right">Entradas</th><th style="text-align:right">Salidas</th><th style="text-align:right">Neto</th></tr></thead><tbody>`;
-                    balanceData.dailyAgenda.forEach(day => {
-                        bodyHTML += `<tr><td>${new Date(day.date + 'T00:00:00').toLocaleDateString('es-AR')}</td><td class="amount green">${day.inflow > 0 ? formatMoney(day.inflow) : '-'}</td><td class="amount" style="color:blue">${day.outflow > 0 ? formatMoney(day.outflow) : '-'}</td><td class="amount">${formatMoney(day.net)}</td></tr>`;
-                    });
+                    balanceData.dailyAgenda.forEach(day => { bodyHTML += `<tr><td>${new Date(day.date + 'T00:00:00').toLocaleDateString('es-AR')}</td><td class="amount green">${day.inflow > 0 ? formatMoney(day.inflow) : '-'}</td><td class="amount" style="color:blue">${day.outflow > 0 ? formatMoney(day.outflow) : '-'}</td><td class="amount">${formatMoney(day.net)}</td></tr>`; });
                     bodyHTML += `</tbody></table>`;
                 } else {
                     let modeTotal = 0;
-                    if(mode === 'pay') modeTotal = balanceData.pay;
-                    else if(mode === 'wallet') modeTotal = balanceData.wallet;
-                    else if(mode === 'expenses') modeTotal = balanceData.expenses;
-                    else modeTotal = balanceData.collect;
-
+                    if(mode === 'pay') modeTotal = balanceData.pay; else if(mode === 'wallet') modeTotal = balanceData.wallet; else if(mode === 'expenses') modeTotal = balanceData.expenses; else modeTotal = balanceData.collect;
                     bodyHTML += `<div class="total-box">Total Pendiente: ${formatMoney(modeTotal)}</div><table><thead><tr><th style="width:30%">Referencia</th><th style="width:15%">Vencimiento</th><th style="text-align:right;width:15%">Total</th><th style="text-align:right;width:20%">Pendiente</th><th style="text-align:right;width:20%">Acumulado</th></tr></thead><tbody>`;
-                    
                     let runningAccumulator = 0;
                     groupedView.data.forEach(group => {
-                        const sortedItems = [...group.items]
-                            .filter(item => item.status !== 'paid')
-                            .sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
-                            
+                        const sortedItems = [...group.items].filter(item => item.status !== 'paid').sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
                         if (sortedItems.length === 0) return;
-
                         let groupTitle = '';
-                        if (groupedView.type === 'client-grouped') { groupTitle = group.label; runningAccumulator = 0; } 
-                        else if (groupedView.type === 'month-grouped') { groupTitle = group.label; } 
-                        else groupTitle = new Date(group.key + 'T00:00:00').toLocaleDateString('es-AR');
-
+                        if (groupedView.type === 'client-grouped') { groupTitle = group.label; runningAccumulator = 0; } else if (groupedView.type === 'month-grouped') { groupTitle = group.label; } else groupTitle = new Date(group.key + 'T00:00:00').toLocaleDateString('es-AR');
                         bodyHTML += `<tr class="group-row"><td colspan="2">${groupTitle}</td><td class="amount" colspan="3">Grupo: ${formatMoney(group.total)}</td></tr>`;
-                        
                         sortedItems.forEach(item => {
                             const details = item.number ? `Ref: ${item.number}` : '';
                             const remaining = item.amount - (item.paidAmount||0);
                             runningAccumulator += remaining;
-                            
                             bodyHTML += `<tr><td>${item.payee} <br/><span style="color:#666;font-size:9px">${details}</span></td><td class="date">${new Date(item.dueDate+'T00:00:00').toLocaleDateString('es-AR')}</td><td class="amount">${formatMoney(item.amount)}</td><td class="amount red">${formatMoney(remaining)}</td><td class="amount" style="color:#555;font-weight:bold">${formatMoney(runningAccumulator)}</td></tr>`;
                         });
                     });
                     bodyHTML += `</tbody></table>`;
                 }
-                
                 handleReportAction(`Reporte ${titleMode}`, bodyHTML, action, `Reporte_${titleMode}`);
             };
 
             const triggerClientReport = (group, action) => {
                 const pendingItems = group.items.filter(i => i.status !== 'paid').sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
                 if (pendingItems.length === 0) return alert("Este cliente no tiene facturas pendientes.");
-                
                 const totalPending = pendingItems.reduce((acc, item) => acc + (item.amount - (item.paidAmount || 0)), 0);
-
-                let bodyHTML = `
-                    <h1>Estado de Cuenta</h1>
-                    <p class="meta">Generado: ${new Date().toLocaleDateString('es-AR')} • SII PALLETS APP</p>
-                    
-                    <div class="client-info">
-                        <div class="client-name">${group.label}</div>
-                        <div>Total Pendiente: <strong>${formatMoney(totalPending)}</strong></div>
-                    </div>
-
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Factura / Ref</th>
-                                <th>Vencimiento</th>
-                                <th style="text-align:center">Estado / Días</th>
-                                <th style="text-align:right">Importe Original</th>
-                                <th style="text-align:right">A Cuenta / Parcial</th>
-                                <th style="text-align:right">Saldo Pendiente</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                `;
-
+                let bodyHTML = `<h1>Estado de Cuenta</h1><p class="meta">Generado: ${new Date().toLocaleDateString('es-AR')} • SII PALLETS APP</p><div class="client-info"><div class="client-name">${group.label}</div><div>Total Pendiente: <strong>${formatMoney(totalPending)}</strong></div></div><table><thead><tr><th>Factura / Ref</th><th>Vencimiento</th><th style="text-align:center">Estado / Días</th><th style="text-align:right">Importe Original</th><th style="text-align:right">A Cuenta / Parcial</th><th style="text-align:right">Saldo Pendiente</th></tr></thead><tbody>`;
                 pendingItems.forEach(item => {
-                    const original = item.amount;
-                    const paid = item.paidAmount || 0;
-                    const remaining = original - paid;
-                    const details = item.number ? `${item.number}` : 'S/N';
-                    
-                    const d = getDays(item.dueDate);
-                    const daysText = d < 0 ? `Vencida (${Math.abs(d)} días)` : `Faltan ${d} días`;
-                    const daysClass = d < 0 ? 'red' : 'green';
-
-                    bodyHTML += `
-                        <tr>
-                            <td>${details}</td>
-                            <td class="date">${new Date(item.dueDate + 'T00:00:00').toLocaleDateString('es-AR')}</td>
-                            <td style="text-align:center; font-size:11px;" class="${daysClass}">${daysText}</td>
-                            <td class="amount">${formatMoney(original)}</td>
-                            <td class="amount" style="color:#666">${paid > 0 ? formatMoney(paid) : '-'}</td>
-                            <td class="amount red">${formatMoney(remaining)}</td>
-                        </tr>
-                    `;
+                    const original = item.amount; const paid = item.paidAmount || 0; const remaining = original - paid; const details = item.number ? `${item.number}` : 'S/N';
+                    const d = getDays(item.dueDate); const daysText = d < 0 ? `Vencida (${Math.abs(d)} días)` : `Faltan ${d} días`; const daysClass = d < 0 ? 'red' : 'green';
+                    bodyHTML += `<tr><td>${details}</td><td class="date">${new Date(item.dueDate + 'T00:00:00').toLocaleDateString('es-AR')}</td><td style="text-align:center; font-size:11px;" class="${daysClass}">${daysText}</td><td class="amount">${formatMoney(original)}</td><td class="amount" style="color:#666">${paid > 0 ? formatMoney(paid) : '-'}</td><td class="amount red">${formatMoney(remaining)}</td></tr>`;
                 });
-
-                bodyHTML += `
-                            <tr class="total-row">
-                                <td colspan="5" style="text-align:right;">TOTAL A PAGAR:</td>
-                                <td class="amount red">${formatMoney(totalPending)}</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                    <div style="margin-top: 40px; font-size: 10px; color: #888; text-align: center;">
-                        Documento generado automáticamente por SII PALLETS APP
-                    </div>
-                `;
-
+                bodyHTML += `<tr class="total-row"><td colspan="5" style="text-align:right;">TOTAL A PAGAR:</td><td class="amount red">${formatMoney(totalPending)}</td></tr></tbody></table><div style="margin-top: 40px; font-size: 10px; color: #888; text-align: center;">Documento generado automáticamente por SII PALLETS APP</div>`;
                 handleReportAction(`Estado de Cuenta - ${group.label}`, bodyHTML, action, `Estado_Cuenta_${group.label.replace(/\s+/g, '_')}`);
             };
 
             const triggerCalendarReport = (action) => {
                 const days = generateCalendarDays();
                 const monthName = currentCalDate.toLocaleDateString('es-AR', { month: 'long', year: 'numeric' });
-                
-                let bodyHTML = `
-                    <h1>Proyección Mensual: ${monthName}</h1>
-                    <table>
-                        <thead>
-                            <tr>
-                                <th class="date-col">Fecha</th>
-                                <th>Ingresos</th>
-                                <th>Egresos</th>
-                                <th>Acumulado</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                `;
-                
+                let bodyHTML = `<h1>Proyección Mensual: ${monthName}</h1><table><thead><tr><th class="date-col">Fecha</th><th>Ingresos</th><th>Egresos</th><th>Acumulado</th></tr></thead><tbody>`;
                 days.forEach(day => {
                     if(!day) return;
-                    
-                    let inflowHTML = "";
-                    if(day.inflowItems.length > 0) {
-                         day.inflowItems.forEach(i => {
-                            const ref = i.number ? `Ref: ${i.number}` : '';
-                            inflowHTML += `<div style="margin-bottom:6px;">
-                                <div style="font-weight:bold; color:#16a34a;">${formatMoney(i.amount - (i.paidAmount||0))}</div>
-                                <div style="font-size:9px; color:#555;">(${i.payee} ${ref ? '- '+ref : ''})</div>
-                            </div>`;
-                        });
-                    } else {
-                        inflowHTML = "-";
-                    }
-
-                    let outflowHTML = "";
-                    if(day.outflowItems.length > 0) {
-                         day.outflowItems.forEach(i => {
-                            const ref = i.number ? `Ref: ${i.number}` : '';
-                            outflowHTML += `<div style="margin-bottom:6px;">
-                                <div style="font-weight:bold; color:#dc2626;">${formatMoney(i.amount - (i.paidAmount||0))}</div>
-                                <div style="font-size:9px; color:#555;">(${i.payee} ${ref ? '- '+ref : ''})</div>
-                            </div>`;
-                        });
-                    } else {
-                        outflowHTML = "-";
-                    }
-                    
+                    let inflowHTML = ""; if(day.inflowItems.length > 0) { day.inflowItems.forEach(i => { const ref = i.number ? `Ref: ${i.number}` : ''; inflowHTML += `<div style="margin-bottom:6px;"><div style="font-weight:bold; color:#16a34a;">${formatMoney(i.amount - (i.paidAmount||0))}</div><div style="font-size:9px; color:#555;">(${i.payee} ${ref ? '- '+ref : ''})</div></div>`; }); } else { inflowHTML = "-"; }
+                    let outflowHTML = ""; if(day.outflowItems.length > 0) { day.outflowItems.forEach(i => { const ref = i.number ? `Ref: ${i.number}` : ''; outflowHTML += `<div style="margin-bottom:6px;"><div style="font-weight:bold; color:#dc2626;">${formatMoney(i.amount - (i.paidAmount||0))}</div><div style="font-size:9px; color:#555;">(${i.payee} ${ref ? '- '+ref : ''})</div></div>`; }); } else { outflowHTML = "-"; }
                     const acumClass = day.accumulated >= 0 ? 'green-acum' : 'red-acum';
-
-                    bodyHTML += `
-                        <tr>
-                            <td class="date-col">${new Date(day.dateKey+'T00:00:00').toLocaleDateString('es-AR', { weekday: 'short', day: 'numeric' })}</td>
-                            <td style="text-align:right;">${inflowHTML}</td>
-                            <td style="text-align:right;">${outflowHTML}</td>
-                            <td class="amount ${acumClass}">${formatMoney(day.accumulated)}</td>
-                        </tr>
-                    `;
+                    bodyHTML += `<tr><td class="date-col">${new Date(day.dateKey+'T00:00:00').toLocaleDateString('es-AR', { weekday: 'short', day: 'numeric' })}</td><td style="text-align:right;">${inflowHTML}</td><td style="text-align:right;">${outflowHTML}</td><td class="amount ${acumClass}">${formatMoney(day.accumulated)}</td></tr>`;
                 });
-                
                 bodyHTML += `</tbody></table>`;
                 handleReportAction(`Reporte Mensual - ${monthName}`, bodyHTML, action, `Calendario_${monthName.replace(/\s+/g, '_')}`);
             };
 
-            const requestNotify = () => {
-                if (typeof Notification === 'undefined') return;
-                Notification.requestPermission().then(perm => { setNotifPermission(perm); if(perm === 'granted') { try { new Notification("SII PALLETS APP", { body: "¡Notificaciones activadas!" }); } catch(e) {} } });
-            };
+            const requestNotify = () => { if (typeof Notification === 'undefined') return; Notification.requestPermission().then(perm => { setNotifPermission(perm); if(perm === 'granted') { try { new Notification("SII PALLETS APP", { body: "¡Notificaciones activadas!" }); } catch(e) {} } }); };
 
-            const checkAlerts = (allItems) => {
-                if(typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
-                const urgentCount = allItems.filter(c => c.status !== 'paid' && getDays(c.dueDate) <= 5 && getDays(c.dueDate) >= 0).length;
-            };
+            const checkAlerts = (allItems) => { if(typeof Notification === 'undefined' || Notification.permission !== 'granted') return; const urgentCount = allItems.filter(c => c.status !== 'paid' && getDays(c.dueDate) <= 5 && getDays(c.dueDate) >= 0).length; };
 
             const alerts = useMemo(() => {
                 const all = [...payItems, ...collectItems, ...walletItems, ...expenseItems];
                 return all.filter(item => { if (item.status === 'paid') return false; const d = getDays(item.dueDate); return d <= 10; }).sort((a,b) => getDays(a.dueDate) - getDays(b.dueDate));
             }, [payItems, collectItems, walletItems, expenseItems]);
 
-            // --- Lógica de Caja ---
             const cashData = useMemo(() => {
                 const sorted = [...cashItems].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime() || (a.createdAt || '').localeCompare(b.createdAt || ''));
                 let balance = 0;
@@ -491,57 +363,31 @@
                     else if (item.cashType === 'expense') balance -= item.amount;
                     return { ...item, balance };
                 });
-
-                // Agrupar por mes
                 const groups = {};
                 itemsWithBalance.forEach(item => {
-                    const monthKey = item.date.substring(0, 7); // YYYY-MM
-                    if (!groups[monthKey]) {
-                        const [y, m] = monthKey.split('-');
-                        const dateObj = new Date(y, m-1);
-                        const label = dateObj.toLocaleDateString('es-AR', { month: 'long', year: 'numeric' });
-                        groups[monthKey] = { key: monthKey, label: label.charAt(0).toUpperCase() + label.slice(1), items: [] };
-                    }
+                    const monthKey = item.date.substring(0, 7); 
+                    if (!groups[monthKey]) { const [y, m] = monthKey.split('-'); const dateObj = new Date(y, m-1); const label = dateObj.toLocaleDateString('es-AR', { month: 'long', year: 'numeric' }); groups[monthKey] = { key: monthKey, label: label.charAt(0).toUpperCase() + label.slice(1), items: [] }; }
                     groups[monthKey].items.push(item);
                 });
-
-                // Ordenar grupos desc (mes más reciente primero) pero items asc (cronológico)
                 const sortedGroups = Object.values(groups).sort((a, b) => b.key.localeCompare(a.key));
-                
                 return { balance, groups: sortedGroups };
             }, [cashItems]);
 
-
             const balanceData = useMemo(() => {
                 const calcPending = (list) => list.filter(i => i.status !== 'paid').reduce((sum, i) => sum + (i.amount - (i.paidAmount || 0)), 0);
-                const pendingPay = calcPending(payItems);
-                const pendingCollect = calcPending(collectItems);
-                const pendingWallet = calcPending(walletItems);
-                const pendingExpenses = calcPending(expenseItems);
-                
+                const pendingPay = calcPending(payItems); const pendingCollect = calcPending(collectItems); const pendingWallet = calcPending(walletItems); const pendingExpenses = calcPending(expenseItems);
                 const expensesByCategory = {};
-                payItems.filter(i => i.status !== 'paid').forEach(item => {
-                    const cat = item.category || 'others';
-                    if (!expensesByCategory[cat]) expensesByCategory[cat] = 0;
-                    expensesByCategory[cat] += (item.amount - (item.paidAmount || 0));
-                });
+                payItems.filter(i => i.status !== 'paid').forEach(item => { const cat = item.category || 'others'; if (!expensesByCategory[cat]) expensesByCategory[cat] = 0; expensesByCategory[cat] += (item.amount - (item.paidAmount || 0)); });
                 const sortedCategories = Object.entries(expensesByCategory).sort(([,a], [,b]) => b - a).map(([cat, amount]) => ({ cat, amount }));
-                
                 let dailyAgenda = [];
                 if (mode === 'balance') {
                     const dates = new Set();
                     [...payItems, ...collectItems, ...walletItems, ...expenseItems].filter(i => i.status !== 'paid').forEach(i => { if(i.dueDate) dates.add(i.dueDate); });
                     const sortedDates = Array.from(dates).sort((a,b) => new Date(a) - new Date(b));
-                    
                     dailyAgenda = sortedDates.map(date => {
-                        const dayPays = payItems.filter(i => i.dueDate === date && i.status !== 'paid');
-                        const dayCollects = collectItems.filter(i => i.dueDate === date && i.status !== 'paid');
-                        const dayWallet = walletItems.filter(i => i.dueDate === date && i.status !== 'paid');
-                        const dayExpenses = expenseItems.filter(i => i.dueDate === date && i.status !== 'paid');
-                        
+                        const dayPays = payItems.filter(i => i.dueDate === date && i.status !== 'paid'); const dayCollects = collectItems.filter(i => i.dueDate === date && i.status !== 'paid'); const dayWallet = walletItems.filter(i => i.dueDate === date && i.status !== 'paid'); const dayExpenses = expenseItems.filter(i => i.dueDate === date && i.status !== 'paid');
                         const outflow = dayPays.reduce((s, i) => s + (i.amount - (i.paidAmount||0)), 0) + dayExpenses.reduce((s, i) => s + (i.amount - (i.paidAmount||0)), 0);
                         const inflow = dayCollects.reduce((s, i) => s + (i.amount - (i.paidAmount||0)), 0) + dayWallet.reduce((s, i) => s + (i.amount - (i.paidAmount||0)), 0);
-                        
                         return { date, outflow, inflow, net: inflow - outflow };
                     });
                 }
@@ -552,194 +398,71 @@
                 const currentItems = mode === 'pay' ? payItems : (mode === 'collect' ? collectItems : (mode === 'wallet' ? walletItems : (mode === 'expenses' ? expenseItems : [])));
                 const pending = currentItems.filter(i => i.status !== 'paid');
                 const calcDebt = (list) => list.reduce((s, i) => s + (i.amount - (i.paidAmount || 0)), 0);
-                return {
-                    expired: { count: pending.filter(i => getDays(i.dueDate) < 0).length, total: calcDebt(pending.filter(i => getDays(i.dueDate) < 0)) },
-                    urgent: { count: pending.filter(i => getDays(i.dueDate) >= 0 && getDays(i.dueDate) <= 7).length, total: calcDebt(pending.filter(i => getDays(i.dueDate) >= 0 && getDays(i.dueDate) <= 7)) },
-                    future: { count: pending.filter(i => getDays(i.dueDate) > 7).length, total: calcDebt(pending.filter(i => getDays(i.dueDate) > 7)) }
-                };
+                return { expired: { count: pending.filter(i => getDays(i.dueDate) < 0).length, total: calcDebt(pending.filter(i => getDays(i.dueDate) < 0)) }, urgent: { count: pending.filter(i => getDays(i.dueDate) >= 0 && getDays(i.dueDate) <= 7).length, total: calcDebt(pending.filter(i => getDays(i.dueDate) >= 0 && getDays(i.dueDate) <= 7)) }, future: { count: pending.filter(i => getDays(i.dueDate) > 7).length, total: calcDebt(pending.filter(i => getDays(i.dueDate) > 7)) } };
             }, [payItems, collectItems, walletItems, expenseItems, mode]);
 
-            // PREVISIÓN 15 DÍAS (Modo Balance)
             const forecastData = useMemo(() => {
-                const days = [];
-                const today = new Date();
-                today.setHours(0,0,0,0);
+                const days = []; const today = new Date(); today.setHours(0,0,0,0);
                 for (let i = 0; i < 15; i++) {
-                    const current = new Date(today);
-                    current.setDate(today.getDate() + i);
-                    const year = current.getFullYear();
-                    const month = String(current.getMonth() + 1).padStart(2, '0');
-                    const day = String(current.getDate()).padStart(2, '0');
+                    const current = new Date(today); current.setDate(today.getDate() + i);
+                    const year = current.getFullYear(); const month = String(current.getMonth() + 1).padStart(2, '0'); const day = String(current.getDate()).padStart(2, '0');
                     const dateKey = `${year}-${month}-${day}`;
-
-                    const dayPays = payItems.filter(item => item.dueDate === dateKey && item.status !== 'paid');
-                    const dayCollects = collectItems.filter(item => item.dueDate === dateKey && item.status !== 'paid');
-                    const dayWallet = walletItems.filter(item => item.dueDate === dateKey && item.status !== 'paid');
-                    const dayExpenses = expenseItems.filter(item => item.dueDate === dateKey && item.status !== 'paid');
-
+                    const dayPays = payItems.filter(item => item.dueDate === dateKey && item.status !== 'paid'); const dayCollects = collectItems.filter(item => item.dueDate === dateKey && item.status !== 'paid'); const dayWallet = walletItems.filter(item => item.dueDate === dateKey && item.status !== 'paid'); const dayExpenses = expenseItems.filter(item => item.dueDate === dateKey && item.status !== 'paid');
                     const outflow = dayPays.reduce((sum, item) => sum + (item.amount - (item.paidAmount || 0)), 0) + dayExpenses.reduce((sum, item) => sum + (item.amount - (item.paidAmount || 0)), 0);
                     const inflow = dayCollects.reduce((sum, item) => sum + (item.amount - (item.paidAmount || 0)), 0) + dayWallet.reduce((sum, item) => sum + (item.amount - (item.paidAmount || 0)), 0);
-                    
                     days.push({ date: current, dateKey, net: inflow - outflow, inflow, outflow });
                 }
                 return days;
             }, [payItems, collectItems, walletItems, expenseItems]);
 
-            // --- Lógica del Calendario Mensual con Acumulado ---
             const generateCalendarDays = () => {
-                const year = currentCalDate.getFullYear();
-                const month = currentCalDate.getMonth();
-                const daysInMonth = new Date(year, month + 1, 0).getDate();
-                const firstDay = new Date(year, month, 1).getDay(); // 0 is Sunday
-                
+                const year = currentCalDate.getFullYear(); const month = currentCalDate.getMonth(); const daysInMonth = new Date(year, month + 1, 0).getDate(); const firstDay = new Date(year, month, 1).getDay(); 
                 const firstDateStr = `${year}-${String(month + 1).padStart(2, '0')}-01`;
-                
-                // Calculamos el saldo acumulado previo al mes actual (deuda/crédito histórico pendiente)
                 let runningBalance = 0;
-                [...payItems, ...collectItems, ...walletItems, ...expenseItems].forEach(item => {
-                    if (item.status === 'paid') return;
-                    if (item.dueDate < firstDateStr) {
-                        // Si es pago/gasto resta, si es cobro/cartera suma
-                        if (item.type === 'pay' || item.type === 'expense') {
-                             runningBalance -= (item.amount - (item.paidAmount || 0));
-                        } else {
-                             runningBalance += (item.amount - (item.paidAmount || 0));
-                        }
-                    }
-                });
-
+                [...payItems, ...collectItems, ...walletItems, ...expenseItems].forEach(item => { if (item.status === 'paid') return; if (item.dueDate < firstDateStr) { if (item.type === 'pay' || item.type === 'expense') { runningBalance -= (item.amount - (item.paidAmount || 0)); } else { runningBalance += (item.amount - (item.paidAmount || 0)); } } });
                 const days = [];
                 for (let i = 0; i < firstDay; i++) days.push(null);
-                
                 for (let d = 1; d <= daysInMonth; d++) {
                     const dateKey = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-                    
-                    const dayPays = payItems.filter(i => i.dueDate === dateKey && i.status !== 'paid');
-                    const dayCollects = collectItems.filter(i => i.dueDate === dateKey && i.status !== 'paid');
-                    const dayWallet = walletItems.filter(i => i.dueDate === dateKey && i.status !== 'paid');
-                    const dayExpenses = expenseItems.filter(i => i.dueDate === dateKey && i.status !== 'paid');
-
+                    const dayPays = payItems.filter(i => i.dueDate === dateKey && i.status !== 'paid'); const dayCollects = collectItems.filter(i => i.dueDate === dateKey && i.status !== 'paid'); const dayWallet = walletItems.filter(i => i.dueDate === dateKey && i.status !== 'paid'); const dayExpenses = expenseItems.filter(i => i.dueDate === dateKey && i.status !== 'paid');
                     const outflow = dayPays.reduce((s,i)=>s+(i.amount-(i.paidAmount||0)),0) + dayExpenses.reduce((s,i)=>s+(i.amount-(i.paidAmount||0)),0);
                     const inflow = dayCollects.reduce((s,i)=>s+(i.amount-(i.paidAmount||0)),0) + dayWallet.reduce((s,i)=>s+(i.amount-(i.paidAmount||0)),0);
-                    
-                    const net = inflow - outflow;
-                    runningBalance += net; // Acumulamos el saldo del día al total
-                    
-                    const inflowItems = [...dayCollects, ...dayWallet];
-                    const outflowItems = [...dayPays, ...dayExpenses];
-
+                    const net = inflow - outflow; runningBalance += net; 
+                    const inflowItems = [...dayCollects, ...dayWallet]; const outflowItems = [...dayPays, ...dayExpenses];
                     days.push({ day: d, dateKey, inflow, outflow, net, accumulated: runningBalance, inflowItems, outflowItems });
                 }
                 return days;
             };
 
-            const changeMonth = (offset) => {
-                const newDate = new Date(currentCalDate);
-                newDate.setMonth(newDate.getMonth() + offset);
-                setCurrentCalDate(newDate);
-            };
+            const changeMonth = (offset) => { const newDate = new Date(currentCalDate); newDate.setMonth(newDate.getMonth() + offset); setCurrentCalDate(newDate); };
 
             const groupedView = useMemo(() => {
-                // *** CORRECCIÓN: Evitar error si no hay filtro de fecha en balance ***
                 if (mode === 'balance' && !selectedDateFilter) return null;
-                // *** NUEVO: Caja no usa esta vista agrupada ***
-                if (mode === 'cashbox') return null;
+                if (mode === 'cashbox' || mode === 'pallets') return null; // No agrupamos para Pallets o Caja acá
 
                 let items = [];
-                if (mode === 'balance' && selectedDateFilter) {
-                    items = [...payItems, ...collectItems, ...walletItems, ...expenseItems];
-                } else if (mode === 'pay') {
-                    items = payItems;
-                } else if (mode === 'collect') {
-                    items = collectItems;
-                } else if (mode === 'wallet') {
-                    items = walletItems;
-                } else if (mode === 'expenses') {
-                    items = expenseItems;
-                }
-                
-                if (searchTerm) {
-                    const lowerSearch = searchTerm.toLowerCase();
-                    items = items.filter(i => (i.payee && i.payee.toLowerCase().includes(lowerSearch)) || (i.number && i.number.toLowerCase().includes(lowerSearch)));
-                }
-
-                if (selectedDateFilter) {
-                    items = items.filter(i => i.dueDate === selectedDateFilter);
-                } else if (activeFilter !== 'all') {
-                    items = items.filter(i => {
-                        if (i.status === 'paid') return false;
-                        const d = getDays(i.dueDate);
-                        if (activeFilter === 'expired') return d < 0;
-                        if (activeFilter === 'urgent') return d >= 0 && d <= 7;
-                        if (activeFilter === 'future') return d > 7;
-                        return true;
-                    });
-                }
+                if (mode === 'balance' && selectedDateFilter) { items = [...payItems, ...collectItems, ...walletItems, ...expenseItems]; } else if (mode === 'pay') { items = payItems; } else if (mode === 'collect') { items = collectItems; } else if (mode === 'wallet') { items = walletItems; } else if (mode === 'expenses') { items = expenseItems; }
+                if (searchTerm) { const lowerSearch = searchTerm.toLowerCase(); items = items.filter(i => (i.payee && i.payee.toLowerCase().includes(lowerSearch)) || (i.number && i.number.toLowerCase().includes(lowerSearch))); }
+                if (selectedDateFilter) { items = items.filter(i => i.dueDate === selectedDateFilter); } else if (activeFilter !== 'all') { items = items.filter(i => { if (i.status === 'paid') return false; const d = getDays(i.dueDate); if (activeFilter === 'expired') return d < 0; if (activeFilter === 'urgent') return d >= 0 && d <= 7; if (activeFilter === 'future') return d > 7; return true; }); }
 
                 let filtered = items;
-
                 if (mode === 'collect' && !selectedDateFilter) {
                     const groups = {};
-                    filtered.forEach(item => {
-                        const clientName = item.payee ? item.payee.trim().toUpperCase() : 'SIN NOMBRE';
-                        if (!groups[clientName]) groups[clientName] = { key: clientName, label: item.payee, total: 0, items: [], count: 0 };
-                        const pendingAmount = item.amount - (item.paidAmount || 0);
-                        if (item.status !== 'paid') groups[clientName].total += pendingAmount;
-                        groups[clientName].count += 1;
-                        groups[clientName].items.push(item);
-                    });
-                    
-                    // NEW: Sort items within each group by number (Ascending)
+                    filtered.forEach(item => { const clientName = item.payee ? item.payee.trim().toUpperCase() : 'SIN NOMBRE'; if (!groups[clientName]) groups[clientName] = { key: clientName, label: item.payee, total: 0, items: [], count: 0 }; const pendingAmount = item.amount - (item.paidAmount || 0); if (item.status !== 'paid') groups[clientName].total += pendingAmount; groups[clientName].count += 1; groups[clientName].items.push(item); });
                     const resultData = Object.values(groups).sort((a,b) => b.total - a.total);
-                    resultData.forEach(group => {
-                        group.items.sort((a, b) => {
-                            const numA = a.number || '';
-                            const numB = b.number || '';
-                            return numA.localeCompare(numB, undefined, { numeric: true });
-                        });
-                    });
-                    
+                    resultData.forEach(group => { group.items.sort((a, b) => { const numA = a.number || ''; const numB = b.number || ''; return numA.localeCompare(numB, undefined, { numeric: true }); }); });
                     return { type: 'client-grouped', data: resultData };
-
                 } else if (mode === 'expenses' && !selectedDateFilter) {
-                    // Agrupación por Mes para Gastos
                     const groups = {};
-                    filtered.forEach(item => {
-                        const monthKey = item.monthYear || item.dueDate.substring(0, 7); // YYYY-MM
-                        if (!groups[monthKey]) {
-                            const [y, m] = monthKey.split('-');
-                            const dateObj = new Date(y, m-1);
-                            const label = dateObj.toLocaleDateString('es-AR', { month: 'long', year: 'numeric' });
-                            groups[monthKey] = { key: monthKey, label: label.charAt(0).toUpperCase() + label.slice(1), total: 0, items: [], count: 0 };
-                        }
-                        const pendingAmount = item.amount - (item.paidAmount || 0);
-                        if (item.status !== 'paid') groups[monthKey].total += pendingAmount;
-                        groups[monthKey].count += 1;
-                        groups[monthKey].items.push(item);
-                    });
-                    
-                    // Ordenar meses de más antiguo/actual a más futuro (Ascendente)
+                    filtered.forEach(item => { const monthKey = item.monthYear || item.dueDate.substring(0, 7); if (!groups[monthKey]) { const [y, m] = monthKey.split('-'); const dateObj = new Date(y, m-1); const label = dateObj.toLocaleDateString('es-AR', { month: 'long', year: 'numeric' }); groups[monthKey] = { key: monthKey, label: label.charAt(0).toUpperCase() + label.slice(1), total: 0, items: [], count: 0 }; } const pendingAmount = item.amount - (item.paidAmount || 0); if (item.status !== 'paid') groups[monthKey].total += pendingAmount; groups[monthKey].count += 1; groups[monthKey].items.push(item); });
                     const resultData = Object.values(groups).sort((a,b) => a.key.localeCompare(b.key));
-                    
-                    // Ordenar los items dentro de cada mes por fecha
-                    resultData.forEach(group => {
-                        group.items.sort((itemA, itemB) => new Date(itemA.dueDate) - new Date(itemB.dueDate));
-                    });
-                    
+                    resultData.forEach(group => { group.items.sort((itemA, itemB) => new Date(itemA.dueDate) - new Date(itemB.dueDate)); });
                     return { type: 'month-grouped', data: resultData };
                 } else {
-                    // Default logic (Pay, Wallet, etc.) - Ensure sorted by Due Date
                     filtered.sort((a,b) => new Date(a.dueDate) - new Date(b.dueDate));
                     if ((activeFilter === 'all' && !selectedDateFilter) || (mode === 'balance' && selectedDateFilter)) return { type: 'flat', data: filtered };
                     const groups = {};
-                    filtered.forEach(item => {
-                        const dateKey = item.dueDate;
-                        if (!dateKey) return;
-                        // FIX: check group.label existence before includes
-                        if (!groups[dateKey]) groups[dateKey] = { key: dateKey, total: 0, items: [] };
-                        groups[dateKey].total += (item.amount - (item.paidAmount || 0)); 
-                        groups[dateKey].items.push(item);
-                    });
+                    filtered.forEach(item => { const dateKey = item.dueDate; if (!dateKey) return; if (!groups[dateKey]) groups[dateKey] = { key: dateKey, total: 0, items: [] }; groups[dateKey].total += (item.amount - (item.paidAmount || 0));  groups[dateKey].items.push(item); });
                     return { type: 'date-grouped', data: Object.values(groups).sort((a,b) => new Date(a.key) - new Date(b.key)) };
                 }
             }, [payItems, collectItems, walletItems, expenseItems, activeFilter, mode, searchTerm, selectedDateFilter]);
@@ -747,65 +470,26 @@
             const handleAdd = async (e) => {
                 e.preventDefault();
                 let targetCollection = 'cheques_public_shared';
-                if(mode === 'collect') targetCollection = 'cobros_public_shared';
-                if(mode === 'wallet') targetCollection = 'cartera_public_shared';
-                if(mode === 'expenses') targetCollection = 'gastos_public_shared';
-
-                const itemData = {
-                    number: newItem.number, amount: parseFloat(newItem.amount), payee: newItem.payee,
-                    paidAmount: newItem.paidAmount || 0, subtype: newItem.subtype || 'cheque', category: newItem.category || 'others', status: newItem.status || 'pending',
-                };
-
-                if (editingId) { 
-                    await updateDoc(doc(db, targetCollection, 'main_list', 'items', editingId), {
-                        ...itemData, issueDate: newItem.issueDate, dueDate: newItem.dueDate, monthYear: newItem.monthYear || ''
-                    }); 
-                } 
+                if(mode === 'collect') targetCollection = 'cobros_public_shared'; if(mode === 'wallet') targetCollection = 'cartera_public_shared'; if(mode === 'expenses') targetCollection = 'gastos_public_shared';
+                const itemData = { number: newItem.number, amount: parseFloat(newItem.amount), payee: newItem.payee, paidAmount: newItem.paidAmount || 0, subtype: newItem.subtype || 'cheque', category: newItem.category || 'others', status: newItem.status || 'pending', };
+                if (editingId) { await updateDoc(doc(db, targetCollection, 'main_list', 'items', editingId), { ...itemData, issueDate: newItem.issueDate, dueDate: newItem.dueDate, monthYear: newItem.monthYear || '' }); } 
                 else { 
                     if (mode === 'expenses' && newItem.isRecurring && newItem.installments > 1) {
-                        let baseDate = new Date(newItem.dueDate + 'T00:00:00');
-                        if (isNaN(baseDate.getTime())) baseDate = new Date(); 
-
+                        let baseDate = new Date(newItem.dueDate + 'T00:00:00'); if (isNaN(baseDate.getTime())) baseDate = new Date(); 
                         let [baseYear, baseMonth] = newItem.monthYear ? newItem.monthYear.split('-').map(Number) : [baseDate.getFullYear(), baseDate.getMonth() + 1];
-
                         for (let i = 0; i < newItem.installments; i++) {
-                            let nextMonth = baseMonth + i;
-                            let nextYear = baseYear;
-                            while (nextMonth > 12) {
-                                nextMonth -= 12;
-                                nextYear++;
-                            }
-                            
+                            let nextMonth = baseMonth + i; let nextYear = baseYear;
+                            while (nextMonth > 12) { nextMonth -= 12; nextYear++; }
                             const currentMonthYear = `${nextYear}-${String(nextMonth).padStart(2, '0')}`;
-                            
                             let nextDueDateStr = newItem.dueDate;
-                            if (newItem.dueDate) {
-                                const d = new Date(newItem.dueDate + 'T00:00:00');
-                                d.setMonth(d.getMonth() + i);
-                                nextDueDateStr = d.toISOString().split('T')[0];
-                            }
-
+                            if (newItem.dueDate) { const d = new Date(newItem.dueDate + 'T00:00:00'); d.setMonth(d.getMonth() + i); nextDueDateStr = d.toISOString().split('T')[0]; }
                             const currentPayee = `${newItem.payee} (Cuota ${i + 1}/${newItem.installments})`;
-
-                            await addDoc(collection(db, targetCollection, 'main_list', 'items'), { 
-                                ...itemData, 
-                                payee: currentPayee,
-                                monthYear: currentMonthYear,
-                                dueDate: nextDueDateStr,
-                                issueDate: newItem.issueDate, 
-                                createdAt: new Date().toISOString() 
-                            });
+                            await addDoc(collection(db, targetCollection, 'main_list', 'items'), { ...itemData, payee: currentPayee, monthYear: currentMonthYear, dueDate: nextDueDateStr, issueDate: newItem.issueDate, createdAt: new Date().toISOString() });
                         }
-                    } else {
-                        await addDoc(collection(db, targetCollection, 'main_list', 'items'), { 
-                            ...itemData, issueDate: newItem.issueDate, dueDate: newItem.dueDate, monthYear: newItem.monthYear || '', createdAt: new Date().toISOString() 
-                        }); 
-                    }
+                    } else { await addDoc(collection(db, targetCollection, 'main_list', 'items'), { ...itemData, issueDate: newItem.issueDate, dueDate: newItem.dueDate, monthYear: newItem.monthYear || '', createdAt: new Date().toISOString() }); }
                 }
-                
                 setNewItem({ number: '', issueDate: '', dueDate: '', amount: '', payee: '', paidAmount: 0, subtype: 'cheque', category: 'others', status: 'pending', monthYear: '', cashType: 'income', isRecurring: false, installments: 2 });
-                setEditingId(null);
-                setShowAddForm(false);
+                setEditingId(null); setShowAddForm(false);
             };
 
             const handleCashAdd = async (e) => {
@@ -818,98 +502,180 @@
                     const end = new Date(newItem.issueDate).toLocaleDateString('es-AR');
                     desc = `Cierre caja: ${start} al ${end}`;
                 }
-                
-                await addDoc(collection(db, 'caja_public_shared', 'main_list', 'items'), {
-                    date: newItem.issueDate || new Date().toISOString().split('T')[0], 
-                    description: desc,
-                    amount: parseFloat(newItem.amount) || 0,
-                    cashType: newItem.cashType, 
-                    createdAt: new Date().toISOString()
-                });
+                await addDoc(collection(db, 'caja_public_shared', 'main_list', 'items'), { date: newItem.issueDate || new Date().toISOString().split('T')[0], description: desc, amount: parseFloat(newItem.amount) || 0, cashType: newItem.cashType, createdAt: new Date().toISOString() });
                 setNewItem({ ...newItem, amount: '', payee: '', issueDate: '', cashType: 'income', isRecurring: false, installments: 2 });
                 setShowAddForm(false);
             };
 
             const handleEdit = (item) => {
-                setNewItem({
-                    number: item.number || '', issueDate: item.issueDate || '', dueDate: item.dueDate || '', amount: item.amount, payee: item.payee,
-                    paidAmount: item.paidAmount || 0, subtype: item.subtype || 'cheque', category: item.category || 'others', status: item.status || 'pending',
-                    monthYear: item.monthYear || '',
-                    isRecurring: false, installments: 2
-                });
-                setEditingId(item.id);
-                setShowAddForm(true);
+                setNewItem({ number: item.number || '', issueDate: item.issueDate || '', dueDate: item.dueDate || '', amount: item.amount, payee: item.payee, paidAmount: item.paidAmount || 0, subtype: item.subtype || 'cheque', category: item.category || 'others', status: item.status || 'pending', monthYear: item.monthYear || '', isRecurring: false, installments: 2 });
+                setEditingId(item.id); setShowAddForm(true);
             };
 
             const confirmPayment = async () => {
-                if(!paymentModal.item) return;
-                const item = paymentModal.item;
-                let collectionName = 'gastos_public_shared';
-                if(item.type === 'collect') collectionName = 'cobros_public_shared';
-                if(item.type === 'pay') collectionName = 'cheques_public_shared';
-                if(item.type === 'wallet') collectionName = 'cartera_public_shared';
-
-                let newPaidAmount = item.paidAmount || 0;
-                let newStatus = 'pending';
-
-                if (paymentModal.type === 'total') {
-                    newPaidAmount = item.amount;
-                    newStatus = 'paid';
-                } else {
-                    const partial = parseFloat(paymentModal.amount);
-                    if (!isNaN(partial)) {
-                        newPaidAmount += partial;
-                        if (newPaidAmount >= item.amount) {
-                            newPaidAmount = item.amount;
-                            newStatus = 'paid';
-                        } else {
-                            newStatus = 'partial';
-                        }
-                    }
-                }
-                
-                await updateDoc(doc(db, collectionName, 'main_list', 'items', item.id), { 
-                    status: newStatus, 
-                    paidAmount: newPaidAmount,
-                    paymentDetails: {
-                        method: paymentModal.method,
-                        proof: paymentModal.proof,
-                        date: new Date().toISOString()
-                    }
-                });
-                
+                if(!paymentModal.item) return; const item = paymentModal.item;
+                let collectionName = 'gastos_public_shared'; if(item.type === 'collect') collectionName = 'cobros_public_shared'; if(item.type === 'pay') collectionName = 'cheques_public_shared'; if(item.type === 'wallet') collectionName = 'cartera_public_shared';
+                let newPaidAmount = item.paidAmount || 0; let newStatus = 'pending';
+                if (paymentModal.type === 'total') { newPaidAmount = item.amount; newStatus = 'paid'; } else { const partial = parseFloat(paymentModal.amount); if (!isNaN(partial)) { newPaidAmount += partial; if (newPaidAmount >= item.amount) { newPaidAmount = item.amount; newStatus = 'paid'; } else { newStatus = 'partial'; } } }
+                await updateDoc(doc(db, collectionName, 'main_list', 'items', item.id), { status: newStatus, paidAmount: newPaidAmount, paymentDetails: { method: paymentModal.method, proof: paymentModal.proof, date: new Date().toISOString() } });
                 setPaymentModal({ isOpen: false, item: null, method: 'transfer', proof: '', type: 'total', amount: '' });
             };
 
-            const markFullPayment = async (item) => {
-                setPaymentModal({ isOpen: true, item: item, method: 'transfer', proof: '', type: 'total', amount: '' });
-            };
-            
-            const markPartialPayment = async (item) => {
-                 setPaymentModal({ isOpen: true, item: item, method: 'transfer', proof: '', type: 'partial', amount: '' });
-            };
-
+            const markFullPayment = async (item) => { setPaymentModal({ isOpen: true, item: item, method: 'transfer', proof: '', type: 'total', amount: '' }); };
+            const markPartialPayment = async (item) => { setPaymentModal({ isOpen: true, item: item, method: 'transfer', proof: '', type: 'partial', amount: '' }); };
             const deleteItem = async (item) => {
                 if(!confirm('¿Eliminar?')) return;
-                let collectionName = 'cheques_public_shared';
-                if(item.type === 'collect') collectionName = 'cobros_public_shared';
-                if(item.type === 'wallet') collectionName = 'cartera_public_shared';
-                if(item.type === 'expense') collectionName = 'gastos_public_shared';
-                if(item.type === 'cash') collectionName = 'caja_public_shared';
+                let collectionName = 'cheques_public_shared'; if(item.type === 'collect') collectionName = 'cobros_public_shared'; if(item.type === 'wallet') collectionName = 'cartera_public_shared'; if(item.type === 'expense') collectionName = 'gastos_public_shared'; if(item.type === 'cash') collectionName = 'caja_public_shared';
                 await deleteDoc(doc(db, collectionName, 'main_list', 'items', item.id));
             };
 
-            const installApp = () => {
-                if (deferredPrompt) { deferredPrompt.prompt(); deferredPrompt.userChoice.then((res) => { if(res.outcome==='accepted') setDeferredPrompt(null); }); }
-            };
+            const installApp = () => { if (deferredPrompt) { deferredPrompt.prompt(); deferredPrompt.userChoice.then((res) => { if(res.outcome==='accepted') setDeferredPrompt(null); }); } };
 
             const getTypeIcon = (subtype) => {
-                switch(subtype) {
-                    case 'transfer': return <IconBank className="w-4 h-4"/>;
-                    case 'cash': return <IconCash className="w-4 h-4"/>;
-                    case 'fixed': case 'salary': return <IconBuilding className="w-4 h-4"/>;
-                    default: return <span className="font-mono text-[10px] border px-1 rounded bg-white">CHQ</span>;
+                switch(subtype) { case 'transfer': return <IconBank className="w-4 h-4"/>; case 'cash': return <IconCash className="w-4 h-4"/>; case 'fixed': case 'salary': return <IconBuilding className="w-4 h-4"/>; default: return <span className="font-mono text-[10px] border px-1 rounded bg-white">CHQ</span>; }
+            };
+
+            // ==========================================
+            // LOGICA MÓDULO PALLETS
+            // ==========================================
+            const addCostoMadre = async (e) => {
+                e.preventDefault();
+                let pie2_unitario = 0;
+                let costo_unitario = 0;
+                const costoFloat = parseFloat(newCosto.costoTotal);
+                const cantFloat = parseFloat(newCosto.cantidad) || 1;
+                costo_unitario = costoFloat / cantFloat;
+
+                if (newCosto.tipo === 'Madera') {
+                    const a = parseFloat(newCosto.alto) || 0; // pulgadas
+                    const w = parseFloat(newCosto.ancho) || 0; // pulgadas
+                    const l = parseFloat(newCosto.largo) || 0; // pies
+                    pie2_unitario = (a * w * l) / 12;
                 }
+
+                await addDoc(collection(db, 'costos_madres_sii', 'main_list', 'items'), {
+                    ...newCosto, costoTotal: costoFloat, cantidad: cantFloat, costo_unitario, pie2_unitario, createdAt: new Date().toISOString()
+                });
+                setNewCosto({ nombre: '', tipo: 'Fijo', costoTotal: '', cantidad: 1, unidad: 'u', alto: '', ancho: '', largo: '' });
+                setShowAddForm(false);
+            };
+
+            const deleteCostoMadre = async (id) => { if(confirm('¿Eliminar Costo Madre?')) await deleteDoc(doc(db, 'costos_madres_sii', 'main_list', 'items', id)); };
+
+            const addPalletItemRow = () => { setNewPallet({ ...newPallet, items: [...newPallet.items, { costoId: '', qty: 1 }] }); };
+            const updatePalletItemRow = (index, field, value) => {
+                const newItems = [...newPallet.items];
+                newItems[index][field] = value;
+                setNewPallet({ ...newPallet, items: newItems });
+            };
+            const removePalletItemRow = (index) => {
+                const newItems = [...newPallet.items];
+                newItems.splice(index, 1);
+                setNewPallet({ ...newPallet, items: newItems });
+            };
+
+            const getPalletTotals = (items) => {
+                let totalCost = 0; let totalPie2 = 0;
+                items.forEach(i => {
+                    if (i.costoId) {
+                        const costObj = costosMadres.find(c => c.id === i.costoId);
+                        if (costObj) {
+                            totalCost += (costObj.costo_unitario * (parseFloat(i.qty) || 0));
+                            if (costObj.tipo === 'Madera') totalPie2 += (costObj.pie2_unitario * (parseFloat(i.qty) || 0));
+                        }
+                    }
+                });
+                return { totalCost, totalPie2 };
+            };
+
+            const savePalletTemplate = async () => {
+                if (!newPallet.nombre) return alert('Ponle un nombre al pallet.');
+                const totals = getPalletTotals(newPallet.items);
+                await addDoc(collection(db, 'pallets_templates_sii', 'main_list', 'items'), {
+                    nombre: newPallet.nombre,
+                    items: newPallet.items.filter(i => i.costoId),
+                    totalCosto: totals.totalCost,
+                    totalPie2: totals.totalPie2,
+                    createdAt: new Date().toISOString()
+                });
+                setNewPallet({ nombre: '', items: [] });
+                setShowAddForm(false);
+            };
+            const deletePalletTemplate = async (id) => { if(confirm('¿Eliminar modelo de Pallet?')) await deleteDoc(doc(db, 'pallets_templates_sii', 'main_list', 'items', id)); };
+
+            // Presupuestos Logic
+            const addQuoteItemRow = () => { setNewQuote({ ...newQuote, items: [...newQuote.items, { palletId: '', qty: 1 }] }); };
+            const updateQuoteItemRow = (index, field, value) => {
+                const newItems = [...newQuote.items];
+                newItems[index][field] = value;
+                setNewQuote({ ...newQuote, items: newItems });
+            };
+            const removeQuoteItemRow = (index) => {
+                const newItems = [...newQuote.items];
+                newItems.splice(index, 1);
+                setNewQuote({ ...newQuote, items: newItems });
+            };
+            const getQuoteTotals = (items) => {
+                let quoteTotalCost = 0; let quoteTotalPie2 = 0;
+                items.forEach(i => {
+                    if (i.palletId) {
+                        const pObj = palletsTemplates.find(p => p.id === i.palletId);
+                        if (pObj) {
+                            quoteTotalCost += (pObj.totalCosto * (parseFloat(i.qty) || 0));
+                            quoteTotalPie2 += (pObj.totalPie2 * (parseFloat(i.qty) || 0));
+                        }
+                    }
+                });
+                return { quoteTotalCost, quoteTotalPie2 };
+            };
+            const saveQuote = async () => {
+                if (!newQuote.cliente) return alert('Ingresa el cliente.');
+                const totals = getQuoteTotals(newQuote.items);
+                await addDoc(collection(db, 'presupuestos_sii', 'main_list', 'items'), {
+                    cliente: newQuote.cliente,
+                    items: newQuote.items.filter(i => i.palletId),
+                    totalCosto: totals.quoteTotalCost,
+                    totalPie2: totals.quoteTotalPie2,
+                    date: new Date().toISOString().split('T')[0],
+                    createdAt: new Date().toISOString()
+                });
+                setNewQuote({ cliente: '', items: [] });
+                setShowAddForm(false);
+            };
+            const deleteQuote = async (id) => { if(confirm('¿Eliminar Presupuesto?')) await deleteDoc(doc(db, 'presupuestos_sii', 'main_list', 'items', id)); };
+
+            const triggerQuoteReport = (quote, action) => {
+                let bodyHTML = `
+                    <h1>Presupuesto</h1>
+                    <p class="meta">Fecha: ${new Date(quote.date+'T00:00:00').toLocaleDateString('es-AR')} • Cliente: <strong>${quote.cliente}</strong></p>
+                    <table style="width:100%; margin-top:20px; text-align:left;">
+                        <thead style="background:#f3f4f6;"><tr><th style="padding:8px">Descripción (Pallet)</th><th style="padding:8px; text-align:center">Cant</th><th style="padding:8px; text-align:right">Costo Unit.</th><th style="padding:8px; text-align:right">Subtotal</th></tr></thead>
+                        <tbody>
+                `;
+                quote.items.forEach(i => {
+                    const pObj = palletsTemplates.find(p => p.id === i.palletId);
+                    const name = pObj ? pObj.nombre : 'Pallet eliminado';
+                    const unitCost = pObj ? pObj.totalCosto : 0;
+                    const subtotal = unitCost * i.qty;
+                    bodyHTML += `<tr><td style="padding:8px; border-bottom:1px solid #eee">${name}</td><td style="padding:8px; text-align:center; border-bottom:1px solid #eee">${i.qty}</td><td style="padding:8px; text-align:right; border-bottom:1px solid #eee">${formatMoney(unitCost)}</td><td style="padding:8px; text-align:right; border-bottom:1px solid #eee; font-weight:bold">${formatMoney(subtotal)}</td></tr>`;
+                });
+                bodyHTML += `</tbody></table>
+                    <div style="margin-top:20px; padding:10px; background:#f0f9ff; border:1px solid #bae6fd; font-size:14px; display:flex; justify-content:space-between;">
+                        <span>Volumen Total Madera: <strong>${quote.totalPie2.toFixed(2)} Pie²</strong></span>
+                        <span style="color:#0369a1;">TOTAL GENERAL: <strong>${formatMoney(quote.totalCosto)}</strong></span>
+                    </div>
+                `;
+                handleReportAction(`Presupuesto - ${quote.cliente}`, bodyHTML, action, `Presupuesto_${quote.cliente.replace(/\s+/g, '_')}`);
+            };
+
+            const sendQuoteWP = (quote) => {
+                let text = `*PRESUPUESTO - SII PALLETS*\nCliente: ${quote.cliente}\nFecha: ${new Date(quote.date+'T00:00:00').toLocaleDateString('es-AR')}\n\n*Detalle:*\n`;
+                quote.items.forEach(i => {
+                    const pObj = palletsTemplates.find(p => p.id === i.palletId);
+                    text += `- ${i.qty}x ${pObj ? pObj.nombre : 'Item'} (${formatMoney((pObj?pObj.totalCosto:0)*i.qty)})\n`;
+                });
+                text += `\n*TOTAL: ${formatMoney(quote.totalCosto)}*\n*(Consumo de Madera: ${quote.totalPie2.toFixed(2)} Pie²)*\n\nSaludos!`;
+                window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
             };
 
             return (
@@ -919,7 +685,7 @@
                             <h1 className="text-xl font-bold flex items-center gap-2">SII PALLETS APP</h1>
                             <div className="flex gap-1 items-center">
                                 {deferredPrompt && ( <button onClick={installApp} className="bg-white/20 hover:bg-white/30 px-2 py-1 rounded text-xs font-bold flex items-center gap-1 mr-1"><IconDownload className="w-4 h-4" /> Instalar</button> )}
-                                {mode !== 'cashbox' && (
+                                {mode !== 'cashbox' && mode !== 'pallets' && (
                                     <>
                                         <button onClick={() => triggerMainReport('print')} className="p-2 relative bg-white/20 rounded-full hover:bg-white/30" title="Imprimir Reporte"><IconPrinter className="w-5 h-5"/></button>
                                         <button onClick={() => triggerMainReport('download')} className="p-2 relative bg-white/20 rounded-full hover:bg-white/30" title="Descargar PDF"><IconDownload className="w-5 h-5"/></button>
@@ -953,10 +719,12 @@
                             </div>
                         </div>
 
+                        {mode !== 'pallets' && (
                         <div className="mb-3 relative">
                             <input type="text" placeholder="Buscar por nombre, cheque o factura..." className="w-full pl-9 pr-4 py-2 rounded-lg bg-white/20 text-white placeholder-white/70 outline-none focus:bg-white/30 text-sm" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
                             <IconSearch className="w-4 h-4 text-white/70 absolute left-3 top-2.5"/>
                         </div>
+                        )}
 
                         <div className="bg-black/20 p-1 rounded-xl flex text-[10px] sm:text-xs overflow-x-auto scrollbar-hide">
                             <button onClick={() => setMode('cashbox')} className={`flex-1 py-2 px-3 rounded-lg font-bold flex flex-col sm:flex-row items-center justify-center gap-1 transition-all whitespace-nowrap ${mode === 'cashbox' ? 'bg-white text-cyan-800 shadow-md' : 'text-white/60'}`}><IconBox className="w-4 h-4"/> <span>CAJA</span></button>
@@ -965,10 +733,236 @@
                             <button onClick={() => setMode('balance')} className={`flex-1 py-2 px-3 rounded-lg font-bold flex flex-col sm:flex-row items-center justify-center gap-1 transition-all whitespace-nowrap ${mode === 'balance' ? 'bg-white text-violet-800 shadow-md' : 'text-white/60'}`}><IconTrendingUp className="w-4 h-4"/> <span>BALANCE</span></button>
                             <button onClick={() => setMode('collect')} className={`flex-1 py-2 px-3 rounded-lg font-bold flex flex-col sm:flex-row items-center justify-center gap-1 transition-all whitespace-nowrap ${mode === 'collect' ? 'bg-white text-emerald-800 shadow-md' : 'text-white/60'}`}><IconBriefcase className="w-4 h-4"/> <span>COBROS</span></button>
                             <button onClick={() => setMode('wallet')} className={`flex-1 py-2 px-3 rounded-lg font-bold flex flex-col sm:flex-row items-center justify-center gap-1 transition-all whitespace-nowrap ${mode === 'wallet' ? 'bg-white text-indigo-800 shadow-md' : 'text-white/60'}`}><IconFolder className="w-4 h-4"/> <span>CARTERA</span></button>
+                            {/* NUEVO BOTON PALLETS */}
+                            <button onClick={() => {setMode('pallets'); setShowAddForm(false);}} className={`flex-1 py-2 px-3 rounded-lg font-bold flex flex-col sm:flex-row items-center justify-center gap-1 transition-all whitespace-nowrap ${mode === 'pallets' ? 'bg-white text-teal-800 shadow-md' : 'text-white/60'}`}><IconLayers className="w-4 h-4"/> <span>PALLETS</span></button>
                         </div>
                     </div>
 
                     <div className="p-4">
+                        {/* ========================================== */}
+                        {/* MÓDULO: PALLETS (Costos, Armado, Presupuestos) */}
+                        {/* ========================================== */}
+                        {mode === 'pallets' && (
+                            <div className="animate-fade-in">
+                                <div className="flex bg-teal-100 p-1 rounded-xl mb-6 shadow-inner text-sm font-bold">
+                                    <button onClick={() => {setPalletTab('costos'); setShowAddForm(false);}} className={`flex-1 py-2 rounded-lg transition-all ${palletTab === 'costos' ? 'bg-white text-teal-800 shadow-sm' : 'text-teal-600 hover:bg-teal-50'}`}>Costos Madres</button>
+                                    <button onClick={() => {setPalletTab('modelos'); setShowAddForm(false);}} className={`flex-1 py-2 rounded-lg transition-all ${palletTab === 'modelos' ? 'bg-white text-teal-800 shadow-sm' : 'text-teal-600 hover:bg-teal-50'}`}>Modelos Pallets</button>
+                                    <button onClick={() => {setPalletTab('presupuestos'); setShowAddForm(false);}} className={`flex-1 py-2 rounded-lg transition-all ${palletTab === 'presupuestos' ? 'bg-white text-teal-800 shadow-sm' : 'text-teal-600 hover:bg-teal-50'}`}>Presupuestar</button>
+                                </div>
+
+                                {/* TAB 1: COSTOS MADRES */}
+                                {palletTab === 'costos' && (
+                                    <>
+                                        <button onClick={() => {setNewCosto({nombre:'', tipo:'Fijo', costoTotal:'', cantidad:1, unidad:'u', alto:'', ancho:'', largo:''}); setShowAddForm(!showAddForm);}} className={`w-full ${theme.btn} hover:opacity-90 text-white p-3 rounded-xl shadow-md mb-6 flex items-center justify-center gap-2 font-bold transition-all active:scale-95`}>
+                                            <IconPlus className="w-5 h-5"/> {showAddForm ? 'Cancelar' : 'Nuevo Costo / Material'}
+                                        </button>
+
+                                        {showAddForm && (
+                                            <form onSubmit={addCostoMadre} className="bg-white p-5 rounded-xl shadow-lg border border-gray-200 mb-6 animate-fade-in relative overflow-hidden">
+                                                <div className="absolute top-0 left-0 w-1 h-full bg-teal-600"></div>
+                                                <h3 className="font-bold mb-4 text-gray-700">Registrar Materia Prima o Costo</h3>
+                                                <div className="space-y-3">
+                                                    <div className="flex gap-2">
+                                                        <div className="w-1/3"><label className="text-xs text-gray-500 block mb-1">Tipo</label><select className="w-full p-3 bg-gray-50 rounded-lg border outline-none text-sm" value={newCosto.tipo} onChange={e=>setNewCosto({...newCosto, tipo:e.target.value})}><option value="Fijo">Costo Fijo</option><option value="Madera">Madera</option><option value="MOD">Mano de Obra</option><option value="Flete">Flete</option><option value="Insumo">Insumo/Clavos</option></select></div>
+                                                        <div className="flex-1"><label className="text-xs text-gray-500 block mb-1">Nombre / Descripción</label><input className="w-full p-3 bg-gray-50 rounded-lg border outline-none" value={newCosto.nombre} onChange={e=>setNewCosto({...newCosto, nombre:e.target.value})} required placeholder="Ej: Tabla Pino, Clavos, Sueldo x hr"/></div>
+                                                    </div>
+                                                    <div className="flex gap-2">
+                                                        <div className="w-1/2"><label className="text-xs text-gray-500 block mb-1">Costo Total ($)</label><input type="number" step="0.01" className="w-full p-3 bg-gray-50 rounded-lg border outline-none" value={newCosto.costoTotal} onChange={e=>setNewCosto({...newCosto, costoTotal:e.target.value})} required /></div>
+                                                        <div className="w-1/4"><label className="text-xs text-gray-500 block mb-1">Cantidad</label><input type="number" step="0.01" className="w-full p-3 bg-gray-50 rounded-lg border outline-none" value={newCosto.cantidad} onChange={e=>setNewCosto({...newCosto, cantidad:e.target.value})} required /></div>
+                                                        <div className="w-1/4"><label className="text-xs text-gray-500 block mb-1">Unidad</label><input type="text" className="w-full p-3 bg-gray-50 rounded-lg border outline-none" value={newCosto.unidad} onChange={e=>setNewCosto({...newCosto, unidad:e.target.value})} required placeholder="u, kg, hr"/></div>
+                                                    </div>
+                                                    
+                                                    {newCosto.tipo === 'Madera' && (
+                                                        <div className="p-3 bg-yellow-50 rounded-lg border border-yellow-200 mt-2">
+                                                            <p className="text-xs font-bold text-yellow-800 mb-2">Medidas para cálculo Pie² (Por 1 unidad)</p>
+                                                            <div className="flex gap-2">
+                                                                <div><label className="text-[10px] text-gray-500">Alto (pulg)</label><input type="number" step="0.01" className="w-full p-2 text-sm bg-white rounded border outline-none" value={newCosto.alto} onChange={e=>setNewCosto({...newCosto, alto:e.target.value})} required/></div>
+                                                                <div><label className="text-[10px] text-gray-500">Ancho (pulg)</label><input type="number" step="0.01" className="w-full p-2 text-sm bg-white rounded border outline-none" value={newCosto.ancho} onChange={e=>setNewCosto({...newCosto, ancho:e.target.value})} required/></div>
+                                                                <div><label className="text-[10px] text-gray-500">Largo (pies)</label><input type="number" step="0.01" className="w-full p-2 text-sm bg-white rounded border outline-none" value={newCosto.largo} onChange={e=>setNewCosto({...newCosto, largo:e.target.value})} required/></div>
+                                                            </div>
+                                                            <p className="text-[10px] text-gray-500 mt-2 italic">* Pie² = (Alto x Ancho x Largo) / 12</p>
+                                                        </div>
+                                                    )}
+
+                                                    <button type="submit" className="w-full bg-teal-600 text-white p-3 rounded-lg font-bold mt-2 hover:bg-teal-700">Guardar Material/Costo</button>
+                                                </div>
+                                            </form>
+                                        )}
+
+                                        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                                            <div className="p-3 bg-gray-50 border-b font-bold text-sm text-gray-600">Base de Costos y Materiales</div>
+                                            {costosMadres.length === 0 ? <p className="p-4 text-center text-xs text-gray-400">No hay costos registrados.</p> : (
+                                                <div className="divide-y divide-gray-100">
+                                                    {costosMadres.map(c => (
+                                                        <div key={c.id} className="p-3 flex justify-between items-center hover:bg-gray-50">
+                                                            <div>
+                                                                <p className="font-bold text-gray-800 text-sm">{c.nombre} <span className="text-[9px] bg-gray-200 text-gray-600 px-1 rounded uppercase">{c.tipo}</span></p>
+                                                                <p className="text-xs text-gray-500">Lote: {formatMoney(c.costoTotal)} / {c.cantidad} {c.unidad}</p>
+                                                                {c.tipo === 'Madera' && <p className="text-[10px] text-orange-600 font-bold mt-0.5">Rinde: {c.pie2_unitario.toFixed(2)} Pie²/u. - Costo Pie²: {formatMoney(c.costo_unitario / c.pie2_unitario)}</p>}
+                                                            </div>
+                                                            <div className="text-right">
+                                                                <p className="font-bold text-teal-700">{formatMoney(c.costo_unitario)} <span className="text-[10px] font-normal text-gray-500">c/u</span></p>
+                                                                <button onClick={() => deleteCostoMadre(c.id)} className="text-red-400 hover:text-red-600 mt-1"><IconTrash className="w-4 h-4 ml-auto"/></button>
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </>
+                                )}
+
+                                {/* TAB 2: MODELOS DE PALLETS */}
+                                {palletTab === 'modelos' && (
+                                    <>
+                                        <button onClick={() => {setNewPallet({nombre:'', items:[]}); setShowAddForm(!showAddForm);}} className={`w-full ${theme.btn} hover:opacity-90 text-white p-3 rounded-xl shadow-md mb-6 flex items-center justify-center gap-2 font-bold transition-all active:scale-95`}>
+                                            <IconPlus className="w-5 h-5"/> {showAddForm ? 'Cancelar' : 'Crear Modelo de Pallet'}
+                                        </button>
+
+                                        {showAddForm && (
+                                            <div className="bg-white p-5 rounded-xl shadow-lg border border-gray-200 mb-6 animate-fade-in relative">
+                                                <div className="absolute top-0 left-0 w-1 h-full bg-teal-600"></div>
+                                                <h3 className="font-bold mb-4 text-gray-700">Armado de Receta (Pallet)</h3>
+                                                <div className="space-y-4">
+                                                    <div><label className="text-xs text-gray-500 block mb-1">Nombre del Modelo</label><input className="w-full p-3 bg-gray-50 rounded-lg border outline-none font-bold" value={newPallet.nombre} onChange={e=>setNewPallet({...newPallet, nombre:e.target.value})} required placeholder="Ej: Pallet Arcor 100x120" /></div>
+                                                    
+                                                    <div className="border border-gray-200 rounded-lg p-3 bg-gray-50">
+                                                        <h4 className="text-xs font-bold text-gray-600 mb-2 uppercase">Componentes (Maderas, Clavos, Fletes, etc.)</h4>
+                                                        {newPallet.items.map((item, idx) => (
+                                                            <div key={idx} className="flex gap-2 mb-2 items-center">
+                                                                <div className="flex-1">
+                                                                    <select className="w-full p-2 bg-white rounded border text-sm outline-none" value={item.costoId} onChange={e=>updatePalletItemRow(idx, 'costoId', e.target.value)}>
+                                                                        <option value="">Seleccionar Item...</option>
+                                                                        {costosMadres.map(c => <option key={c.id} value={c.id}>{c.nombre} ({formatMoney(c.costo_unitario)} c/u)</option>)}
+                                                                    </select>
+                                                                </div>
+                                                                <div className="w-20"><input type="number" step="0.01" className="w-full p-2 bg-white rounded border text-sm text-center outline-none" placeholder="Cant." value={item.qty} onChange={e=>updatePalletItemRow(idx, 'qty', e.target.value)} /></div>
+                                                                <button onClick={() => removePalletItemRow(idx)} className="p-2 text-red-500 bg-red-50 rounded hover:bg-red-100"><IconX className="w-4 h-4"/></button>
+                                                            </div>
+                                                        ))}
+                                                        <button onClick={addPalletItemRow} className="text-xs text-teal-600 font-bold bg-teal-100 px-3 py-1.5 rounded-lg hover:bg-teal-200 mt-1 flex items-center gap-1"><IconPlus className="w-3 h-3"/> Añadir Insumo</button>
+                                                    </div>
+
+                                                    <div className="bg-teal-50 p-4 rounded-xl border border-teal-200 flex justify-between items-center">
+                                                        <div>
+                                                            <p className="text-[10px] font-bold text-teal-800 uppercase">Resumen Armado</p>
+                                                            <p className="text-sm font-bold text-gray-700">Madera Total: <span className="text-orange-600">{getPalletTotals(newPallet.items).totalPie2.toFixed(2)} Pie²</span></p>
+                                                        </div>
+                                                        <div className="text-right">
+                                                            <p className="text-[10px] font-bold text-teal-800 uppercase">Costo Total Base</p>
+                                                            <p className="text-xl font-black text-teal-700">{formatMoney(getPalletTotals(newPallet.items).totalCost)}</p>
+                                                        </div>
+                                                    </div>
+
+                                                    <button onClick={savePalletTemplate} className="w-full bg-teal-600 text-white p-3 rounded-lg font-bold hover:bg-teal-700">Guardar Pallet</button>
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                                            <div className="p-3 bg-gray-50 border-b font-bold text-sm text-gray-600">Modelos Guardados</div>
+                                            {palletsTemplates.length === 0 ? <p className="p-4 text-center text-xs text-gray-400">No hay pallets armados.</p> : (
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3">
+                                                    {palletsTemplates.map(p => (
+                                                        <div key={p.id} className="border rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow bg-white relative">
+                                                            <button onClick={()=>deletePalletTemplate(p.id)} className="absolute top-2 right-2 text-gray-300 hover:text-red-500"><IconTrash className="w-4 h-4"/></button>
+                                                            <h4 className="font-black text-gray-800 text-lg pr-6">{p.nombre}</h4>
+                                                            <p className="text-[10px] text-gray-500 mt-1 mb-3">{p.items.length} Componentes asignados</p>
+                                                            <div className="flex justify-between items-end border-t pt-2 mt-2">
+                                                                <div>
+                                                                    <span className="block text-[9px] text-gray-400 uppercase">Volumen Pie²</span>
+                                                                    <span className="font-bold text-orange-600">{p.totalPie2.toFixed(2)}</span>
+                                                                </div>
+                                                                <div className="text-right">
+                                                                    <span className="block text-[9px] text-gray-400 uppercase">Costo Base</span>
+                                                                    <span className="font-black text-teal-700 text-lg">{formatMoney(p.totalCosto)}</span>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </>
+                                )}
+
+                                {/* TAB 3: PRESUPUESTOS */}
+                                {palletTab === 'presupuestos' && (
+                                    <>
+                                        <button onClick={() => {setNewQuote({cliente:'', items:[]}); setShowAddForm(!showAddForm);}} className={`w-full ${theme.btn} hover:opacity-90 text-white p-3 rounded-xl shadow-md mb-6 flex items-center justify-center gap-2 font-bold transition-all active:scale-95`}>
+                                            <IconPlus className="w-5 h-5"/> {showAddForm ? 'Cancelar' : 'Armar Nuevo Presupuesto'}
+                                        </button>
+
+                                        {showAddForm && (
+                                            <div className="bg-white p-5 rounded-xl shadow-lg border border-gray-200 mb-6 animate-fade-in relative">
+                                                <div className="absolute top-0 left-0 w-1 h-full bg-teal-600"></div>
+                                                <h3 className="font-bold mb-4 text-gray-700">Generador de Presupuesto</h3>
+                                                <div className="space-y-4">
+                                                    <div><label className="text-xs text-gray-500 block mb-1">Cliente</label><input className="w-full p-3 bg-gray-50 rounded-lg border outline-none font-bold" value={newQuote.cliente} onChange={e=>setNewQuote({...newQuote, cliente:e.target.value})} required placeholder="Nombre del Cliente/Empresa" /></div>
+                                                    
+                                                    <div className="border border-gray-200 rounded-lg p-3 bg-gray-50">
+                                                        <h4 className="text-xs font-bold text-gray-600 mb-2 uppercase">Pallets a Cotizar</h4>
+                                                        {newQuote.items.map((item, idx) => (
+                                                            <div key={idx} className="flex gap-2 mb-2 items-center">
+                                                                <div className="flex-1">
+                                                                    <select className="w-full p-2 bg-white rounded border text-sm outline-none font-bold text-gray-700" value={item.palletId} onChange={e=>updateQuoteItemRow(idx, 'palletId', e.target.value)}>
+                                                                        <option value="">Seleccionar Pallet...</option>
+                                                                        {palletsTemplates.map(p => <option key={p.id} value={p.id}>{p.nombre} (Costo: {formatMoney(p.totalCosto)})</option>)}
+                                                                    </select>
+                                                                </div>
+                                                                <div className="w-24"><input type="number" className="w-full p-2 bg-white rounded border text-sm text-center outline-none font-bold" placeholder="Cant. Final" value={item.qty} onChange={e=>updateQuoteItemRow(idx, 'qty', e.target.value)} /></div>
+                                                                <button onClick={() => removeQuoteItemRow(idx)} className="p-2 text-red-500 bg-red-50 rounded hover:bg-red-100"><IconX className="w-4 h-4"/></button>
+                                                            </div>
+                                                        ))}
+                                                        <button onClick={addQuoteItemRow} className="text-xs text-teal-600 font-bold bg-teal-100 px-3 py-1.5 rounded-lg hover:bg-teal-200 mt-1 flex items-center gap-1"><IconPlus className="w-3 h-3"/> Agregar Fila</button>
+                                                    </div>
+
+                                                    <div className="bg-blue-50 p-5 rounded-xl border border-blue-200 flex justify-between items-center shadow-inner">
+                                                        <div>
+                                                            <p className="text-[10px] font-bold text-blue-800 uppercase mb-1">Volumen Madera Presupuesto</p>
+                                                            <p className="text-lg font-black text-orange-600">{getQuoteTotals(newQuote.items).quoteTotalPie2.toFixed(2)} Pie²</p>
+                                                        </div>
+                                                        <div className="text-right">
+                                                            <p className="text-[10px] font-bold text-blue-800 uppercase mb-1">Total Presupuestado (Costo Base)</p>
+                                                            <p className="text-2xl font-black text-blue-700">{formatMoney(getQuoteTotals(newQuote.items).quoteTotalCost)}</p>
+                                                        </div>
+                                                    </div>
+
+                                                    <button onClick={saveQuote} className="w-full bg-blue-600 text-white p-3 rounded-lg font-bold hover:bg-blue-700 shadow-md">Guardar en Historial</button>
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                                            <div className="p-3 bg-gray-50 border-b font-bold text-sm text-gray-600">Historial de Presupuestos</div>
+                                            {presupuestos.length === 0 ? <p className="p-4 text-center text-xs text-gray-400">No hay presupuestos armados.</p> : (
+                                                <div className="divide-y divide-gray-100">
+                                                    {presupuestos.map(q => (
+                                                        <div key={q.id} className="p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center hover:bg-gray-50 transition-colors gap-3">
+                                                            <div>
+                                                                <p className="font-bold text-gray-800 text-lg">{q.cliente}</p>
+                                                                <p className="text-xs text-gray-500 font-mono mt-0.5">{new Date(q.date+'T00:00:00').toLocaleDateString('es-AR')} • {q.items.length} Tipos de Pallets • Maderas: {q.totalPie2.toFixed(2)} Pie²</p>
+                                                            </div>
+                                                            <div className="flex items-center gap-4 w-full sm:w-auto justify-between sm:justify-end border-t sm:border-t-0 pt-2 sm:pt-0">
+                                                                <p className="font-black text-blue-700 text-xl">{formatMoney(q.totalCosto)}</p>
+                                                                <div className="flex gap-1 border-l pl-3 ml-2">
+                                                                    <button onClick={()=>triggerQuoteReport(q, 'print')} className="p-2 bg-gray-100 text-gray-500 rounded hover:bg-blue-100 hover:text-blue-700" title="Imprimir"><IconPrinter className="w-4 h-4"/></button>
+                                                                    <button onClick={()=>triggerQuoteReport(q, 'download')} className="p-2 bg-gray-100 text-gray-500 rounded hover:bg-blue-100 hover:text-blue-700" title="PDF"><IconDownload className="w-4 h-4"/></button>
+                                                                    <button onClick={()=>sendQuoteWP(q)} className="p-2 bg-green-100 text-green-600 rounded hover:bg-green-200" title="Enviar WhatsApp"><IconMessage className="w-4 h-4"/></button>
+                                                                    <button onClick={()=>deleteQuote(q.id)} className="p-2 bg-red-50 text-red-400 rounded hover:bg-red-100 hover:text-red-600 ml-1"><IconTrash className="w-4 h-4"/></button>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </>
+                                )}
+                            </div>
+                        )}
+                        {/* ========================================== */}
+
                         {/* MODO CAJA */}
                         {mode === 'cashbox' && (
                             <div className="animate-fade-in">
@@ -1039,7 +1033,7 @@
                         )}
 
                         {/* REST OF MODES (PAY, COLLECT, ETC) */}
-                        {mode !== 'cashbox' && (
+                        {mode !== 'cashbox' && mode !== 'pallets' && (
                             <div className="animate-fade-in">
                                 {/* Total Card */}
                                 {mode !== 'balance' && <div className={`bg-white p-5 rounded-2xl shadow-md border-l-8 mb-6 flex items-center justify-between ${theme.border}`}><div><p className={`text-xs font-bold uppercase tracking-wide mb-1 ${theme.text}`}>{mode === 'pay' ? 'Deuda Total Pendiente' : (mode === 'wallet' ? 'Total en Cartera' : (mode === 'expenses' ? 'Total Gastos Mes' : 'Cobros Totales Pendientes'))}</p><p className="text-3xl font-black text-gray-800">{mode === 'pay' ? formatMoney(balanceData.pay) : (mode === 'wallet' ? formatMoney(balanceData.wallet) : (mode === 'expenses' ? formatMoney(balanceData.expenses) : formatMoney(balanceData.collect)))}</p></div><div className={`${theme.light} p-3 rounded-full`}><IconWallet className={`w-8 h-8 ${theme.text}`}/></div></div>}
@@ -1053,7 +1047,6 @@
                                     <div className="border-t pt-3 flex justify-between items-center"><span className="text-sm font-bold text-gray-600">PROYECCIÓN SALDO:</span><span className={`text-3xl font-black ${balanceData.net >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>{balanceData.net > 0 ? '+' : ''}{formatMoney(balanceData.net)}</span></div>
                                 </div>}
 
-                                {/* Filters/Dashboard only if not balance/expenses maybe? kept simple */}
                                 {mode !== 'balance' && <div className="grid grid-cols-3 gap-2 mb-6">
                                     {[{ id: 'expired', label: 'Vencidos', color: 'red', data: dashboardData.expired }, { id: 'urgent', label: 'Esta Semana', color: 'orange', data: dashboardData.urgent }, { id: 'future', label: 'A Futuro', color: 'green', data: dashboardData.future }].map(filter => (
                                         <button key={filter.id} onClick={() => setActiveFilter(activeFilter === filter.id ? 'all' : filter.id)} className={`p-2 rounded-xl border-2 transition-all text-center flex flex-col items-center justify-center shadow-sm relative ${activeFilter === filter.id ? `bg-${filter.color}-50 border-${filter.color}-500 ring-2 ring-${filter.color}-200` : 'bg-white border-transparent hover:bg-gray-50'}`}>
@@ -1074,7 +1067,6 @@
                                         <div className={`absolute top-0 left-0 w-1 h-full ${theme.bg}`}></div>
                                         <h3 className="font-bold mb-4 text-gray-700">{editingId ? 'Editar Movimiento' : 'Nuevo Registro'}</h3>
                                         <div className="space-y-3">
-                                            {/* Simplified form logic reuse */}
                                             {mode === 'pay' && (
                                                 <div className="grid grid-cols-2 gap-3">
                                                     <div><label className="text-xs text-gray-500 block mb-1">Tipo</label><select className="w-full p-3 bg-gray-50 rounded-lg border text-sm outline-none text-gray-700" value={newItem.subtype} onChange={e => setNewItem({...newItem, subtype: e.target.value})}><option value="cheque">🎫 Cheque</option><option value="transfer">🏦 Transf</option><option value="cash">💵 Efvo</option><option value="fixed">🏢 Gasto Fijo</option><option value="salary">👥 Sueldo</option></select></div>
@@ -1097,7 +1089,6 @@
                                                 {mode !== 'expenses' && <div className="w-1/2"><label className="text-xs text-gray-500 block mb-1">Emisión</label><input type="date" className="w-full p-3 bg-gray-50 rounded-lg border outline-none" value={newItem.issueDate} onChange={e=>setNewItem({...newItem, issueDate:e.target.value})} /></div>}
                                                 <div className={mode === 'expenses' ? 'w-full' : 'w-1/2'}><label className="text-xs text-gray-500 block mb-1">Vencimiento</label><input type="date" className="w-full p-3 bg-gray-50 rounded-lg border outline-none font-bold text-gray-700" value={newItem.dueDate} onChange={e=>setNewItem({...newItem, dueDate:e.target.value})} required /></div>
                                             </div>
-                                            {/* CHECKBOX PARA GASTOS RECURRENTES / CUOTAS */}
                                             {mode === 'expenses' && !editingId && (
                                                 <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border mt-2">
                                                     <label className="flex items-center gap-2 text-sm font-bold text-gray-700 cursor-pointer">
@@ -1133,9 +1124,7 @@
                                                 {forecastData.map((day, idx) => (
                                                     <button 
                                                         key={idx} 
-                                                        onClick={() => {
-                                                            setSelectedDateFilter(day.dateKey);
-                                                        }}
+                                                        onClick={() => { setSelectedDateFilter(day.dateKey); }}
                                                         className={`p-2 rounded-xl border flex flex-col items-center justify-center shadow-sm transition-transform active:scale-95 ${day.net > 0 ? 'bg-emerald-50 border-emerald-200' : (day.net < 0 ? 'bg-red-50 border-red-200' : 'bg-white border-gray-100')}`}
                                                     >
                                                         <span className="text-[10px] font-bold text-gray-500 uppercase mb-1">{day.date.toLocaleDateString('es-AR', {weekday:'short', day:'numeric'})}</span>
@@ -1175,11 +1164,11 @@
                                                                 {isExpanded && (
                                                                     <div className="mt-2 pl-2 border-l-2 border-gray-200 space-y-2 animate-fade-in">
                                                                         {payItems.filter(p => p.status !== 'paid' && (p.category || 'others') === item.cat).sort((a,b) => new Date(a.dueDate) - new Date(b.dueDate)).map(detail => (
-                                                                                <div key={detail.id} className="text-xs flex justify-between bg-gray-50 p-2 rounded items-center">
-                                                                                    <span className="truncate pr-2">{detail.payee} <span className="text-gray-400">({new Date(detail.dueDate+'T00:00:00').toLocaleDateString('es-AR', {day:'numeric', month:'short'})})</span></span>
-                                                                                    <span className="font-mono font-bold whitespace-nowrap">{formatMoney(detail.amount - (detail.paidAmount||0))}</span>
-                                                                                </div>
-                                                                            ))
+                                                                            <div key={detail.id} className="text-xs flex justify-between bg-gray-50 p-2 rounded items-center">
+                                                                                <span className="truncate pr-2">{detail.payee} <span className="text-gray-400">({new Date(detail.dueDate+'T00:00:00').toLocaleDateString('es-AR', {day:'numeric', month:'short'})})</span></span>
+                                                                                <span className="font-mono font-bold whitespace-nowrap">{formatMoney(detail.amount - (detail.paidAmount||0))}</span>
+                                                                            </div>
+                                                                        ))
                                                                         }
                                                                     </div>
                                                                 )}
@@ -1190,7 +1179,6 @@
                                             </div>
                                         )}
 
-                                        {/* AGENDA FINANCIERA EN BALANCE */}
                                         <div className="bg-white p-5 rounded-2xl shadow-md border border-gray-100">
                                             <h3 className="font-bold text-gray-700 mb-4 flex items-center gap-2 text-sm uppercase tracking-wide">
                                                 <IconCalendar className="w-4 h-4 text-violet-500"/> Agenda Financiera
@@ -1220,7 +1208,7 @@
                                     </>
                                 )}
 
-                                {/* LIST */}
+                                {/* LIST (COBROS, PAGOS, CARTERA, GASTOS) */}
                                 <div className="space-y-3">
                                     {selectedDateFilter && (
                                         <div className="mb-4 flex justify-between items-center bg-violet-50 p-3 rounded-lg border border-violet-100 mt-4">
