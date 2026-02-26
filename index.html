@@ -60,7 +60,6 @@
     <script type="text/babel" data-type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-        // SE AGREGA setDoc A LAS IMPORTACIONES
         import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, setDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
         const firebaseConfig = {
@@ -84,6 +83,7 @@
         const IconPlus = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>;
         const IconLoader = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>;
         const IconChevronDown = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><polyline points="6 9 12 15 18 9"/></svg>;
+        const IconChevronUp = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><polyline points="18 15 12 9 6 15"/></svg>;
         const IconWallet = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/></svg>;
         const IconDownload = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>;
         const IconBriefcase = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>;
@@ -109,6 +109,7 @@
         const IconChevronLeft = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><polyline points="15 18 9 12 15 6"/></svg>;
         const IconChevronRight = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><polyline points="9 18 15 12 9 6"/></svg>;
         const IconLayers = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>;
+        const IconEye = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>;
 
         const CheqControl = () => {
             const [mode, setMode] = useState('pallets');
@@ -155,6 +156,10 @@
             const [newPallet, setNewPallet] = useState({ nombre: '', items: [] });
             // Formulario Nuevo Presupuesto
             const [newQuote, setNewQuote] = useState({ cliente: '', items: [] });
+            
+            // Estados para desplegables de visualización
+            const [expandedPallets, setExpandedPallets] = useState({});
+            const [expandedQuotes, setExpandedQuotes] = useState({});
             // ==========================================
 
             const getTheme = () => {
@@ -551,8 +556,14 @@
             };
 
             // ==========================================
-            // LOGICA MÓDULO PALLETS Y COSTOS
+            // LOGICA MÓDULO PALLETS Y COSTOS (CON EDICIÓN)
             // ==========================================
+            const editCostoMadre = (c) => {
+                setNewCosto({...c});
+                setEditingId(c.id);
+                setShowAddForm(true);
+            };
+
             const addCostoMadre = async (e) => {
                 e.preventDefault();
                 let pie2_unitario = 0;
@@ -562,7 +573,6 @@
                 let cantFloat = 1;
                 let unitText = newCosto.unidad;
 
-                // Si es costo Fijo, toma la producción mensual global como cantidad para el prorrateo
                 if (newCosto.tipo === 'Fijo') {
                     cantFloat = produccionMensual;
                     unitText = 'pallets';
@@ -572,39 +582,41 @@
 
                 costo_unitario = costoFloat / cantFloat;
 
-                // Cálculo automático de Pie Cuadrado si es madera
                 if (newCosto.tipo === 'Madera') {
-                    const a = parseFloat(newCosto.alto) || 0; // pulgadas
-                    const w = parseFloat(newCosto.ancho) || 0; // pulgadas
-                    const l = parseFloat(newCosto.largo) || 0; // pies
+                    const a = parseFloat(newCosto.alto) || 0;
+                    const w = parseFloat(newCosto.ancho) || 0;
+                    const l = parseFloat(newCosto.largo) || 0;
                     pie2_unitario = (a * w * l) / 12;
                 }
 
-                await addDoc(collection(db, 'costos_madres_sii', 'main_list', 'items'), {
+                const dataToSave = {
                     ...newCosto, 
                     cantidad: cantFloat, 
                     unidad: unitText,
                     costoTotal: costoFloat, 
                     costo_unitario, 
-                    pie2_unitario, 
-                    createdAt: new Date().toISOString()
-                });
+                    pie2_unitario,
+                    updatedAt: new Date().toISOString()
+                };
+
+                if (editingId) {
+                    await updateDoc(doc(db, 'costos_madres_sii', 'main_list', 'items', editingId), dataToSave);
+                } else {
+                    dataToSave.createdAt = new Date().toISOString();
+                    await addDoc(collection(db, 'costos_madres_sii', 'main_list', 'items'), dataToSave);
+                }
+                
                 setNewCosto({ nombre: '', tipo: 'Fijo', costoTotal: '', cantidad: 1, unidad: 'u', alto: '', ancho: '', largo: '' });
+                setEditingId(null);
                 setShowAddForm(false);
             };
 
             const deleteCostoMadre = async (id) => { if(confirm('¿Eliminar Costo Madre?')) await deleteDoc(doc(db, 'costos_madres_sii', 'main_list', 'items', id)); };
 
-            const addPalletItemRow = () => { setNewPallet({ ...newPallet, items: [...newPallet.items, { costoId: '', qty: 1 }] }); };
-            const updatePalletItemRow = (index, field, value) => {
-                const newItems = [...newPallet.items];
-                newItems[index][field] = value;
-                setNewPallet({ ...newPallet, items: newItems });
-            };
-            const removePalletItemRow = (index) => {
-                const newItems = [...newPallet.items];
-                newItems.splice(index, 1);
-                setNewPallet({ ...newPallet, items: newItems });
+            const editPalletTemplate = (p) => {
+                setNewPallet({ nombre: p.nombre, items: p.items });
+                setEditingId(p.id);
+                setShowAddForm(true);
             };
 
             const getPalletTotals = (items) => {
@@ -624,30 +636,33 @@
             const savePalletTemplate = async () => {
                 if (!newPallet.nombre) return alert('Ponle un nombre al pallet.');
                 const totals = getPalletTotals(newPallet.items);
-                await addDoc(collection(db, 'pallets_templates_sii', 'main_list', 'items'), {
+                const dataToSave = {
                     nombre: newPallet.nombre,
                     items: newPallet.items.filter(i => i.costoId),
                     totalCosto: totals.totalCost,
                     totalPie2: totals.totalPie2,
-                    createdAt: new Date().toISOString()
-                });
+                    updatedAt: new Date().toISOString()
+                };
+
+                if (editingId) {
+                    await updateDoc(doc(db, 'pallets_templates_sii', 'main_list', 'items', editingId), dataToSave);
+                } else {
+                    dataToSave.createdAt = new Date().toISOString();
+                    await addDoc(collection(db, 'pallets_templates_sii', 'main_list', 'items'), dataToSave);
+                }
+
                 setNewPallet({ nombre: '', items: [] });
+                setEditingId(null);
                 setShowAddForm(false);
             };
             const deletePalletTemplate = async (id) => { if(confirm('¿Eliminar modelo de Pallet?')) await deleteDoc(doc(db, 'pallets_templates_sii', 'main_list', 'items', id)); };
 
-            // Presupuestos Logic
-            const addQuoteItemRow = () => { setNewQuote({ ...newQuote, items: [...newQuote.items, { palletId: '', qty: 1 }] }); };
-            const updateQuoteItemRow = (index, field, value) => {
-                const newItems = [...newQuote.items];
-                newItems[index][field] = value;
-                setNewQuote({ ...newQuote, items: newItems });
+            const editQuote = (q) => {
+                setNewQuote({ cliente: q.cliente, items: q.items });
+                setEditingId(q.id);
+                setShowAddForm(true);
             };
-            const removeQuoteItemRow = (index) => {
-                const newItems = [...newQuote.items];
-                newItems.splice(index, 1);
-                setNewQuote({ ...newQuote, items: newItems });
-            };
+
             const getQuoteTotals = (items) => {
                 let quoteTotalCost = 0; let quoteTotalPie2 = 0;
                 items.forEach(i => {
@@ -661,18 +676,28 @@
                 });
                 return { quoteTotalCost, quoteTotalPie2 };
             };
+
             const saveQuote = async () => {
                 if (!newQuote.cliente) return alert('Ingresa el cliente.');
                 const totals = getQuoteTotals(newQuote.items);
-                await addDoc(collection(db, 'presupuestos_sii', 'main_list', 'items'), {
+                const dataToSave = {
                     cliente: newQuote.cliente,
                     items: newQuote.items.filter(i => i.palletId),
                     totalCosto: totals.quoteTotalCost,
                     totalPie2: totals.quoteTotalPie2,
                     date: new Date().toISOString().split('T')[0],
-                    createdAt: new Date().toISOString()
-                });
+                    updatedAt: new Date().toISOString()
+                };
+
+                if (editingId) {
+                    await updateDoc(doc(db, 'presupuestos_sii', 'main_list', 'items', editingId), dataToSave);
+                } else {
+                    dataToSave.createdAt = new Date().toISOString();
+                    await addDoc(collection(db, 'presupuestos_sii', 'main_list', 'items'), dataToSave);
+                }
+
                 setNewQuote({ cliente: '', items: [] });
+                setEditingId(null);
                 setShowAddForm(false);
             };
             const deleteQuote = async (id) => { if(confirm('¿Eliminar Presupuesto?')) await deleteDoc(doc(db, 'presupuestos_sii', 'main_list', 'items', id)); };
@@ -766,7 +791,7 @@
                             <button onClick={() => setMode('balance')} className={`flex-1 py-2 px-3 rounded-lg font-bold flex flex-col sm:flex-row items-center justify-center gap-1 transition-all whitespace-nowrap ${mode === 'balance' ? 'bg-white text-violet-800 shadow-md' : 'text-white/60'}`}><IconTrendingUp className="w-4 h-4"/> <span>BALANCE</span></button>
                             <button onClick={() => setMode('collect')} className={`flex-1 py-2 px-3 rounded-lg font-bold flex flex-col sm:flex-row items-center justify-center gap-1 transition-all whitespace-nowrap ${mode === 'collect' ? 'bg-white text-emerald-800 shadow-md' : 'text-white/60'}`}><IconBriefcase className="w-4 h-4"/> <span>COBROS</span></button>
                             <button onClick={() => setMode('wallet')} className={`flex-1 py-2 px-3 rounded-lg font-bold flex flex-col sm:flex-row items-center justify-center gap-1 transition-all whitespace-nowrap ${mode === 'wallet' ? 'bg-white text-indigo-800 shadow-md' : 'text-white/60'}`}><IconFolder className="w-4 h-4"/> <span>CARTERA</span></button>
-                            <button onClick={() => {setMode('pallets'); setShowAddForm(false);}} className={`flex-1 py-2 px-3 rounded-lg font-bold flex flex-col sm:flex-row items-center justify-center gap-1 transition-all whitespace-nowrap ${mode === 'pallets' ? 'bg-white text-teal-800 shadow-md' : 'text-white/60'}`}><IconLayers className="w-4 h-4"/> <span>PALLETS</span></button>
+                            <button onClick={() => {setMode('pallets'); setShowAddForm(false); setEditingId(null);}} className={`flex-1 py-2 px-3 rounded-lg font-bold flex flex-col sm:flex-row items-center justify-center gap-1 transition-all whitespace-nowrap ${mode === 'pallets' ? 'bg-white text-teal-800 shadow-md' : 'text-white/60'}`}><IconLayers className="w-4 h-4"/> <span>PALLETS</span></button>
                         </div>
                     </div>
 
@@ -777,15 +802,14 @@
                         {mode === 'pallets' && (
                             <div className="animate-fade-in">
                                 <div className="flex bg-teal-100 p-1 rounded-xl mb-6 shadow-inner text-sm font-bold">
-                                    <button onClick={() => {setPalletTab('costos'); setShowAddForm(false);}} className={`flex-1 py-2 rounded-lg transition-all ${palletTab === 'costos' ? 'bg-white text-teal-800 shadow-sm' : 'text-teal-600 hover:bg-teal-50'}`}>Costos Madres</button>
-                                    <button onClick={() => {setPalletTab('modelos'); setShowAddForm(false);}} className={`flex-1 py-2 rounded-lg transition-all ${palletTab === 'modelos' ? 'bg-white text-teal-800 shadow-sm' : 'text-teal-600 hover:bg-teal-50'}`}>Modelos Pallets</button>
-                                    <button onClick={() => {setPalletTab('presupuestos'); setShowAddForm(false);}} className={`flex-1 py-2 rounded-lg transition-all ${palletTab === 'presupuestos' ? 'bg-white text-teal-800 shadow-sm' : 'text-teal-600 hover:bg-teal-50'}`}>Presupuestar</button>
+                                    <button onClick={() => {setPalletTab('costos'); setShowAddForm(false); setEditingId(null);}} className={`flex-1 py-2 rounded-lg transition-all ${palletTab === 'costos' ? 'bg-white text-teal-800 shadow-sm' : 'text-teal-600 hover:bg-teal-50'}`}>Costos Madres</button>
+                                    <button onClick={() => {setPalletTab('modelos'); setShowAddForm(false); setEditingId(null);}} className={`flex-1 py-2 rounded-lg transition-all ${palletTab === 'modelos' ? 'bg-white text-teal-800 shadow-sm' : 'text-teal-600 hover:bg-teal-50'}`}>Modelos Pallets</button>
+                                    <button onClick={() => {setPalletTab('presupuestos'); setShowAddForm(false); setEditingId(null);}} className={`flex-1 py-2 rounded-lg transition-all ${palletTab === 'presupuestos' ? 'bg-white text-teal-800 shadow-sm' : 'text-teal-600 hover:bg-teal-50'}`}>Presupuestar</button>
                                 </div>
 
                                 {/* TAB 1: COSTOS MADRES */}
                                 {palletTab === 'costos' && (
                                     <>
-                                        {/* PANEL PRODUCCIÓN MENSUAL */}
                                         <div className="bg-white p-4 rounded-xl shadow-md border-l-4 border-teal-500 mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                                             <div>
                                                 <h4 className="font-bold text-gray-800 text-sm">Producción Mensual Estimada (Pallets)</h4>
@@ -810,14 +834,18 @@
                                             </div>
                                         </div>
 
-                                        <button onClick={() => {setNewCosto({nombre:'', tipo:'Fijo', costoTotal:'', cantidad:1, unidad:'u', alto:'', ancho:'', largo:''}); setShowAddForm(!showAddForm);}} className={`w-full ${theme.btn} hover:opacity-90 text-white p-3 rounded-xl shadow-md mb-6 flex items-center justify-center gap-2 font-bold transition-all active:scale-95`}>
-                                            <IconPlus className="w-5 h-5"/> {showAddForm ? 'Cancelar' : 'Nuevo Costo / Material'}
+                                        <button onClick={() => {setNewCosto({nombre:'', tipo:'Fijo', costoTotal:'', cantidad:1, unidad:'u', alto:'', ancho:'', largo:''}); setEditingId(null); setShowAddForm(!showAddForm);}} className={`w-full ${theme.btn} hover:opacity-90 text-white p-3 rounded-xl shadow-md mb-6 flex items-center justify-center gap-2 font-bold transition-all active:scale-95`}>
+                                            <IconPlus className="w-5 h-5"/> {showAddForm && !editingId ? 'Cancelar' : 'Nuevo Costo / Material'}
                                         </button>
 
                                         {showAddForm && (
                                             <form onSubmit={addCostoMadre} className="bg-white p-5 rounded-xl shadow-lg border border-gray-200 mb-6 animate-fade-in relative overflow-hidden">
                                                 <div className="absolute top-0 left-0 w-1 h-full bg-teal-600"></div>
-                                                <h3 className="font-bold mb-4 text-gray-700">Registrar Materia Prima o Costo Fijo</h3>
+                                                <div className="flex justify-between items-center mb-4">
+                                                    <h3 className="font-bold text-gray-700">{editingId ? 'Editar Costo / Material' : 'Registrar Materia Prima o Costo Fijo'}</h3>
+                                                    {editingId && <button type="button" onClick={() => {setShowAddForm(false); setEditingId(null);}} className="text-red-500 text-xs font-bold">Cancelar Edición</button>}
+                                                </div>
+                                                
                                                 <div className="space-y-3">
                                                     <div className="flex gap-2">
                                                         <div className="w-1/3"><label className="text-xs text-gray-500 block mb-1">Tipo</label><select className="w-full p-3 bg-gray-50 rounded-lg border outline-none text-sm" value={newCosto.tipo} onChange={e=>setNewCosto({...newCosto, tipo:e.target.value})}><option value="Fijo">Costo Fijo</option><option value="Madera">Madera</option><option value="MOD">Mano de Obra</option><option value="Flete">Flete</option><option value="Insumo">Insumo/Clavos</option></select></div>
@@ -884,9 +912,12 @@
                                                                 <p className="text-xs text-gray-500">Lote: {formatMoney(c.costoTotal)} / {c.cantidad} {c.unidad}</p>
                                                                 {c.tipo === 'Madera' && <p className="text-[10px] text-orange-600 font-bold mt-0.5">Rinde: {c.pie2_unitario.toFixed(2)} Pie²/u. - Costo Pie²: {formatMoney(c.costo_unitario / c.pie2_unitario)}</p>}
                                                             </div>
-                                                            <div className="text-right">
+                                                            <div className="text-right flex flex-col items-end">
                                                                 <p className="font-bold text-teal-700">{formatMoney(c.costo_unitario)} <span className="text-[10px] font-normal text-gray-500">c/u</span></p>
-                                                                <button onClick={() => deleteCostoMadre(c.id)} className="text-red-400 hover:text-red-600 mt-1"><IconTrash className="w-4 h-4 ml-auto"/></button>
+                                                                <div className="flex gap-2 mt-1">
+                                                                    <button onClick={() => editCostoMadre(c)} className="text-blue-400 hover:text-blue-600"><IconPencil className="w-4 h-4"/></button>
+                                                                    <button onClick={() => deleteCostoMadre(c.id)} className="text-red-400 hover:text-red-600"><IconTrash className="w-4 h-4"/></button>
+                                                                </div>
                                                             </div>
                                                         </div>
                                                     ))}
@@ -899,35 +930,81 @@
                                 {/* TAB 2: MODELOS DE PALLETS */}
                                 {palletTab === 'modelos' && (
                                     <>
-                                        <button onClick={() => {setNewPallet({nombre:'', items:[]}); setShowAddForm(!showAddForm);}} className={`w-full ${theme.btn} hover:opacity-90 text-white p-3 rounded-xl shadow-md mb-6 flex items-center justify-center gap-2 font-bold transition-all active:scale-95`}>
-                                            <IconPlus className="w-5 h-5"/> {showAddForm ? 'Cancelar' : 'Crear Modelo de Pallet'}
+                                        <button onClick={() => {setNewPallet({nombre:'', items:[]}); setEditingId(null); setShowAddForm(!showAddForm);}} className={`w-full ${theme.btn} hover:opacity-90 text-white p-3 rounded-xl shadow-md mb-6 flex items-center justify-center gap-2 font-bold transition-all active:scale-95`}>
+                                            <IconPlus className="w-5 h-5"/> {showAddForm && !editingId ? 'Cancelar' : 'Crear Modelo de Pallet'}
                                         </button>
 
                                         {showAddForm && (
                                             <div className="bg-white p-5 rounded-xl shadow-lg border border-gray-200 mb-6 animate-fade-in relative">
                                                 <div className="absolute top-0 left-0 w-1 h-full bg-teal-600"></div>
-                                                <h3 className="font-bold mb-4 text-gray-700">Armado de Receta (Pallet)</h3>
+                                                <div className="flex justify-between items-center mb-4">
+                                                    <h3 className="font-bold text-gray-700">{editingId ? 'Editar Receta del Pallet' : 'Armado de Receta (Pallet)'}</h3>
+                                                    {editingId && <button type="button" onClick={() => {setShowAddForm(false); setEditingId(null);}} className="text-red-500 text-xs font-bold">Cancelar Edición</button>}
+                                                </div>
+                                                
                                                 <div className="space-y-4">
-                                                    <div><label className="text-xs text-gray-500 block mb-1">Nombre del Modelo</label><input className="w-full p-3 bg-gray-50 rounded-lg border outline-none font-bold" value={newPallet.nombre} onChange={e=>setNewPallet({...newPallet, nombre:e.target.value})} required placeholder="Ej: Pallet Arcor 100x120" /></div>
+                                                    <div><label className="text-xs text-gray-500 block mb-1">Nombre del Modelo</label><input className="w-full p-3 bg-gray-50 rounded-lg border outline-none font-bold focus:ring-2 focus:ring-teal-500" value={newPallet.nombre} onChange={e=>setNewPallet({...newPallet, nombre:e.target.value})} required placeholder="Ej: Pallet Arcor 100x120" /></div>
                                                     
-                                                    <div className="border border-gray-200 rounded-lg p-3 bg-gray-50">
-                                                        <h4 className="text-xs font-bold text-gray-600 mb-2 uppercase">Componentes (Maderas, Clavos, Fletes, etc.)</h4>
-                                                        {newPallet.items.map((item, idx) => (
-                                                            <div key={idx} className="flex gap-2 mb-2 items-center">
-                                                                <div className="flex-1">
-                                                                    <select className="w-full p-2 bg-white rounded border text-sm outline-none" value={item.costoId} onChange={e=>updatePalletItemRow(idx, 'costoId', e.target.value)}>
-                                                                        <option value="">Seleccionar Item...</option>
-                                                                        {costosMadres.map(c => <option key={c.id} value={c.id}>{c.nombre} ({formatMoney(c.costo_unitario)} c/u)</option>)}
-                                                                    </select>
-                                                                </div>
-                                                                <div className="w-20"><input type="number" step="0.01" className="w-full p-2 bg-white rounded border text-sm text-center outline-none" placeholder="Cant." value={item.qty} onChange={e=>updatePalletItemRow(idx, 'qty', e.target.value)} /></div>
-                                                                <button onClick={() => removePalletItemRow(idx)} className="p-2 text-red-500 bg-red-50 rounded hover:bg-red-100"><IconX className="w-4 h-4"/></button>
-                                                            </div>
-                                                        ))}
-                                                        <button onClick={addPalletItemRow} className="text-xs text-teal-600 font-bold bg-teal-100 px-3 py-1.5 rounded-lg hover:bg-teal-200 mt-1 flex items-center gap-1"><IconPlus className="w-3 h-3"/> Añadir Insumo</button>
+                                                    <div className="border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white">
+                                                        <div className="bg-gray-50 p-3 border-b border-gray-200 flex justify-between items-center">
+                                                            <h4 className="text-xs font-bold text-gray-600 uppercase flex items-center gap-2">
+                                                                <IconCheck className="w-4 h-4 text-teal-600"/> Seleccionar Insumos y Costos
+                                                            </h4>
+                                                            <span className="text-[10px] bg-teal-100 text-teal-800 px-2 py-1 rounded font-bold">{costosMadres.length} Disponibles</span>
+                                                        </div>
+                                                        <div className="max-h-72 overflow-y-auto divide-y divide-gray-100">
+                                                            {costosMadres.length === 0 ? <p className="p-4 text-xs text-gray-400 text-center">Primero debes registrar Costos Madres.</p> : null}
+                                                            {costosMadres.map(costo => {
+                                                                const isSelected = newPallet.items.some(i => i.costoId === costo.id);
+                                                                const currentItem = newPallet.items.find(i => i.costoId === costo.id);
+                                                                
+                                                                return (
+                                                                    <div key={costo.id} className={`p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-colors ${isSelected ? 'bg-teal-50/50' : 'hover:bg-gray-50'}`}>
+                                                                        <label className="flex items-center gap-3 cursor-pointer flex-1">
+                                                                            <input 
+                                                                                type="checkbox" 
+                                                                                className="w-5 h-5 text-teal-600 rounded border-gray-300 focus:ring-teal-500 cursor-pointer"
+                                                                                checked={isSelected}
+                                                                                onChange={(e) => {
+                                                                                    if(e.target.checked) {
+                                                                                        setNewPallet({...newPallet, items: [...newPallet.items, {costoId: costo.id, qty: 1}]});
+                                                                                    } else {
+                                                                                        setNewPallet({...newPallet, items: newPallet.items.filter(i => i.costoId !== costo.id)});
+                                                                                    }
+                                                                                }}
+                                                                            />
+                                                                            <div>
+                                                                                <p className={`font-bold text-sm ${isSelected ? 'text-teal-900' : 'text-gray-700'}`}>{costo.nombre}</p>
+                                                                                <p className="text-[10px] text-gray-500 flex gap-2">
+                                                                                    <span>{formatMoney(costo.costo_unitario)} c/u</span>
+                                                                                    <span className="bg-gray-200 px-1 rounded uppercase">{costo.tipo}</span>
+                                                                                </p>
+                                                                            </div>
+                                                                        </label>
+                                                                        
+                                                                        {isSelected && (
+                                                                            <div className="flex items-center gap-2 ml-8 sm:ml-0 animate-fade-in">
+                                                                                <span className="text-[10px] text-teal-700 font-bold uppercase">Cant:</span>
+                                                                                <input 
+                                                                                    type="number" 
+                                                                                    step="0.01" 
+                                                                                    min="0.01"
+                                                                                    className="w-24 p-2 text-sm border border-teal-300 rounded-lg bg-white outline-none text-center font-bold text-teal-900 focus:ring-2 focus:ring-teal-500 shadow-inner" 
+                                                                                    value={currentItem.qty} 
+                                                                                    onChange={(e) => {
+                                                                                        const newItems = newPallet.items.map(i => i.costoId === costo.id ? {...i, qty: e.target.value} : i);
+                                                                                        setNewPallet({...newPallet, items: newItems});
+                                                                                    }} 
+                                                                                />
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                );
+                                                            })}
+                                                        </div>
                                                     </div>
 
-                                                    <div className="bg-teal-50 p-4 rounded-xl border border-teal-200 flex justify-between items-center">
+                                                    <div className="bg-teal-50 p-4 rounded-xl border border-teal-200 flex justify-between items-center shadow-inner">
                                                         <div>
                                                             <p className="text-[10px] font-bold text-teal-800 uppercase">Resumen Armado</p>
                                                             <p className="text-sm font-bold text-gray-700">Madera Total: <span className="text-orange-600">{getPalletTotals(newPallet.items).totalPie2.toFixed(2)} Pie²</span></p>
@@ -946,24 +1023,55 @@
                                         <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
                                             <div className="p-3 bg-gray-50 border-b font-bold text-sm text-gray-600">Modelos Guardados</div>
                                             {palletsTemplates.length === 0 ? <p className="p-4 text-center text-xs text-gray-400">No hay pallets armados.</p> : (
-                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3">
-                                                    {palletsTemplates.map(p => (
-                                                        <div key={p.id} className="border rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow bg-white relative">
-                                                            <button onClick={()=>deletePalletTemplate(p.id)} className="absolute top-2 right-2 text-gray-300 hover:text-red-500"><IconTrash className="w-4 h-4"/></button>
-                                                            <h4 className="font-black text-gray-800 text-lg pr-6">{p.nombre}</h4>
-                                                            <p className="text-[10px] text-gray-500 mt-1 mb-3">{p.items.length} Componentes asignados</p>
-                                                            <div className="flex justify-between items-end border-t pt-2 mt-2">
-                                                                <div>
-                                                                    <span className="block text-[9px] text-gray-400 uppercase">Volumen Pie²</span>
-                                                                    <span className="font-bold text-orange-600">{p.totalPie2.toFixed(2)}</span>
+                                                <div className="grid grid-cols-1 gap-3 p-3">
+                                                    {palletsTemplates.map(p => {
+                                                        const isExp = expandedPallets[p.id];
+                                                        return (
+                                                        <div key={p.id} className="border rounded-lg shadow-sm bg-white overflow-hidden">
+                                                            <div className="p-4 flex justify-between items-start">
+                                                                <div className="flex-1 cursor-pointer" onClick={() => setExpandedPallets({...expandedPallets, [p.id]: !isExp})}>
+                                                                    <h4 className="font-black text-gray-800 text-lg flex items-center gap-2">
+                                                                        {p.nombre}
+                                                                        {isExp ? <IconChevronUp className="w-4 h-4 text-gray-400"/> : <IconChevronDown className="w-4 h-4 text-gray-400"/>}
+                                                                    </h4>
+                                                                    <p className="text-[10px] text-gray-500 mt-1">{p.items.length} Componentes asignados</p>
+                                                                    <div className="flex gap-4 mt-2">
+                                                                        <div>
+                                                                            <span className="block text-[9px] text-gray-400 uppercase">Volumen Pie²</span>
+                                                                            <span className="font-bold text-orange-600">{p.totalPie2.toFixed(2)}</span>
+                                                                        </div>
+                                                                        <div>
+                                                                            <span className="block text-[9px] text-gray-400 uppercase">Costo Base</span>
+                                                                            <span className="font-black text-teal-700">{formatMoney(p.totalCosto)}</span>
+                                                                        </div>
+                                                                    </div>
                                                                 </div>
-                                                                <div className="text-right">
-                                                                    <span className="block text-[9px] text-gray-400 uppercase">Costo Base</span>
-                                                                    <span className="font-black text-teal-700 text-lg">{formatMoney(p.totalCosto)}</span>
+                                                                <div className="flex flex-col gap-2 ml-4">
+                                                                    <button onClick={()=>editPalletTemplate(p)} className="p-2 bg-blue-50 text-blue-500 rounded hover:bg-blue-100" title="Editar"><IconPencil className="w-4 h-4"/></button>
+                                                                    <button onClick={()=>deletePalletTemplate(p.id)} className="p-2 bg-red-50 text-red-400 rounded hover:bg-red-100 hover:text-red-600" title="Eliminar"><IconTrash className="w-4 h-4"/></button>
                                                                 </div>
                                                             </div>
+                                                            {isExp && (
+                                                                <div className="bg-gray-50 border-t border-gray-100 p-3 text-xs animate-fade-in divide-y divide-gray-200">
+                                                                    <div className="flex justify-between font-bold text-gray-500 pb-2 mb-2 px-1">
+                                                                        <span>Insumo</span><span>Cant.</span><span>Subtotal</span>
+                                                                    </div>
+                                                                    {p.items.map((i, idx) => {
+                                                                        const costObj = costosMadres.find(c => c.id === i.costoId);
+                                                                        const name = costObj ? costObj.nombre : 'Insumo eliminado';
+                                                                        const subtotal = costObj ? costObj.costo_unitario * i.qty : 0;
+                                                                        return (
+                                                                            <div key={idx} className="flex justify-between items-center py-1.5 px-1 hover:bg-gray-100">
+                                                                                <span className="flex-1 truncate pr-2 text-gray-700">{name}</span>
+                                                                                <span className="w-12 text-center text-gray-600 font-mono">{i.qty}</span>
+                                                                                <span className="w-20 text-right font-bold text-teal-700">{formatMoney(subtotal)}</span>
+                                                                            </div>
+                                                                        );
+                                                                    })}
+                                                                </div>
+                                                            )}
                                                         </div>
-                                                    ))}
+                                                    )})}
                                                 </div>
                                             )}
                                         </div>
@@ -973,14 +1081,18 @@
                                 {/* TAB 3: PRESUPUESTOS */}
                                 {palletTab === 'presupuestos' && (
                                     <>
-                                        <button onClick={() => {setNewQuote({cliente:'', items:[]}); setShowAddForm(!showAddForm);}} className={`w-full ${theme.btn} hover:opacity-90 text-white p-3 rounded-xl shadow-md mb-6 flex items-center justify-center gap-2 font-bold transition-all active:scale-95`}>
-                                            <IconPlus className="w-5 h-5"/> {showAddForm ? 'Cancelar' : 'Armar Nuevo Presupuesto'}
+                                        <button onClick={() => {setNewQuote({cliente:'', items:[]}); setEditingId(null); setShowAddForm(!showAddForm);}} className={`w-full ${theme.btn} hover:opacity-90 text-white p-3 rounded-xl shadow-md mb-6 flex items-center justify-center gap-2 font-bold transition-all active:scale-95`}>
+                                            <IconPlus className="w-5 h-5"/> {showAddForm && !editingId ? 'Cancelar' : 'Armar Nuevo Presupuesto'}
                                         </button>
 
                                         {showAddForm && (
                                             <div className="bg-white p-5 rounded-xl shadow-lg border border-gray-200 mb-6 animate-fade-in relative">
                                                 <div className="absolute top-0 left-0 w-1 h-full bg-teal-600"></div>
-                                                <h3 className="font-bold mb-4 text-gray-700">Generador de Presupuesto</h3>
+                                                <div className="flex justify-between items-center mb-4">
+                                                    <h3 className="font-bold text-gray-700">{editingId ? 'Editar Presupuesto' : 'Generador de Presupuesto'}</h3>
+                                                    {editingId && <button type="button" onClick={() => {setShowAddForm(false); setEditingId(null);}} className="text-red-500 text-xs font-bold">Cancelar Edición</button>}
+                                                </div>
+                                                
                                                 <div className="space-y-4">
                                                     <div><label className="text-xs text-gray-500 block mb-1">Cliente</label><input className="w-full p-3 bg-gray-50 rounded-lg border outline-none font-bold" value={newQuote.cliente} onChange={e=>setNewQuote({...newQuote, cliente:e.target.value})} required placeholder="Nombre del Cliente/Empresa" /></div>
                                                     
@@ -1012,7 +1124,7 @@
                                                         </div>
                                                     </div>
 
-                                                    <button onClick={saveQuote} className="w-full bg-blue-600 text-white p-3 rounded-lg font-bold hover:bg-blue-700 shadow-md">Guardar en Historial</button>
+                                                    <button onClick={saveQuote} className="w-full bg-blue-600 text-white p-3 rounded-lg font-bold hover:bg-blue-700 shadow-md">Guardar Presupuesto</button>
                                                 </div>
                                             </div>
                                         )}
@@ -1021,23 +1133,52 @@
                                             <div className="p-3 bg-gray-50 border-b font-bold text-sm text-gray-600">Historial de Presupuestos</div>
                                             {presupuestos.length === 0 ? <p className="p-4 text-center text-xs text-gray-400">No hay presupuestos armados.</p> : (
                                                 <div className="divide-y divide-gray-100">
-                                                    {presupuestos.map(q => (
-                                                        <div key={q.id} className="p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center hover:bg-gray-50 transition-colors gap-3">
-                                                            <div>
-                                                                <p className="font-bold text-gray-800 text-lg">{q.cliente}</p>
-                                                                <p className="text-xs text-gray-500 font-mono mt-0.5">{new Date(q.date+'T00:00:00').toLocaleDateString('es-AR')} • {q.items.length} Tipos de Pallets • Maderas: {q.totalPie2.toFixed(2)} Pie²</p>
-                                                            </div>
-                                                            <div className="flex items-center gap-4 w-full sm:w-auto justify-between sm:justify-end border-t sm:border-t-0 pt-2 sm:pt-0">
-                                                                <p className="font-black text-blue-700 text-xl">{formatMoney(q.totalCosto)}</p>
-                                                                <div className="flex gap-1 border-l pl-3 ml-2">
-                                                                    <button onClick={()=>triggerQuoteReport(q, 'print')} className="p-2 bg-gray-100 text-gray-500 rounded hover:bg-blue-100 hover:text-blue-700" title="Imprimir"><IconPrinter className="w-4 h-4"/></button>
-                                                                    <button onClick={()=>triggerQuoteReport(q, 'download')} className="p-2 bg-gray-100 text-gray-500 rounded hover:bg-blue-100 hover:text-blue-700" title="PDF"><IconDownload className="w-4 h-4"/></button>
-                                                                    <button onClick={()=>sendQuoteWP(q)} className="p-2 bg-green-100 text-green-600 rounded hover:bg-green-200" title="Enviar WhatsApp"><IconMessage className="w-4 h-4"/></button>
-                                                                    <button onClick={()=>deleteQuote(q.id)} className="p-2 bg-red-50 text-red-400 rounded hover:bg-red-100 hover:text-red-600 ml-1"><IconTrash className="w-4 h-4"/></button>
+                                                    {presupuestos.map(q => {
+                                                        const isExp = expandedQuotes[q.id];
+                                                        return (
+                                                        <div key={q.id} className="hover:bg-gray-50 transition-colors">
+                                                            <div className="p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                                                                <div className="flex-1 cursor-pointer" onClick={() => setExpandedQuotes({...expandedQuotes, [q.id]: !isExp})}>
+                                                                    <p className="font-bold text-gray-800 text-lg flex items-center gap-2">
+                                                                        {q.cliente}
+                                                                        {isExp ? <IconChevronUp className="w-4 h-4 text-gray-400"/> : <IconChevronDown className="w-4 h-4 text-gray-400"/>}
+                                                                    </p>
+                                                                    <p className="text-xs text-gray-500 font-mono mt-0.5">{new Date(q.date+'T00:00:00').toLocaleDateString('es-AR')} • {q.items.length} Tipos de Pallets • Maderas: {q.totalPie2.toFixed(2)} Pie²</p>
+                                                                </div>
+                                                                <div className="flex items-center gap-4 w-full sm:w-auto justify-between sm:justify-end border-t sm:border-t-0 pt-2 sm:pt-0">
+                                                                    <p className="font-black text-blue-700 text-xl">{formatMoney(q.totalCosto)}</p>
+                                                                    <div className="flex gap-1 border-l pl-3 ml-2">
+                                                                        <button onClick={()=>editQuote(q)} className="p-2 bg-gray-100 text-blue-500 rounded hover:bg-blue-100" title="Editar"><IconPencil className="w-4 h-4"/></button>
+                                                                        <button onClick={()=>triggerQuoteReport(q, 'print')} className="p-2 bg-gray-100 text-gray-500 rounded hover:bg-blue-100 hover:text-blue-700" title="Imprimir"><IconPrinter className="w-4 h-4"/></button>
+                                                                        <button onClick={()=>triggerQuoteReport(q, 'download')} className="p-2 bg-gray-100 text-gray-500 rounded hover:bg-blue-100 hover:text-blue-700" title="PDF"><IconDownload className="w-4 h-4"/></button>
+                                                                        <button onClick={()=>sendQuoteWP(q)} className="p-2 bg-green-100 text-green-600 rounded hover:bg-green-200" title="Enviar WhatsApp"><IconMessage className="w-4 h-4"/></button>
+                                                                        <button onClick={()=>deleteQuote(q.id)} className="p-2 bg-red-50 text-red-400 rounded hover:bg-red-100 hover:text-red-600 ml-1"><IconTrash className="w-4 h-4"/></button>
+                                                                    </div>
                                                                 </div>
                                                             </div>
+                                                            {isExp && (
+                                                                <div className="bg-gray-100 px-4 py-3 text-xs animate-fade-in border-t border-dashed border-gray-200 shadow-inner">
+                                                                    <div className="flex justify-between font-bold text-gray-500 mb-1 px-2">
+                                                                        <span>Pallet</span><span>Cantidad</span><span className="text-right">Subtotal Base</span>
+                                                                    </div>
+                                                                    <div className="space-y-1">
+                                                                        {q.items.map((i, idx) => {
+                                                                            const pObj = palletsTemplates.find(p => p.id === i.palletId);
+                                                                            const name = pObj ? pObj.nombre : 'Pallet eliminado';
+                                                                            const subtotal = pObj ? pObj.totalCosto * i.qty : 0;
+                                                                            return (
+                                                                                <div key={idx} className="flex justify-between items-center bg-white p-2 rounded shadow-sm">
+                                                                                    <span className="flex-1 font-medium text-gray-700">{name}</span>
+                                                                                    <span className="w-16 text-center font-mono text-gray-600">x {i.qty}</span>
+                                                                                    <span className="w-24 text-right font-bold text-blue-700">{formatMoney(subtotal)}</span>
+                                                                                </div>
+                                                                            );
+                                                                        })}
+                                                                    </div>
+                                                                </div>
+                                                            )}
                                                         </div>
-                                                    ))}
+                                                    )})}
                                                 </div>
                                             )}
                                         </div>
