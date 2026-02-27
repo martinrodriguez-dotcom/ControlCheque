@@ -568,7 +568,9 @@
                 e.preventDefault();
                 let pie2_unitario = 0;
                 let costo_unitario = 0;
-                const costoFloat = parseFloat(newCosto.costoTotal);
+                
+                // Si es madera, costoTotal será el costo por PIE CUADRADO, si no, es Costo Total del Lote
+                const costoInput = parseFloat(newCosto.costoTotal);
                 
                 let cantFloat = 1;
                 let unitText = newCosto.unidad;
@@ -576,24 +578,29 @@
                 if (newCosto.tipo === 'Fijo') {
                     cantFloat = produccionMensual;
                     unitText = 'pallets';
-                } else {
+                    costo_unitario = costoInput / cantFloat;
+                } else if (newCosto.tipo === 'Madera') {
                     cantFloat = parseFloat(newCosto.cantidad) || 1;
-                }
-
-                costo_unitario = costoFloat / cantFloat;
-
-                if (newCosto.tipo === 'Madera') {
+                    unitText = newCosto.unidad || 'u';
+                    
                     const a = parseFloat(newCosto.alto) || 0;
                     const w = parseFloat(newCosto.ancho) || 0;
                     const l = parseFloat(newCosto.largo) || 0;
                     pie2_unitario = (a * w * l) / 12;
+                    
+                    // Lógica Nueva: costoInput es el Valor por Pie Cuadrado.
+                    // Costo Unitario de la pieza = Valor por Pie Cuadrado * Cantidad de Pie Cuadrado de la pieza
+                    costo_unitario = costoInput * pie2_unitario;
+                } else {
+                    cantFloat = parseFloat(newCosto.cantidad) || 1;
+                    costo_unitario = costoInput / cantFloat;
                 }
 
                 const dataToSave = {
                     ...newCosto, 
                     cantidad: cantFloat, 
                     unidad: unitText,
-                    costoTotal: costoFloat, 
+                    costoTotal: costoInput, 
                     costo_unitario, 
                     pie2_unitario,
                     updatedAt: new Date().toISOString()
@@ -853,8 +860,10 @@
                                                     </div>
                                                     <div className="flex gap-2">
                                                         <div className="w-1/2">
-                                                            <label className="text-xs text-gray-500 block mb-1">Costo Total ($)</label>
-                                                            <input type="number" step="0.01" className="w-full p-3 bg-gray-50 rounded-lg border outline-none" value={newCosto.costoTotal} onChange={e=>setNewCosto({...newCosto, costoTotal:e.target.value})} required />
+                                                            <label className="text-xs text-gray-500 block mb-1">
+                                                                {newCosto.tipo === 'Madera' ? 'Costo por Pie² ($)' : 'Costo Total ($)'}
+                                                            </label>
+                                                            <input type="number" step="0.01" className="w-full p-3 bg-gray-50 rounded-lg border outline-none font-bold" value={newCosto.costoTotal} onChange={e=>setNewCosto({...newCosto, costoTotal:e.target.value})} required />
                                                         </div>
                                                         
                                                         {newCosto.tipo === 'Fijo' ? (
@@ -870,7 +879,7 @@
                                                                     <input type="text" className="w-full p-3 bg-gray-100 rounded-lg border outline-none text-gray-500 text-center font-bold" value="pallets" readOnly />
                                                                 </div>
                                                             </>
-                                                        ) : (
+                                                        ) : newCosto.tipo !== 'Madera' ? (
                                                             <>
                                                                 <div className="w-1/4">
                                                                     <label className="text-xs text-gray-500 block mb-1">Cantidad</label>
@@ -881,18 +890,25 @@
                                                                     <input type="text" className="w-full p-3 bg-gray-50 rounded-lg border outline-none" value={newCosto.unidad} onChange={e=>setNewCosto({...newCosto, unidad:e.target.value})} required placeholder="u, kg, hr"/>
                                                                 </div>
                                                             </>
+                                                        ) : (
+                                                            <>
+                                                                {/* Para madera no pedimos cantidad/unidad en el alta general porque se calcula por pie2 por pieza */}
+                                                                <div className="w-1/2 flex items-end">
+                                                                    <div className="w-full p-3 bg-teal-50 text-teal-800 rounded-lg border border-teal-200 text-xs font-bold text-center">Cálculo Automático por Pieza</div>
+                                                                </div>
+                                                            </>
                                                         )}
                                                     </div>
                                                     
                                                     {newCosto.tipo === 'Madera' && (
                                                         <div className="p-3 bg-yellow-50 rounded-lg border border-yellow-200 mt-2">
-                                                            <p className="text-xs font-bold text-yellow-800 mb-2">Medidas para cálculo Pie² (Por 1 unidad)</p>
+                                                            <p className="text-xs font-bold text-yellow-800 mb-2">Medidas de LA PIEZA (para calcular su Pie²)</p>
                                                             <div className="flex gap-2">
                                                                 <div><label className="text-[10px] text-gray-500">Alto (pulg)</label><input type="number" step="0.01" className="w-full p-2 text-sm bg-white rounded border outline-none" value={newCosto.alto} onChange={e=>setNewCosto({...newCosto, alto:e.target.value})} required/></div>
                                                                 <div><label className="text-[10px] text-gray-500">Ancho (pulg)</label><input type="number" step="0.01" className="w-full p-2 text-sm bg-white rounded border outline-none" value={newCosto.ancho} onChange={e=>setNewCosto({...newCosto, ancho:e.target.value})} required/></div>
                                                                 <div><label className="text-[10px] text-gray-500">Largo (pies)</label><input type="number" step="0.01" className="w-full p-2 text-sm bg-white rounded border outline-none" value={newCosto.largo} onChange={e=>setNewCosto({...newCosto, largo:e.target.value})} required/></div>
                                                             </div>
-                                                            <p className="text-[10px] text-gray-500 mt-2 italic">* Pie² = (Alto x Ancho x Largo) / 12</p>
+                                                            <p className="text-[10px] text-gray-500 mt-2 italic">* Fórmula: (Alto x Ancho x Largo) / 12 = Pie² de la pieza</p>
                                                         </div>
                                                     )}
 
@@ -909,8 +925,13 @@
                                                         <div key={c.id} className="p-3 flex justify-between items-center hover:bg-gray-50">
                                                             <div>
                                                                 <p className="font-bold text-gray-800 text-sm">{c.nombre} <span className="text-[9px] bg-gray-200 text-gray-600 px-1 rounded uppercase">{c.tipo}</span></p>
-                                                                <p className="text-xs text-gray-500">Lote: {formatMoney(c.costoTotal)} / {c.cantidad} {c.unidad}</p>
-                                                                {c.tipo === 'Madera' && <p className="text-[10px] text-orange-600 font-bold mt-0.5">Rinde: {c.pie2_unitario.toFixed(2)} Pie²/u. - Costo Pie²: {formatMoney(c.costo_unitario / c.pie2_unitario)}</p>}
+                                                                {c.tipo === 'Madera' ? (
+                                                                    <p className="text-xs text-gray-500">Costo Base: {formatMoney(c.costoTotal)} por Pie²</p>
+                                                                ) : (
+                                                                    <p className="text-xs text-gray-500">Lote: {formatMoney(c.costoTotal)} / {c.cantidad} {c.unidad}</p>
+                                                                )}
+                                                                
+                                                                {c.tipo === 'Madera' && <p className="text-[10px] text-orange-600 font-bold mt-0.5">Rinde: {c.pie2_unitario.toFixed(2)} Pie²/pieza - Costo de la pieza: {formatMoney(c.costo_unitario)}</p>}
                                                             </div>
                                                             <div className="text-right flex flex-col items-end">
                                                                 <p className="font-bold text-teal-700">{formatMoney(c.costo_unitario)} <span className="text-[10px] font-normal text-gray-500">c/u</span></p>
@@ -975,8 +996,8 @@
                                                                             />
                                                                             <div>
                                                                                 <p className={`font-bold text-sm ${isSelected ? 'text-teal-900' : 'text-gray-700'}`}>{costo.nombre}</p>
-                                                                                <p className="text-[10px] text-gray-500 flex gap-2">
-                                                                                    <span>{formatMoney(costo.costo_unitario)} c/u</span>
+                                                                                <p className="text-[10px] text-gray-500 flex gap-2 mt-0.5">
+                                                                                    <span>{formatMoney(costo.costo_unitario)} por pieza</span>
                                                                                     <span className="bg-gray-200 px-1 rounded uppercase">{costo.tipo}</span>
                                                                                 </p>
                                                                             </div>
