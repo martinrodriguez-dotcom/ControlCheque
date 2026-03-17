@@ -209,7 +209,7 @@
                 });
 
                 const unsubExpenses = onSnapshot(collection(db, 'gastos_public_shared', 'main_list', 'items'), (snap) => {
-                    const data = snap.docs.map(d => { const dat = d.data(); return { id: d.id, ...dat, type: 'expense' }; });
+                    const data = snap.docs.map(d => { const dat = d.data(); return { id: d.id, ...dat, dueDate: dat.dueDate || dat.date || new Date().toISOString().split('T')[0], type: 'expense' }; });
                     setExpenseItems(data);
                 });
 
@@ -541,7 +541,7 @@
 
             const groupedView = useMemo(() => {
                 if (mode === 'balance' && !selectedDateFilter) return null;
-                if (mode === 'cashbox' || mode === 'pallets') return null; // No agrupamos para Pallets o Caja acá
+                if (mode === 'cashbox' || mode === 'pallets') return null;
 
                 let items = [];
                 if (mode === 'balance' && selectedDateFilter) { items = [...payItems, ...collectItems, ...walletItems, ...expenseItems]; } else if (mode === 'pay') { items = payItems; } else if (mode === 'collect') { items = collectItems; } else if (mode === 'wallet') { items = walletItems; } else if (mode === 'expenses') { items = expenseItems; }
@@ -557,15 +557,37 @@
                     return { type: 'client-grouped', data: resultData };
                 } else if (mode === 'expenses' && !selectedDateFilter) {
                     const groups = {};
-                    filtered.forEach(item => { const monthKey = item.monthYear || item.dueDate.substring(0, 7); if (!groups[monthKey]) { const [y, m] = monthKey.split('-'); const dateObj = new Date(y, m-1); const label = dateObj.toLocaleDateString('es-AR', { month: 'long', year: 'numeric' }); groups[monthKey] = { key: monthKey, label: label.charAt(0).toUpperCase() + label.slice(1), total: 0, items: [], count: 0 }; } const pendingAmount = item.amount - (item.paidAmount || 0); if (item.status !== 'paid') groups[monthKey].total += pendingAmount; groups[monthKey].count += 1; groups[monthKey].items.push(item); });
+                    filtered.forEach(item => { 
+                        const rawDate = item.dueDate || new Date().toISOString().split('T')[0];
+                        const monthKey = item.monthYear || rawDate.substring(0, 7); 
+                        if (!groups[monthKey]) { 
+                            const parts = monthKey.split('-');
+                            let label = monthKey;
+                            if(parts.length >= 2) {
+                                const dateObj = new Date(parts[0], parseInt(parts[1])-1); 
+                                label = dateObj.toLocaleDateString('es-AR', { month: 'long', year: 'numeric' }); 
+                                label = label.charAt(0).toUpperCase() + label.slice(1);
+                            }
+                            groups[monthKey] = { key: monthKey, label: label, total: 0, items: [], count: 0 }; 
+                        } 
+                        const pendingAmount = item.amount - (item.paidAmount || 0); 
+                        if (item.status !== 'paid') groups[monthKey].total += pendingAmount; 
+                        groups[monthKey].count += 1; 
+                        groups[monthKey].items.push(item); 
+                    });
                     const resultData = Object.values(groups).sort((a,b) => a.key.localeCompare(b.key));
-                    resultData.forEach(group => { group.items.sort((itemA, itemB) => new Date(itemA.dueDate) - new Date(itemB.dueDate)); });
+                    resultData.forEach(group => { group.items.sort((itemA, itemB) => new Date(itemA.dueDate || 0) - new Date(itemB.dueDate || 0)); });
                     return { type: 'month-grouped', data: resultData };
                 } else {
-                    filtered.sort((a,b) => new Date(a.dueDate) - new Date(b.dueDate));
+                    filtered.sort((a,b) => new Date(a.dueDate || 0) - new Date(b.dueDate || 0));
                     if ((activeFilter === 'all' && !selectedDateFilter) || (mode === 'balance' && selectedDateFilter)) return { type: 'flat', data: filtered };
                     const groups = {};
-                    filtered.forEach(item => { const dateKey = item.dueDate; if (!dateKey) return; if (!groups[dateKey]) groups[dateKey] = { key: dateKey, total: 0, items: [] }; groups[dateKey].total += (item.amount - (item.paidAmount || 0));  groups[dateKey].items.push(item); });
+                    filtered.forEach(item => { 
+                        const dateKey = item.dueDate || new Date().toISOString().split('T')[0]; 
+                        if (!groups[dateKey]) groups[dateKey] = { key: dateKey, total: 0, items: [] }; 
+                        groups[dateKey].total += (item.amount - (item.paidAmount || 0));  
+                        groups[dateKey].items.push(item); 
+                    });
                     return { type: 'date-grouped', data: Object.values(groups).sort((a,b) => new Date(a.key) - new Date(b.key)) };
                 }
             }, [payItems, collectItems, walletItems, expenseItems, activeFilter, mode, searchTerm, selectedDateFilter]);
