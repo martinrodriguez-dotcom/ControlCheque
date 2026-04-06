@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>SII PALLETS APP</title>
     
-    <!-- Configuración PWA -->
     <meta name="theme-color" content="#1e40af">
     <link rel="manifest" href="manifest.json">
     <meta name="mobile-web-app-capable" content="yes">
@@ -14,7 +13,6 @@
     <link rel="apple-touch-icon" href="logo.png">
     <link rel="icon" type="image/png" href="logo.png">
 
-    <!-- Librerías -->
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone@7.23.6/babel.min.js"></script>
@@ -50,7 +48,6 @@
     
     <div id="root"></div>
 
-    <!-- Error Handler -->
     <div id="error-display" style="display:none; padding: 20px; background: #fee; color: #b00; border: 1px solid #b00; margin: 10px; border-radius: 5px; z-index:9999; position:relative;">
         <h3>Error de Carga</h3>
         <pre id="error-message" style="font-size: 12px;"></pre>
@@ -658,7 +655,7 @@
                 const days = generateCalendarDays();
                 const monthName = currentCalDate.toLocaleDateString('es-AR', { month: 'long', year: 'numeric' });
                 
-                // Extraer resumen de bancos del mes actual
+                // Extraer resumen de bancos del mes actual (SOLO PENDIENTES)
                 const year = currentCalDate.getFullYear(); 
                 const month = currentCalDate.getMonth();
                 const firstDateStr = `${year}-${String(month + 1).padStart(2, '0')}-01`;
@@ -673,7 +670,7 @@
                     }
                 });
 
-                let bodyHTML = `<h1>Proyección Mensual: ${monthName}</h1>`;
+                let bodyHTML = `<h1>Proyección Mensual (Pendientes): ${monthName}</h1>`;
                 
                 if (Object.keys(bTotals).length > 0) {
                     bodyHTML += `
@@ -692,8 +689,8 @@
                         <thead>
                             <tr>
                                 <th class="date-col">Fecha</th>
-                                <th>Ingresos</th>
-                                <th>Egresos</th>
+                                <th>Ingresos (Pendientes)</th>
+                                <th>Egresos (Pendientes)</th>
                                 <th>Acumulado</th>
                             </tr>
                         </thead>
@@ -705,41 +702,55 @@
                     
                     let inflowHTML = ""; 
                     if(day.inflowItems.length > 0) { 
-                        day.inflowItems.forEach(i => { 
-                            const ref = i.number ? `Ref: ${i.number}` : ''; 
-                            inflowHTML += `<div style="margin-bottom:6px;"><div style="font-weight:bold; color:#16a34a;">${formatMoney(i.amount - (i.paidAmount||0))}</div><div style="font-size:9px; color:#555;">(${i.payee} ${ref ? '- '+ref : ''})</div></div>`; 
-                        }); 
+                        const pendingInflows = day.inflowItems.filter(i => i.status !== 'paid');
+                        if (pendingInflows.length > 0) {
+                            pendingInflows.forEach(i => { 
+                                const ref = i.number ? `Ref: ${i.number}` : ''; 
+                                const remaining = i.amount - (i.paidAmount || 0);
+                                inflowHTML += `<div style="margin-bottom:6px;"><div style="font-weight:bold; color:#16a34a;">${formatMoney(remaining)}</div><div style="font-size:9px; color:#555;">(${i.payee} ${ref ? '- '+ref : ''})</div></div>`; 
+                            }); 
+                        } else {
+                            inflowHTML = "-";
+                        }
                     } else { 
                         inflowHTML = "-"; 
                     }
                     
                     let outflowHTML = ""; 
                     if(day.outflowItems.length > 0) { 
-                        day.outflowItems.forEach(i => { 
-                            const ref = i.number ? `Ref: ${i.number}` : ''; 
-                            outflowHTML += `<div style="margin-bottom:6px;"><div style="font-weight:bold; color:#dc2626;">${formatMoney(i.amount - (i.paidAmount||0))}</div><div style="font-size:9px; color:#555;">(${i.payee} ${ref ? '- '+ref : ''})</div></div>`; 
-                        }); 
+                        const pendingOutflows = day.outflowItems.filter(i => i.status !== 'paid');
+                        if (pendingOutflows.length > 0) {
+                            pendingOutflows.forEach(i => { 
+                                const ref = i.number ? `Ref: ${i.number}` : ''; 
+                                const bankTag = i.bank ? ` 🏦 ${i.bank}` : '';
+                                const remaining = i.amount - (i.paidAmount || 0);
+                                outflowHTML += `<div style="margin-bottom:6px;"><div style="font-weight:bold; color:#dc2626;">${formatMoney(remaining)}</div><div style="font-size:9px; color:#555;">(${i.payee} ${ref ? '- '+ref : ''}${bankTag})</div></div>`; 
+                            }); 
+                        } else {
+                            outflowHTML = "-";
+                        }
                     } else { 
                         outflowHTML = "-"; 
                     }
                     
-                    const acumClass = day.accumulated >= 0 ? 'green-acum' : 'red-acum';
-                    
-                    bodyHTML += `
-                        <tr>
-                            <td class="date-col">${new Date(day.dateKey+'T00:00:00').toLocaleDateString('es-AR', { weekday: 'short', day: 'numeric' })}</td>
-                            <td style="text-align:right;">${inflowHTML}</td>
-                            <td style="text-align:right;">${outflowHTML}</td>
-                            <td class="amount ${acumClass}">${formatMoney(day.accumulated)}</td>
-                        </tr>
-                    `;
+                    if (inflowHTML !== "-" || outflowHTML !== "-") {
+                        const acumClass = day.accumulated >= 0 ? 'green-acum' : 'red-acum';
+                        bodyHTML += `
+                            <tr>
+                                <td class="date-col">${new Date(day.dateKey+'T00:00:00').toLocaleDateString('es-AR', { weekday: 'short', day: 'numeric' })}</td>
+                                <td style="text-align:right;">${inflowHTML}</td>
+                                <td style="text-align:right;">${outflowHTML}</td>
+                                <td class="amount ${acumClass}">${formatMoney(day.accumulated)}</td>
+                            </tr>
+                        `;
+                    }
                 });
                 
                 bodyHTML += `</tbody></table>`;
                 handleReportAction(`Reporte Mensual - ${monthName}`, bodyHTML, action, `Calendario_${monthName.replace(/\s+/g, '_')}`);
             };
             
-            // REPORTE POR RANGO DE FECHAS
+            // REPORTE POR RANGO DE FECHAS (SOLO PENDIENTES)
             const triggerRangeReport = (action) => {
                 const { startDate, endDate } = rangeReportModal;
                 if (!startDate || !endDate) return alert("Selecciona ambas fechas.");
@@ -750,16 +761,17 @@
                 const mappedCol = collectItems.map(i => ({ ...i, reportType: 'COBRO', isPositive: true }));
                 const mappedWal = walletItems.map(i => ({ ...i, reportType: 'CARTERA', isPositive: true }));
 
+                // FILTRO: Solo elementos que NO estén marcados como pagados
                 const combined = [...mappedPay, ...mappedExp, ...mappedCol, ...mappedWal]
-                    .filter(i => i.dueDate && i.dueDate >= startDate && i.dueDate <= endDate)
+                    .filter(i => i.status !== 'paid' && i.dueDate && i.dueDate >= startDate && i.dueDate <= endDate)
                     .sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
 
-                if (combined.length === 0) return alert("No hay movimientos en este rango de fechas.");
+                if (combined.length === 0) return alert("No hay movimientos pendientes en este rango de fechas.");
 
                 let totalPos = 0;
                 let totalNeg = 0;
                 
-                // Resumen de bancos
+                // Resumen de bancos (solo egresos pendientes)
                 const bTotals = {};
                 combined.forEach(item => {
                     if (item.reportType === 'PAGO' && item.status !== 'paid') {
@@ -770,7 +782,7 @@
                 });
 
                 let bodyHTML = `
-                    <h1>Reporte de Movimientos por Fecha</h1>
+                    <h1>Reporte de Movimientos Pendientes por Fecha</h1>
                     <p class="meta">Período: ${new Date(startDate+'T00:00:00').toLocaleDateString('es-AR')} al ${new Date(endDate+'T00:00:00').toLocaleDateString('es-AR')} • Generado: ${new Date().toLocaleDateString('es-AR')}</p>
                 `;
 
@@ -793,24 +805,28 @@
                                 <th style="width:15%">Fecha</th>
                                 <th style="width:45%">Concepto / Cliente</th>
                                 <th style="width:10%">Tipo</th>
-                                <th style="text-align:right; width:15%">Ingreso</th>
-                                <th style="text-align:right; width:15%">Egreso</th>
+                                <th style="text-align:right; width:15%">Ingreso (Pendiente)</th>
+                                <th style="text-align:right; width:15%">Egreso (Pendiente)</th>
                             </tr>
                         </thead>
                         <tbody>
                 `;
 
                 combined.forEach(item => {
-                    if (item.isPositive) totalPos += item.amount;
-                    else totalNeg += item.amount;
+                    const pendingAmount = item.amount - (item.paidAmount || 0);
+                    
+                    if (item.isPositive) totalPos += pendingAmount;
+                    else totalNeg += pendingAmount;
+
+                    const bankTag = (!item.isPositive && item.bank) ? `<br/><span style="color:#0284c7;font-size:9px;font-weight:bold;">🏦 ${item.bank}</span>` : '';
 
                     bodyHTML += `
                         <tr>
                             <td class="date">${new Date(item.dueDate+'T00:00:00').toLocaleDateString('es-AR')}</td>
-                            <td><strong>${item.payee}</strong> ${item.number ? `<br/><span style="color:#666;font-size:9px">Ref: ${item.number}</span>` : ''}</td>
+                            <td><strong>${item.payee}</strong> ${item.number ? `<br/><span style="color:#666;font-size:9px">Ref: ${item.number}</span>` : ''}${bankTag}</td>
                             <td style="font-size:10px">${item.reportType}</td>
-                            <td class="amount green">${item.isPositive ? formatMoney(item.amount) : '-'}</td>
-                            <td class="amount red">${!item.isPositive ? formatMoney(item.amount) : '-'}</td>
+                            <td class="amount green">${item.isPositive ? formatMoney(pendingAmount) : '-'}</td>
+                            <td class="amount red">${!item.isPositive ? formatMoney(pendingAmount) : '-'}</td>
                         </tr>
                     `;
                 });
@@ -823,21 +839,21 @@
                     </table>
                     <div style="margin-top:20px; display:flex; justify-content:space-between; gap:10px; page-break-inside: avoid;">
                         <div style="flex:1; padding:15px; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:8px; text-align:center;">
-                            <span style="display:block; font-size:10px; color:#166534; text-transform:uppercase; font-weight:bold; margin-bottom:5px;">Total Ingresos</span>
+                            <span style="display:block; font-size:10px; color:#166534; text-transform:uppercase; font-weight:bold; margin-bottom:5px;">Total Ingresos (Pendientes)</span>
                             <span style="font-size:16px; font-weight:900; color:#15803d;">${formatMoney(totalPos)}</span>
                         </div>
                         <div style="flex:1; padding:15px; background:#fef2f2; border:1px solid #fecaca; border-radius:8px; text-align:center;">
-                            <span style="display:block; font-size:10px; color:#991b1b; text-transform:uppercase; font-weight:bold; margin-bottom:5px;">Total Egresos</span>
+                            <span style="display:block; font-size:10px; color:#991b1b; text-transform:uppercase; font-weight:bold; margin-bottom:5px;">Total Egresos (Pendientes)</span>
                             <span style="font-size:16px; font-weight:900; color:#b91c1c;">${formatMoney(totalNeg)}</span>
                         </div>
                         <div style="flex:1; padding:15px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; text-align:center;">
-                            <span style="display:block; font-size:10px; color:#334155; text-transform:uppercase; font-weight:bold; margin-bottom:5px;">Balance Neto</span>
+                            <span style="display:block; font-size:10px; color:#334155; text-transform:uppercase; font-weight:bold; margin-bottom:5px;">Balance Neto Proyectado</span>
                             <span style="font-size:18px; font-weight:900;" class="${balanceColor}">${balance >= 0 ? '+' : ''}${formatMoney(balance)}</span>
                         </div>
                     </div>
                 `;
 
-                handleReportAction('Reporte Rango de Fechas', bodyHTML, action, `Reporte_${startDate}_al_${endDate}`);
+                handleReportAction('Reporte Rango de Fechas', bodyHTML, action, `Reporte_Pendientes_${startDate}_al_${endDate}`);
             };
 
             const requestNotify = () => { 
@@ -1503,6 +1519,58 @@
                 if(confirm('¿Eliminar Presupuesto?')) await deleteDoc(doc(db, 'presupuestos_sii', 'main_list', 'items', id)); 
             };
 
+            const triggerQuoteReport = (quote, action) => {
+                let bodyHTML = `
+                    <h1>Presupuesto</h1>
+                    <p class="meta">Fecha: ${new Date(quote.date+'T00:00:00').toLocaleDateString('es-AR')} • Cliente: <strong>${quote.cliente}</strong></p>
+                    <table style="width:100%; margin-top:20px; text-align:left;">
+                        <thead style="background:#f3f4f6;">
+                            <tr>
+                                <th style="padding:8px">Descripción (Pallet)</th>
+                                <th style="padding:8px; text-align:center">Cant</th>
+                                <th style="padding:8px; text-align:right">Costo Unit.</th>
+                                <th style="padding:8px; text-align:right">Subtotal</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                `;
+                
+                quote.items.forEach(i => {
+                    const pObj = palletsTemplates.find(p => p.id === i.palletId);
+                    const name = pObj ? pObj.nombre : 'Pallet eliminado';
+                    const unitCost = pObj ? pObj.totalCosto : 0;
+                    const subtotal = unitCost * i.qty;
+                    bodyHTML += `
+                        <tr>
+                            <td style="padding:8px; border-bottom:1px solid #eee">${name}</td>
+                            <td style="padding:8px; text-align:center; border-bottom:1px solid #eee">${i.qty}</td>
+                            <td style="padding:8px; text-align:right; border-bottom:1px solid #eee">${formatMoney(unitCost)}</td>
+                            <td style="padding:8px; text-align:right; border-bottom:1px solid #eee; font-weight:bold">${formatMoney(subtotal)}</td>
+                        </tr>
+                    `;
+                });
+                
+                bodyHTML += `
+                        </tbody>
+                    </table>
+                    <div style="margin-top:20px; padding:10px; background:#f0f9ff; border:1px solid #bae6fd; font-size:14px; display:flex; justify-content:space-between;">
+                        <span>Volumen Total Madera: <strong>${quote.totalPie2.toFixed(2)} Pie²</strong></span>
+                        <span style="color:#0369a1;">TOTAL GENERAL: <strong>${formatMoney(quote.totalCosto)}</strong></span>
+                    </div>
+                `;
+                handleReportAction(`Presupuesto - ${quote.cliente}`, bodyHTML, action, `Presupuesto_${quote.cliente.replace(/\s+/g, '_')}`);
+            };
+
+            const sendQuoteWP = (quote) => {
+                let text = `*PRESUPUESTO - SII PALLETS*\nCliente: ${quote.cliente}\nFecha: ${new Date(quote.date+'T00:00:00').toLocaleDateString('es-AR')}\n\n*Detalle:*\n`;
+                quote.items.forEach(i => {
+                    const pObj = palletsTemplates.find(p => p.id === i.palletId);
+                    text += `- ${i.qty}x ${pObj ? pObj.nombre : 'Item'} (${formatMoney((pObj?pObj.totalCosto:0)*i.qty)})\n`;
+                });
+                text += `\n*TOTAL: ${formatMoney(quote.totalCosto)}*\n*(Consumo de Madera: ${quote.totalPie2.toFixed(2)} Pie²)*\n\nSaludos!`;
+                window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+            };
+
             return (
                 <div className="pb-24 max-w-4xl mx-auto min-h-screen bg-gray-50 shadow-2xl relative transition-colors duration-500">
                     <div className={`${theme.bg} text-white p-4 sticky top-0 z-30 shadow-lg transition-colors duration-500`}>
@@ -1576,13 +1644,48 @@
                         )}
 
                         <div className="bg-black/20 p-1 rounded-xl flex text-[10px] sm:text-xs overflow-x-auto scrollbar-hide">
-                            <button onClick={() => setMode('cashbox')} className={`flex-1 py-2 px-3 rounded-lg font-bold flex flex-col sm:flex-row items-center justify-center gap-1 transition-all whitespace-nowrap ${mode === 'cashbox' ? 'bg-white text-cyan-800 shadow-md' : 'text-white/60'}`}><IconBox className="w-4 h-4"/> <span>CAJA</span></button>
-                            <button onClick={() => setMode('expenses')} className={`flex-1 py-2 px-3 rounded-lg font-bold flex flex-col sm:flex-row items-center justify-center gap-1 transition-all whitespace-nowrap ${mode === 'expenses' ? 'bg-white text-orange-800 shadow-md' : 'text-white/60'}`}><IconTag className="w-4 h-4"/> <span>GASTOS</span></button>
-                            <button onClick={() => setMode('pay')} className={`flex-1 py-2 px-3 rounded-lg font-bold flex flex-col sm:flex-row items-center justify-center gap-1 transition-all whitespace-nowrap ${mode === 'pay' ? 'bg-white text-blue-800 shadow-md' : 'text-white/60'}`}><IconWallet className="w-4 h-4"/> <span>PAGOS</span></button>
-                            <button onClick={() => setMode('balance')} className={`flex-1 py-2 px-3 rounded-lg font-bold flex flex-col sm:flex-row items-center justify-center gap-1 transition-all whitespace-nowrap ${mode === 'balance' ? 'bg-white text-violet-800 shadow-md' : 'text-white/60'}`}><IconTrendingUp className="w-4 h-4"/> <span>BALANCE</span></button>
-                            <button onClick={() => setMode('collect')} className={`flex-1 py-2 px-3 rounded-lg font-bold flex flex-col sm:flex-row items-center justify-center gap-1 transition-all whitespace-nowrap ${mode === 'collect' ? 'bg-white text-emerald-800 shadow-md' : 'text-white/60'}`}><IconBriefcase className="w-4 h-4"/> <span>COBROS</span></button>
-                            <button onClick={() => setMode('wallet')} className={`flex-1 py-2 px-3 rounded-lg font-bold flex flex-col sm:flex-row items-center justify-center gap-1 transition-all whitespace-nowrap ${mode === 'wallet' ? 'bg-white text-indigo-800 shadow-md' : 'text-white/60'}`}><IconFolder className="w-4 h-4"/> <span>CARTERA</span></button>
-                            <button onClick={() => {setMode('pallets'); setShowAddForm(false); setEditingId(null);}} className={`flex-1 py-2 px-3 rounded-lg font-bold flex flex-col sm:flex-row items-center justify-center gap-1 transition-all whitespace-nowrap ${mode === 'pallets' ? 'bg-white text-teal-800 shadow-md' : 'text-white/60'}`}><IconLayers className="w-4 h-4"/> <span>PALLETS</span></button>
+                            <button 
+                                onClick={() => {setMode('cashbox'); setPayTab('pendientes'); setShowAddForm(false); setEditingId(null);}} 
+                                className={`flex-1 py-2 px-3 rounded-lg font-bold flex flex-col sm:flex-row items-center justify-center gap-1 transition-all whitespace-nowrap ${mode === 'cashbox' ? 'bg-white text-cyan-800 shadow-md' : 'text-white/60'}`}
+                            >
+                                <IconBox className="w-4 h-4"/> <span>CAJA</span>
+                            </button>
+                            <button 
+                                onClick={() => {setMode('expenses'); setPayTab('pendientes'); setShowAddForm(false); setEditingId(null);}} 
+                                className={`flex-1 py-2 px-3 rounded-lg font-bold flex flex-col sm:flex-row items-center justify-center gap-1 transition-all whitespace-nowrap ${mode === 'expenses' ? 'bg-white text-orange-800 shadow-md' : 'text-white/60'}`}
+                            >
+                                <IconTag className="w-4 h-4"/> <span>GASTOS</span>
+                            </button>
+                            <button 
+                                onClick={() => {setMode('pay'); setShowAddForm(false); setEditingId(null);}} 
+                                className={`flex-1 py-2 px-3 rounded-lg font-bold flex flex-col sm:flex-row items-center justify-center gap-1 transition-all whitespace-nowrap ${mode === 'pay' ? 'bg-white text-blue-800 shadow-md' : 'text-white/60'}`}
+                            >
+                                <IconWallet className="w-4 h-4"/> <span>PAGOS</span>
+                            </button>
+                            <button 
+                                onClick={() => {setMode('balance'); setPayTab('pendientes'); setShowAddForm(false); setEditingId(null);}} 
+                                className={`flex-1 py-2 px-3 rounded-lg font-bold flex flex-col sm:flex-row items-center justify-center gap-1 transition-all whitespace-nowrap ${mode === 'balance' ? 'bg-white text-violet-800 shadow-md' : 'text-white/60'}`}
+                            >
+                                <IconTrendingUp className="w-4 h-4"/> <span>BALANCE</span>
+                            </button>
+                            <button 
+                                onClick={() => {setMode('collect'); setPayTab('pendientes'); setShowAddForm(false); setEditingId(null);}} 
+                                className={`flex-1 py-2 px-3 rounded-lg font-bold flex flex-col sm:flex-row items-center justify-center gap-1 transition-all whitespace-nowrap ${mode === 'collect' ? 'bg-white text-emerald-800 shadow-md' : 'text-white/60'}`}
+                            >
+                                <IconBriefcase className="w-4 h-4"/> <span>COBROS</span>
+                            </button>
+                            <button 
+                                onClick={() => {setMode('wallet'); setPayTab('pendientes'); setShowAddForm(false); setEditingId(null);}} 
+                                className={`flex-1 py-2 px-3 rounded-lg font-bold flex flex-col sm:flex-row items-center justify-center gap-1 transition-all whitespace-nowrap ${mode === 'wallet' ? 'bg-white text-indigo-800 shadow-md' : 'text-white/60'}`}
+                            >
+                                <IconFolder className="w-4 h-4"/> <span>CARTERA</span>
+                            </button>
+                            <button 
+                                onClick={() => {setMode('pallets'); setPayTab('pendientes'); setShowAddForm(false); setEditingId(null);}} 
+                                className={`flex-1 py-2 px-3 rounded-lg font-bold flex flex-col sm:flex-row items-center justify-center gap-1 transition-all whitespace-nowrap ${mode === 'pallets' ? 'bg-white text-teal-800 shadow-md' : 'text-white/60'}`}
+                            >
+                                <IconLayers className="w-4 h-4"/> <span>PALLETS</span>
+                            </button>
                         </div>
                     </div>
 
