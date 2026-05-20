@@ -1,3 +1,4 @@
+// Archivo: src/App.jsx
 import React, { useState, useEffect, useMemo } from 'react';
 import { onAuthStateChanged, signInAnonymously } from "firebase/auth";
 import { collection, onSnapshot, doc, updateDoc, deleteDoc, addDoc, setDoc } from "firebase/firestore";
@@ -453,7 +454,8 @@ export default function App() {
     // FUNCIONES DE REPORTES 
     // =====================================
     const triggerMainReport = (action) => {
-        if (!groupedView || !groupedView.data || groupedView.data.length === 0) {
+        // CORRECCIÓN: Si estamos en Balance, NO necesitamos groupedView. Si no, sí lo requerimos.
+        if (mode !== 'balance' && (!groupedView || !groupedView.data || groupedView.data.length === 0)) {
             return alert("No hay datos para procesar.");
         }
         
