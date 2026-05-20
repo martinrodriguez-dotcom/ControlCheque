@@ -1,3 +1,4 @@
+// Archivo: src/pages/Facturacion.jsx
 import React, { useState, useEffect, useMemo } from 'react';
 import { doc, onSnapshot, setDoc } from "firebase/firestore";
 import { db } from '../firebase';
@@ -5,7 +6,7 @@ import { formatMoney } from '../utils/helpers';
 import { IconPencil, IconCheck, IconX, IconFileText } from '../components/Icons';
 
 export default function Facturacion({ collectItems, theme }) {
-    // Obtenemos el mes actual respetando la zona horaria local (No UTC)
+    // Obtenemos el mes actual respetando la zona horaria local (Formato YYYY-MM)
     const getLocalMonth = () => {
         const now = new Date();
         return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
@@ -35,17 +36,18 @@ export default function Facturacion({ collectItems, theme }) {
         return () => unsubscribe();
     }, [selectedMonth]);
 
+    // Cálculos Exactos de Facturación
     const calculos = useMemo(() => {
         const facturasDelMes = collectItems.filter(item => {
             // Asegurarnos de que sea una factura (invoice).
-            // Agregamos !item.subtype por si hay registros viejos sin clasificar que queremos atrapar.
             const isInvoice = item.subtype === 'invoice' || !item.subtype;
             
-            // Usar fecha de emisión, o si está vacía, usar la de vencimiento por seguridad
+            // Usar fecha de emisión, o si está vacía, usar la de vencimiento.
+            // Las fechas vienen en formato YYYY-MM-DD (ej: 2026-05-20)
             const rawDate = item.issueDate || item.dueDate || item.date || '';
             if (!rawDate) return false;
 
-            // DIVISIÓN A PRUEBA DE BALAS: Extraemos el año y mes asegurando el formato YYYY-MM
+            // Extraemos solo el Año y el Mes (YYYY-MM)
             const parts = rawDate.split('-');
             if (parts.length < 2) return false;
             
@@ -54,15 +56,19 @@ export default function Facturacion({ collectItems, theme }) {
             return isInvoice && itemYearMonth === selectedMonth;
         });
 
-        const totalBruto = facturasDelMes.reduce((acc, curr) => acc + (parseFloat(curr.amount) || 0), 0);
-        // Fórmula matemática: Neto = Bruto / 1.21 | IVA = Bruto - Neto
-        const totalNeto = totalBruto / 1.21;
-        const debitoCalculado = totalBruto - totalNeto;
+        // 1. Total de facturación con IVA (Suma de los valores cargados en la app)
+        const totalConIva = facturasDelMes.reduce((acc, curr) => acc + (parseFloat(curr.amount) || 0), 0);
+        
+        // 2. Facturación sin IVA (Valor cargado dividido 1.21)
+        const facturacionSinIva = totalConIva / 1.21;
+        
+        // 3. Débito Fiscal (IVA acumulado = Total con IVA - Facturación sin IVA)
+        const debitoCalculado = totalConIva - facturacionSinIva;
 
         return {
             cantidadFacturas: facturasDelMes.length,
-            totalBruto,
-            totalNeto,
+            totalConIva,
+            facturacionSinIva,
             debitoCalculado
         };
     }, [collectItems, selectedMonth]);
@@ -71,7 +77,7 @@ export default function Facturacion({ collectItems, theme }) {
     const debitoFinal = dbData.manualDebito !== null ? parseFloat(dbData.manualDebito) : calculos.debitoCalculado;
     const creditoFinal = parseFloat(dbData.creditoFiscal) || 0;
     
-    // Balance Neto de IVA
+    // Diferencia: Crédito Fiscal (a favor) - Débito Fiscal (a pagar)
     const balanceIva = creditoFinal - debitoFinal;
 
     const guardarCredito = async () => {
@@ -112,25 +118,25 @@ export default function Facturacion({ collectItems, theme }) {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-                {/* Facturación Bruta */}
+                {/* Facturación sin IVA */}
                 <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center items-center text-center">
-                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Total Facturación (Bruto)</span>
-                    <span className="text-xl font-black text-gray-800">{formatMoney(calculos.totalBruto)}</span>
+                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Facturación Sin IVA</span>
+                    <span className="text-xl font-black text-gray-800">{formatMoney(calculos.facturacionSinIva)}</span>
+                    <span className="text-[9px] text-gray-400 mt-1">Base imponible</span>
+                </div>
+
+                {/* Total Facturación con IVA */}
+                <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center items-center text-center">
+                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Total Facturación Con IVA</span>
+                    <span className="text-xl font-black text-blue-600">{formatMoney(calculos.totalConIva)}</span>
                     <span className="text-[9px] text-gray-400 mt-1">{calculos.cantidadFacturas} facturas emitidas</span>
                 </div>
 
-                {/* Facturación Neta */}
-                <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center items-center text-center">
-                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Facturación (Neto)</span>
-                    <span className="text-xl font-black text-blue-600">{formatMoney(calculos.totalNeto)}</span>
-                    <span className="text-[9px] text-gray-400 mt-1">Sin IVA</span>
-                </div>
-
-                {/* Débito Fiscal (IVA) */}
+                {/* Débito Fiscal (IVA acumulado) */}
                 <div className="bg-white p-4 rounded-xl shadow-sm border border-pink-100 flex flex-col justify-center items-center text-center relative overflow-hidden">
                     <div className="absolute top-0 left-0 w-full h-1 bg-pink-500"></div>
                     <span className="text-[10px] font-bold text-pink-600 uppercase tracking-wider mb-1 flex items-center gap-1">
-                        Débito Fiscal
+                        Débito Fiscal (IVA)
                         {!isEditingDebito && (
                             <button onClick={() => { setTempDebito(debitoFinal); setIsEditingDebito(true); }} className="text-gray-400 hover:text-pink-600 transition-colors">
                                 <IconPencil className="w-3 h-3" />
