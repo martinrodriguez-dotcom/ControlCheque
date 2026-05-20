@@ -6,7 +6,7 @@ import { formatMoney } from '../utils/helpers';
 import { IconPencil, IconCheck, IconX, IconFileText } from '../components/Icons';
 
 export default function Facturacion({ collectItems, theme }) {
-    // Obtenemos el mes actual para el selector (El input type="month" usa YYYY-MM por defecto)
+    // Obtenemos el mes actual respetando la zona horaria (Formato YYYY-MM)
     const getLocalMonth = () => {
         const now = new Date();
         return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
@@ -39,56 +39,41 @@ export default function Facturacion({ collectItems, theme }) {
     // Cálculos Exactos de Facturación
     const calculos = useMemo(() => {
         const facturasDelMes = collectItems.filter(item => {
-            // Asegurarnos de que sea una factura (invoice).
+            // Asegurarnos de que sea una factura.
             const isInvoice = item.subtype === 'invoice' || !item.subtype;
             
-            // Tomamos la fecha de emisión, o vencimiento si no hay emisión
+            // Usar fecha de emisión, o si está vacía, usar vencimiento
             const rawDate = item.issueDate || item.dueDate || item.date || '';
             if (!rawDate) return false;
 
-            // TRADUCTOR INTELIGENTE DE FECHAS
-            // Convierte barras en guiones por si acasi (20/05/2026 -> 20-05-2026)
-            const cleanDate = rawDate.replace(/\//g, '-');
-            const parts = cleanDate.split('-');
-            
-            let itemYear = "";
-            let itemMonth = "";
+            let itemYearMonth = '';
 
-            if (parts.length >= 3) {
-                // Si el año está primero (YYYY-MM-DD)
-                if (parts[0].length === 4) {
-                    itemYear = parts[0];
-                    itemMonth = parts[1];
-                } 
-                // Si el año está último (DD-MM-YYYY) <- TU FORMATO
-                else if (parts[2].length === 4) {
-                    itemYear = parts[2];
-                    itemMonth = parts[1];
-                }
-            } else if (parts.length === 2) {
-                 // Si solo cargaron MM-YYYY o YYYY-MM
-                 if (parts[0].length === 4) {
-                    itemYear = parts[0];
-                    itemMonth = parts[1];
-                } else {
-                    itemMonth = parts[0];
-                    itemYear = parts[1];
-                }
+            // ANÁLISIS DE POSICIONES (La lógica que pediste para DD/MM/AAAA o DD-MM-AAAA)
+            if (rawDate[2] === '/' || rawDate[2] === '-') {
+                // Agarra los 2 dígitos del mes (posiciones 3 y 4)
+                const mes = rawDate.slice(3, 5); 
+                // Agarra los 4 dígitos del año (posiciones 6 a la 9)
+                const anio = rawDate.slice(6, 10); 
+                itemYearMonth = `${anio}-${mes}`;
+            } 
+            // Respaldo por si el navegador lo fuerza a formato interno (YYYY-MM-DD)
+            else if (rawDate[4] === '-' || rawDate[4] === '/') {
+                const anio = rawDate.slice(0, 4);
+                const mes = rawDate.slice(5, 7);
+                itemYearMonth = `${anio}-${mes}`;
             }
 
-            // Armamos el formato estándar YYYY-MM para compararlo con el selector
-            const itemYearMonth = `${itemYear}-${String(itemMonth).padStart(2, '0')}`;
-
+            // Compara que la factura coincida con el mes/año del selector superior
             return isInvoice && itemYearMonth === selectedMonth;
         });
 
-        // 1. Total de facturación con IVA (Suma de los valores cargados)
+        // 1. Total de facturación con IVA (Valor cargado)
         const totalConIva = facturasDelMes.reduce((acc, curr) => acc + (parseFloat(curr.amount) || 0), 0);
         
-        // 2. Facturación sin IVA (Bruto real de la venta)
+        // 2. Facturación sin IVA (Bruto real)
         const facturacionSinIva = totalConIva / 1.21;
         
-        // 3. Débito Fiscal (IVA acumulado)
+        // 3. Débito Fiscal (IVA acumulado = Total - Facturación sin IVA)
         const debitoCalculado = totalConIva - facturacionSinIva;
 
         return {
