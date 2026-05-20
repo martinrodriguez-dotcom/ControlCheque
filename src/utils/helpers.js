@@ -52,6 +52,7 @@ export const getTheme = (mode) => {
     if(mode === 'expenses') return { main: 'orange', bg: 'bg-orange-800', light: 'bg-orange-50', text: 'text-orange-600', border: 'border-orange-500', btn: 'bg-orange-600' };
     if(mode === 'cashbox') return { main: 'cyan', bg: 'bg-cyan-800', light: 'bg-cyan-50', text: 'text-cyan-600', border: 'border-cyan-500', btn: 'bg-cyan-600' };
     if(mode === 'pallets') return { main: 'teal', bg: 'bg-teal-800', light: 'bg-teal-50', text: 'text-teal-600', border: 'border-teal-500', btn: 'bg-teal-600' };
+    if(mode === 'billing') return { main: 'pink', bg: 'bg-pink-800', light: 'bg-pink-50', text: 'text-pink-600', border: 'border-pink-500', btn: 'bg-pink-600' };
     return { main: 'violet', bg: 'bg-violet-900', light: 'bg-violet-50', text: 'text-violet-600', border: 'border-violet-500', btn: 'bg-violet-600' }; 
 };
 
