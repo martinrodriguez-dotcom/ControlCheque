@@ -12,43 +12,22 @@
     <meta name="apple-mobile-web-app-title" content="SII PALLETS">
     <link rel="apple-touch-icon" href="/logo.png">
     <link rel="icon" type="image/png" href="/logo.png">
-
-    <script src="https://cdn.tailwindcss.com"></script>
-
-    <style>
-        @keyframes fadeIn { 
-            from { opacity: 0; transform: translateY(-5px); } 
-            to { opacity: 1; transform: translateY(0); } 
-        }
-        .animate-fade-in { animation: fadeIn 0.3s ease-out forwards; }
-        .accordion-content { transition: max-height 0.3s ease-in-out, opacity 0.3s ease-in-out; overflow: hidden; }
-        input, select, textarea { font-size: 16px !important; }
-        .scrollbar-hide::-webkit-scrollbar { display: none; }
-        .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
-        
-        /* Modal Overlay */
-        .modal-overlay { background-color: rgba(0, 0, 0, 0.5); backdrop-filter: blur(2px); }
-        
-        /* Estilos Tabla Caja */
-        .grid-caja { display: grid; grid-template-columns: 2fr 3fr 2fr 2fr 2fr; gap: 4px; align-items: center; }
-        .header-caja { background: #e5e7eb; padding: 8px 4px; font-weight: bold; font-size: 10px; color: #4b5563; border-radius: 4px; margin-bottom: 4px; text-align: center; }
-        .row-caja { border-bottom: 1px solid #f3f4f6; padding: 8px 4px; font-size: 11px; text-align: right; }
-        .row-caja div:first-child, .row-caja div:nth-child(2) { text-align: left; }
-
-        /* Calendario Styles */
-        .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
-        .calendar-day { min-height: 90px; font-size: 10px; position: relative; } 
-    </style>
 </head>
 <body class="bg-gray-100 text-gray-800 font-sans">
+
     <div id="root"></div>
+    
     <script type="module" src="/src/main.jsx"></script>
     
     <script>
-        // Evitar el error de ServiceWorker en iframes (URL protocol not supported)
-        if('serviceWorker' in navigator && window.location.protocol.indexOf('http') === 0) {
-            window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(e => console.log("SW Info:", e)));
+        // Evita el error de ServiceWorker en entornos de vista previa o iframes
+        if ('serviceWorker' in navigator && window.location.protocol.indexOf('http') === 0) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .catch(error => console.log("SW Info:", error));
+            });
         }
     </script>
+
 </body>
 </html>
