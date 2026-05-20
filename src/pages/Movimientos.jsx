@@ -1,25 +1,26 @@
 import React from 'react';
 import { 
     IconWallet, IconPrinter, IconDownload, IconPlus, IconCheck, IconEye, 
-    IconMessage, IconPencil, IconTrash, IconChevronDown, IconUserGroup, IconChevronLeft, IconBank 
+    IconMessage, IconPencil, IconTrash, IconChevronDown, IconUserGroup, IconChevronLeft, IconBank, IconFileText 
 } from '../components/Icons';
 import { formatMoney, formatDate, getCategoryLabel, getCategoryColor } from '../utils/helpers';
 
 export default function Movimientos({
     mode, theme, payTab, setPayTab, totalRealizados, balanceData, dashboardData, activeFilter, setActiveFilter,
     triggerMainReport, showAddForm, setShowAddForm, setEditingId, editingId, newItem, setNewItem, handleAdd, banks,
-    uniqueClients, getDays, markFullPayment, markPartialPayment, setHistoryModal, deleteItem,
+    uniqueClients, getDays, markFullPayment, markPartialPayment, setHistoryModal, deleteItem, handleEdit,
     groupedView, expandedGroups, setExpandedGroups, triggerClientReport, selectedDateFilter, setSelectedDateFilter,
     newBank, setNewBank, addBank, deleteBank
 }) {
 
     const getTypeIcon = (subtype) => {
         switch(subtype) { 
-            case 'transfer': return <IconBank className="w-4 h-4"/>; 
-            case 'cash': return <IconWallet className="w-4 h-4"/>; 
+            case 'transfer': return <IconBank className="w-4 h-4 text-blue-500"/>; 
+            case 'cash': return <IconWallet className="w-4 h-4 text-emerald-500"/>; 
+            case 'invoice': return <IconFileText className="w-4 h-4 text-indigo-500"/>;
             case 'fixed': 
-            case 'salary': return <IconWallet className="w-4 h-4"/>; 
-            default: return <span className="font-mono text-[10px] border px-1 rounded bg-white">CHQ</span>; 
+            case 'salary': return <IconWallet className="w-4 h-4 text-orange-500"/>; 
+            default: return <span className="font-mono text-[10px] border px-1 rounded bg-white text-gray-500">CHQ</span>; 
         }
     };
 
@@ -128,12 +129,12 @@ export default function Movimientos({
                         setEditingId(null); 
                         setNewItem({ 
                             number: '', 
-                            issueDate: '', 
+                            issueDate: new Date().toISOString().split('T')[0], 
                             dueDate: '', 
                             amount: '', 
                             payee: '', 
                             paidAmount: 0, 
-                            subtype: 'cheque', 
+                            subtype: mode === 'collect' ? 'invoice' : 'cheque', 
                             category: 'others', 
                             status: 'pending', 
                             isRecurring: false, 
@@ -153,7 +154,7 @@ export default function Movimientos({
                     <div className={`absolute top-0 left-0 w-1 h-full ${theme.bg}`}></div>
                     <h3 className="font-bold mb-4 text-gray-700">{editingId ? 'Editar Movimiento' : 'Nuevo Registro'}</h3>
                     <div className="space-y-3">
-                        {mode === 'pay' && (
+                        {(mode === 'pay' || mode === 'collect') && (
                             <div className="grid grid-cols-2 gap-3">
                                 <div>
                                     <label className="text-xs text-gray-500 block mb-1">Tipo</label>
@@ -162,29 +163,32 @@ export default function Movimientos({
                                         value={newItem.subtype} 
                                         onChange={e => setNewItem({...newItem, subtype: e.target.value})}
                                     >
+                                        {mode === 'collect' && <option value="invoice">📄 Factura</option>}
                                         <option value="cheque">🎫 Cheque</option>
                                         <option value="transfer">🏦 Transf</option>
                                         <option value="cash">💵 Efvo</option>
-                                        <option value="fixed">🏢 Gasto Fijo</option>
-                                        <option value="salary">👥 Sueldo</option>
+                                        {mode === 'pay' && <option value="fixed">🏢 Gasto Fijo</option>}
+                                        {mode === 'pay' && <option value="salary">👥 Sueldo</option>}
                                     </select>
                                 </div>
-                                <div>
-                                    <label className="text-xs text-gray-500 block mb-1">Categoría</label>
-                                    <select 
-                                        className="w-full p-3 bg-gray-50 rounded-lg border text-sm outline-none text-gray-700" 
-                                        value={newItem.category} 
-                                        onChange={e => setNewItem({...newItem, category: e.target.value})}
-                                    >
-                                        <option value="others">Otros</option>
-                                        <option value="raw">Mat Prima</option>
-                                        <option value="logistics">Logística</option>
-                                        <option value="salaries">RRHH</option>
-                                        <option value="taxes">Impuestos</option>
-                                        <option value="services">Servicios</option>
-                                        <option value="maintenance">Mantenimiento</option>
-                                    </select>
-                                </div>
+                                {mode === 'pay' && (
+                                    <div>
+                                        <label className="text-xs text-gray-500 block mb-1">Categoría</label>
+                                        <select 
+                                            className="w-full p-3 bg-gray-50 rounded-lg border text-sm outline-none text-gray-700" 
+                                            value={newItem.category} 
+                                            onChange={e => setNewItem({...newItem, category: e.target.value})}
+                                        >
+                                            <option value="others">Otros</option>
+                                            <option value="raw">Mat Prima</option>
+                                            <option value="logistics">Logística</option>
+                                            <option value="salaries">RRHH</option>
+                                            <option value="taxes">Impuestos</option>
+                                            <option value="services">Servicios</option>
+                                            <option value="maintenance">Mantenimiento</option>
+                                        </select>
+                                    </div>
+                                )}
                             </div>
                         )}
 
@@ -275,6 +279,7 @@ export default function Movimientos({
                                         className="w-full p-3 bg-gray-50 rounded-lg border outline-none" 
                                         value={newItem.issueDate} 
                                         onChange={e=>setNewItem({...newItem, issueDate:e.target.value})} 
+                                        required={mode === 'collect'}
                                     />
                                 </div>
                             )}
