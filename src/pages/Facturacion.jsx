@@ -5,18 +5,18 @@ import { formatMoney } from '../utils/helpers';
 import { IconPencil, IconCheck, IconX, IconFileText } from '../components/Icons';
 
 export default function Facturacion({ collectItems, theme }) {
-    // Mes actual por defecto (YYYY-MM)
-    const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().substring(0, 7));
+    // Obtenemos el mes actual respetando la zona horaria local (No UTC)
+    const getLocalMonth = () => {
+        const now = new Date();
+        return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    };
     
-    // Estados para los valores editables que vienen de la base de datos
+    const [selectedMonth, setSelectedMonth] = useState(getLocalMonth());
     const [dbData, setDbData] = useState({ creditoFiscal: 0, manualDebito: null });
-    
-    // Estados para los inputs del usuario
     const [isEditingDebito, setIsEditingDebito] = useState(false);
     const [tempDebito, setTempDebito] = useState('');
     const [tempCredito, setTempCredito] = useState('');
 
-    // Efecto para cargar los datos de IVA del mes seleccionado desde Firebase
     useEffect(() => {
         const docRef = doc(db, 'config_sii', `iva_${selectedMonth}`);
         const unsubscribe = onSnapshot(docRef, (docSnap) => {
@@ -35,20 +35,18 @@ export default function Facturacion({ collectItems, theme }) {
         return () => unsubscribe();
     }, [selectedMonth]);
 
-    // Cálculos de Facturación
     const calculos = useMemo(() => {
-        // 1. Filtrar solo los cobros que sean "factura" (invoice) y del mes seleccionado
-        const facturasDelMes = collectItems.filter(item => 
-            item.subtype === 'invoice' && 
-            item.issueDate && 
-            item.issueDate.startsWith(selectedMonth)
-        );
+        const facturasDelMes = collectItems.filter(item => {
+            // Asegurarnos de que sea una factura.
+            const isInvoice = item.subtype === 'invoice' || !item.subtype;
+            
+            // Usar fecha de emisión, o si está vacía, usar la de vencimiento por seguridad
+            const dateToUse = item.issueDate || item.dueDate || item.date || '';
+            
+            return isInvoice && dateToUse.startsWith(selectedMonth);
+        });
 
-        // 2. Sumar el total bruto (Valor final de la factura)
         const totalBruto = facturasDelMes.reduce((acc, curr) => acc + (parseFloat(curr.amount) || 0), 0);
-        
-        // 3. Calcular Neto y Débito Fiscal (IVA 21%)
-        // Fórmula: Neto = Bruto / 1.21 | IVA = Bruto - Neto
         const totalNeto = totalBruto / 1.21;
         const debitoCalculado = totalBruto - totalNeto;
 
@@ -60,14 +58,10 @@ export default function Facturacion({ collectItems, theme }) {
         };
     }, [collectItems, selectedMonth]);
 
-    // El Débito final a usar (Si el usuario lo editó manualmente, usa ese. Si no, usa el calculado)
     const debitoFinal = dbData.manualDebito !== null ? parseFloat(dbData.manualDebito) : calculos.debitoCalculado;
     const creditoFinal = parseFloat(dbData.creditoFiscal) || 0;
-    
-    // Diferencia IVA
     const balanceIva = creditoFinal - debitoFinal;
 
-    // Funciones para guardar en Firebase
     const guardarCredito = async () => {
         const val = parseFloat(tempCredito) || 0;
         await setDoc(doc(db, 'config_sii', `iva_${selectedMonth}`), { creditoFiscal: val }, { merge: true });
@@ -88,7 +82,6 @@ export default function Facturacion({ collectItems, theme }) {
 
     return (
         <div className="animate-fade-in">
-            {/* Cabecera y Selector de Mes */}
             <div className={`bg-white p-5 rounded-2xl shadow-md border-l-8 mb-6 border-pink-500 flex justify-between items-center`}>
                 <div>
                     <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
@@ -107,21 +100,18 @@ export default function Facturacion({ collectItems, theme }) {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-                {/* Total Bruto */}
                 <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center items-center text-center">
                     <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Total Facturación (Bruto)</span>
                     <span className="text-xl font-black text-gray-800">{formatMoney(calculos.totalBruto)}</span>
                     <span className="text-[9px] text-gray-400 mt-1">{calculos.cantidadFacturas} facturas emitidas</span>
                 </div>
 
-                {/* Total Neto */}
                 <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center items-center text-center">
                     <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Facturación (Neto)</span>
                     <span className="text-xl font-black text-blue-600">{formatMoney(calculos.totalNeto)}</span>
                     <span className="text-[9px] text-gray-400 mt-1">Sin IVA</span>
                 </div>
 
-                {/* Débito Fiscal */}
                 <div className="bg-white p-4 rounded-xl shadow-sm border border-pink-100 flex flex-col justify-center items-center text-center relative overflow-hidden">
                     <div className="absolute top-0 left-0 w-full h-1 bg-pink-500"></div>
                     <span className="text-[10px] font-bold text-pink-600 uppercase tracking-wider mb-1 flex items-center gap-1">
@@ -157,7 +147,6 @@ export default function Facturacion({ collectItems, theme }) {
                 </div>
             </div>
 
-            {/* Crédito Fiscal y Balance */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-200">
                     <h3 className="text-sm font-bold text-gray-700 mb-3 uppercase tracking-wide border-b pb-2">Crédito Fiscal (Compras)</h3>
