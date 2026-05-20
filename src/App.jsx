@@ -453,6 +453,7 @@ export default function App() {
         }
     }, [payItems, collectItems, walletItems, expenseItems, activeFilter, mode, searchTerm, selectedDateFilter, payTab]);
 
+    // Lógicas de Reportes (Sincronizadas con helpers)
     const triggerMainReport = (action) => {
         if (!groupedView || !groupedView.data || groupedView.data.length === 0) {
             return alert("No hay datos para procesar.");
@@ -573,8 +574,112 @@ export default function App() {
         handleReportAction('Reporte Rango de Fechas', bodyHTML, action, `Reporte_Pendientes_${startDate}_al_${endDate}`);
     };
 
-    const addBankAction = async (e) => { await addBank(e); };
-    const deleteBankAction = async (id) => { await deleteBank(id); };
+    // Funciones Adicionales
+    const addBankAction = async (e) => {
+        e.preventDefault();
+        if(!newBank.trim()) return;
+        await addDoc(collection(db, 'bancos_sii', 'main_list', 'items'), { 
+            name: newBank.trim(), 
+            createdAt: new Date().toISOString() 
+        });
+        setNewBank("");
+    };
+    
+    const deleteBankAction = async (id) => {
+        if(confirm("¿Eliminar este banco?")) {
+            await deleteDoc(doc(db, 'bancos_sii', 'main_list', 'items', id));
+        }
+    };
+
+    const handleAddAction = async (e) => {
+        e.preventDefault();
+        let targetCollection = 'cheques_public_shared';
+        if(mode === 'collect') targetCollection = 'cobros_public_shared'; 
+        if(mode === 'wallet') targetCollection = 'cartera_public_shared'; 
+        if(mode === 'expenses') targetCollection = 'gastos_public_shared';
+        
+        const itemData = { 
+            number: newItem.number, amount: parseFloat(newItem.amount), payee: newItem.payee, paidAmount: newItem.paidAmount || 0, 
+            subtype: newItem.subtype || 'cheque', category: newItem.category || 'others', status: newItem.status || 'pending', bank: newItem.bank || '' 
+        };
+        
+        if (editingId) { 
+            await updateDoc(doc(db, targetCollection, 'main_list', 'items', editingId), { ...itemData, issueDate: newItem.issueDate, dueDate: newItem.dueDate, monthYear: newItem.monthYear || '' }); 
+        } else { 
+            if (mode === 'expenses' && newItem.isRecurring && newItem.installments > 1) {
+                let baseDate = new Date(newItem.dueDate + 'T00:00:00'); 
+                if (isNaN(baseDate.getTime())) baseDate = new Date(); 
+                let [baseYear, baseMonth] = newItem.monthYear ? newItem.monthYear.split('-').map(Number) : [baseDate.getFullYear(), baseDate.getMonth() + 1];
+                for (let i = 0; i < newItem.installments; i++) {
+                    let nextMonth = baseMonth + i; let nextYear = baseYear;
+                    while (nextMonth > 12) { nextMonth -= 12; nextYear++; }
+                    const currentMonthYear = `${nextYear}-${String(nextMonth).padStart(2, '0')}`;
+                    let nextDueDateStr = newItem.dueDate;
+                    if (newItem.dueDate) { const d = new Date(newItem.dueDate + 'T00:00:00'); d.setMonth(d.getMonth() + i); nextDueDateStr = d.toISOString().split('T')[0]; }
+                    const currentPayee = `${newItem.payee} (Cuota ${i + 1}/${newItem.installments})`;
+                    await addDoc(collection(db, targetCollection, 'main_list', 'items'), { ...itemData, payee: currentPayee, monthYear: currentMonthYear, dueDate: nextDueDateStr, issueDate: newItem.issueDate, createdAt: new Date().toISOString(), paymentHistory: [] });
+                }
+            } else { 
+                await addDoc(collection(db, targetCollection, 'main_list', 'items'), { ...itemData, issueDate: newItem.issueDate, dueDate: newItem.dueDate, monthYear: newItem.monthYear || '', createdAt: new Date().toISOString(), paymentHistory: [] }); 
+            }
+        }
+        setNewItem({ number: '', issueDate: '', dueDate: '', amount: '', payee: '', paidAmount: 0, subtype: 'cheque', category: 'others', status: 'pending', monthYear: '', cashType: 'income', bank: '', isRecurring: false, installments: 2 });
+        setEditingId(null); setShowAddForm(false);
+    };
+
+    const handleCashAddAction = async (e) => {
+        e.preventDefault();
+        let desc = newItem.payee; 
+        if(newItem.cashType === 'close') {
+            const sortedDesc = [...cashItems].sort((a, b) => new Date(b.date) - new Date(a.date));
+            const lastOpen = sortedDesc.find(i => i.cashType === 'open');
+            const start = lastOpen ? new Date(lastOpen.date).toLocaleDateString('es-AR') : 'Inicio';
+            const end = new Date(newItem.issueDate).toLocaleDateString('es-AR');
+            desc = `Cierre caja: ${start} al ${end}`;
+        }
+        await addDoc(collection(db, 'caja_public_shared', 'main_list', 'items'), { date: newItem.issueDate || new Date().toISOString().split('T')[0], description: desc, amount: parseFloat(newItem.amount) || 0, cashType: newItem.cashType, createdAt: new Date().toISOString() });
+        setNewItem({ ...newItem, amount: '', payee: '', issueDate: '', cashType: 'income', isRecurring: false, installments: 2 });
+        setShowAddForm(false);
+    };
+
+    const handleEditAction = (item) => {
+        setNewItem({ number: item.number || '', issueDate: item.issueDate || '', dueDate: item.dueDate || '', amount: item.amount, payee: item.payee, paidAmount: item.paidAmount || 0, subtype: item.subtype || 'cheque', category: item.category || 'others', status: item.status || 'pending', monthYear: item.monthYear || '', bank: item.bank || '', isRecurring: false, installments: 2 });
+        setEditingId(item.id); setShowAddForm(true);
+    };
+
+    const confirmPaymentAction = async () => {
+        if(!paymentModal.item) return; 
+        const item = paymentModal.item;
+        let collectionName = 'gastos_public_shared'; 
+        if(item.type === 'collect') collectionName = 'cobros_public_shared'; 
+        if(item.type === 'pay') collectionName = 'cheques_public_shared'; 
+        if(item.type === 'wallet') collectionName = 'cartera_public_shared';
+        
+        let currentPaid = item.paidAmount || 0; let paidNow = 0; let newStatus = 'pending';
+        if (paymentModal.type === 'total') { 
+            paidNow = item.amount - currentPaid; currentPaid = item.amount; newStatus = 'paid'; 
+        } else { 
+            paidNow = parseFloat(paymentModal.amount); 
+            if (!isNaN(paidNow)) { currentPaid += paidNow; if (currentPaid >= item.amount) { currentPaid = item.amount; newStatus = 'paid'; } else { newStatus = 'partial'; } } 
+        }
+        const historyRecord = { amount: paidNow, method: paymentModal.method, proof: paymentModal.proof, date: new Date().toISOString() };
+        const newHistory = [...(item.paymentHistory || []), historyRecord];
+        await updateDoc(doc(db, collectionName, 'main_list', 'items', item.id), { status: newStatus, paidAmount: currentPaid, paymentHistory: newHistory, paymentDetails: historyRecord });
+        setPaymentModal({ isOpen: false, item: null, method: 'transfer', proof: '', type: 'total', amount: '' });
+    };
+
+    const markFullPaymentAction = async (item) => { setPaymentModal({ isOpen: true, item: item, method: 'transfer', proof: '', type: 'total', amount: '' }); };
+    const markPartialPaymentAction = async (item) => { setPaymentModal({ isOpen: true, item: item, method: 'transfer', proof: '', type: 'partial', amount: '' }); };
+    
+    const deleteItemAction = async (item) => {
+        if(!confirm('¿Eliminar?')) return;
+        let collectionName = 'cheques_public_shared'; 
+        if(item.type === 'collect') collectionName = 'cobros_public_shared'; 
+        if(item.type === 'wallet') collectionName = 'cartera_public_shared'; 
+        if(item.type === 'expense') collectionName = 'gastos_public_shared'; 
+        if(item.type === 'cash') collectionName = 'caja_public_shared';
+        await deleteDoc(doc(db, collectionName, 'main_list', 'items', item.id));
+    };
 
     const changeMode = (newMode) => {
         setMode(newMode);
@@ -692,7 +797,7 @@ export default function App() {
                         setShowAddForm={setShowAddForm}
                         newItem={newItem}
                         setNewItem={setNewItem}
-                        handleCashAdd={handleCashAdd}
+                        handleCashAdd={handleCashAddAction}
                     />
                 )}
 
@@ -725,14 +830,14 @@ export default function App() {
                         editingId={editingId}
                         newItem={newItem}
                         setNewItem={setNewItem}
-                        handleAdd={handleAdd}
+                        handleAdd={handleAddAction}
                         banks={banks}
                         uniqueClients={uniqueClients}
                         getDays={getDays}
-                        markFullPayment={markFullPayment}
-                        markPartialPayment={markPartialPayment}
+                        markFullPayment={markFullPaymentAction}
+                        markPartialPayment={markPartialPaymentAction}
                         setHistoryModal={setHistoryModal}
-                        deleteItem={deleteItem}
+                        deleteItem={deleteItemAction}
                         groupedView={groupedView}
                         expandedGroups={expandedGroups}
                         setExpandedGroups={setExpandedGroups}
@@ -793,7 +898,7 @@ export default function App() {
                         </div>
                         <div className="mt-6 flex gap-2">
                             <button onClick={() => setPaymentModal({isOpen:false, item:null, method:'transfer', proof:'', type: 'total', amount: ''})} className="flex-1 py-2 border rounded-lg text-gray-500 hover:bg-gray-50 font-bold transition-colors">Cancelar</button>
-                            <button onClick={confirmPayment} className="flex-1 py-2 bg-green-600 text-white rounded-lg font-bold hover:bg-green-700 transition-colors">Confirmar</button>
+                            <button onClick={confirmPaymentAction} className="flex-1 py-2 bg-green-600 text-white rounded-lg font-bold hover:bg-green-700 transition-colors">Confirmar</button>
                         </div>
                     </div>
                 </div>
