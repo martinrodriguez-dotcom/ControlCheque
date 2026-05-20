@@ -37,16 +37,25 @@ export default function Facturacion({ collectItems, theme }) {
 
     const calculos = useMemo(() => {
         const facturasDelMes = collectItems.filter(item => {
-            // Asegurarnos de que sea una factura.
+            // Asegurarnos de que sea una factura (invoice).
+            // Agregamos !item.subtype por si hay registros viejos sin clasificar que queremos atrapar.
             const isInvoice = item.subtype === 'invoice' || !item.subtype;
             
             // Usar fecha de emisión, o si está vacía, usar la de vencimiento por seguridad
-            const dateToUse = item.issueDate || item.dueDate || item.date || '';
+            const rawDate = item.issueDate || item.dueDate || item.date || '';
+            if (!rawDate) return false;
+
+            // DIVISIÓN A PRUEBA DE BALAS: Extraemos el año y mes asegurando el formato YYYY-MM
+            const parts = rawDate.split('-');
+            if (parts.length < 2) return false;
             
-            return isInvoice && dateToUse.startsWith(selectedMonth);
+            const itemYearMonth = `${parts[0]}-${String(parts[1]).padStart(2, '0')}`;
+
+            return isInvoice && itemYearMonth === selectedMonth;
         });
 
         const totalBruto = facturasDelMes.reduce((acc, curr) => acc + (parseFloat(curr.amount) || 0), 0);
+        // Fórmula matemática: Neto = Bruto / 1.21 | IVA = Bruto - Neto
         const totalNeto = totalBruto / 1.21;
         const debitoCalculado = totalBruto - totalNeto;
 
@@ -58,8 +67,11 @@ export default function Facturacion({ collectItems, theme }) {
         };
     }, [collectItems, selectedMonth]);
 
+    // Si el usuario editó manualmente, usamos ese valor, si no usamos el automático
     const debitoFinal = dbData.manualDebito !== null ? parseFloat(dbData.manualDebito) : calculos.debitoCalculado;
     const creditoFinal = parseFloat(dbData.creditoFiscal) || 0;
+    
+    // Balance Neto de IVA
     const balanceIva = creditoFinal - debitoFinal;
 
     const guardarCredito = async () => {
@@ -94,24 +106,27 @@ export default function Facturacion({ collectItems, theme }) {
                         type="month" 
                         value={selectedMonth}
                         onChange={(e) => setSelectedMonth(e.target.value)}
-                        className="p-2 border border-gray-200 rounded-lg text-sm font-bold text-gray-700 outline-none focus:ring-2 focus:ring-pink-500 bg-gray-50"
+                        className="p-2 border border-gray-200 rounded-lg text-sm font-bold text-gray-700 outline-none focus:ring-2 focus:ring-pink-500 bg-gray-50 shadow-sm"
                     />
                 </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+                {/* Facturación Bruta */}
                 <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center items-center text-center">
                     <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Total Facturación (Bruto)</span>
                     <span className="text-xl font-black text-gray-800">{formatMoney(calculos.totalBruto)}</span>
                     <span className="text-[9px] text-gray-400 mt-1">{calculos.cantidadFacturas} facturas emitidas</span>
                 </div>
 
+                {/* Facturación Neta */}
                 <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center items-center text-center">
                     <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Facturación (Neto)</span>
                     <span className="text-xl font-black text-blue-600">{formatMoney(calculos.totalNeto)}</span>
                     <span className="text-[9px] text-gray-400 mt-1">Sin IVA</span>
                 </div>
 
+                {/* Débito Fiscal (IVA) */}
                 <div className="bg-white p-4 rounded-xl shadow-sm border border-pink-100 flex flex-col justify-center items-center text-center relative overflow-hidden">
                     <div className="absolute top-0 left-0 w-full h-1 bg-pink-500"></div>
                     <span className="text-[10px] font-bold text-pink-600 uppercase tracking-wider mb-1 flex items-center gap-1">
@@ -124,30 +139,32 @@ export default function Facturacion({ collectItems, theme }) {
                     </span>
 
                     {isEditingDebito ? (
-                        <div className="flex flex-col items-center gap-2 mt-1 w-full">
+                        <div className="flex flex-col items-center gap-2 mt-1 w-full animate-fade-in">
                             <input 
                                 type="number" 
                                 step="0.01" 
-                                className="w-full text-center p-1 border rounded text-sm font-bold outline-none focus:border-pink-500"
+                                className="w-full text-center p-1 border border-pink-300 rounded text-sm font-bold outline-none focus:ring-2 focus:ring-pink-500"
                                 value={tempDebito}
                                 onChange={(e) => setTempDebito(e.target.value)}
                             />
-                            <div className="flex gap-2 w-full">
-                                <button onClick={guardarDebitoManual} className="flex-1 bg-green-100 text-green-700 py-1 rounded flex justify-center hover:bg-green-200"><IconCheck className="w-4 h-4"/></button>
-                                <button onClick={resetearDebito} className="flex-1 bg-gray-100 text-gray-600 py-1 rounded text-[9px] font-bold hover:bg-gray-200">Auto</button>
-                                <button onClick={() => setIsEditingDebito(false)} className="flex-1 bg-red-100 text-red-700 py-1 rounded flex justify-center hover:bg-red-200"><IconX className="w-4 h-4"/></button>
+                            <div className="flex gap-1 w-full">
+                                <button onClick={guardarDebitoManual} className="flex-1 bg-green-100 text-green-700 py-1 rounded flex justify-center hover:bg-green-200" title="Guardar Manual"><IconCheck className="w-4 h-4"/></button>
+                                <button onClick={resetearDebito} className="flex-1 bg-gray-100 text-gray-600 py-1 rounded text-[9px] font-bold hover:bg-gray-200" title="Restaurar Automático">Auto</button>
+                                <button onClick={() => setIsEditingDebito(false)} className="flex-1 bg-red-100 text-red-700 py-1 rounded flex justify-center hover:bg-red-200" title="Cancelar"><IconX className="w-4 h-4"/></button>
                             </div>
                         </div>
                     ) : (
-                        <>
+                        <div className="animate-fade-in flex flex-col items-center">
                             <span className="text-xl font-black text-pink-600">{formatMoney(debitoFinal)}</span>
                             {dbData.manualDebito !== null && <span className="text-[9px] bg-pink-100 text-pink-700 px-2 py-0.5 rounded-full mt-1 font-bold">Editado Manualmente</span>}
-                        </>
+                        </div>
                     )}
                 </div>
             </div>
 
+            {/* Crédito Fiscal y Balance Final */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Crédito Manual */}
                 <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-200">
                     <h3 className="text-sm font-bold text-gray-700 mb-3 uppercase tracking-wide border-b pb-2">Crédito Fiscal (Compras)</h3>
                     <div className="flex gap-2 items-end">
@@ -168,19 +185,20 @@ export default function Facturacion({ collectItems, theme }) {
                     </div>
                 </div>
 
+                {/* Posición Final de IVA */}
                 <div className={`p-5 rounded-xl shadow-md border flex flex-col justify-center items-center text-center transition-colors duration-300 ${balanceIva < 0 ? 'bg-red-50 border-red-200' : 'bg-emerald-50 border-emerald-200'}`}>
                     <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2">Posición Mensual de IVA</span>
                     
                     {balanceIva < 0 ? (
-                        <>
+                        <div className="animate-fade-in flex flex-col items-center">
                             <span className="text-2xl font-black text-red-600">{formatMoney(Math.abs(balanceIva))}</span>
                             <span className="mt-2 bg-red-600 text-white text-[10px] px-3 py-1 rounded-full font-bold uppercase tracking-widest shadow-sm animate-pulse">IVA A PAGAR</span>
-                        </>
+                        </div>
                     ) : (
-                        <>
+                        <div className="animate-fade-in flex flex-col items-center">
                             <span className="text-2xl font-black text-emerald-600">{formatMoney(balanceIva)}</span>
                             <span className="mt-2 bg-emerald-600 text-white text-[10px] px-3 py-1 rounded-full font-bold uppercase tracking-widest shadow-sm">IVA A FAVOR</span>
-                        </>
+                        </div>
                     )}
                 </div>
             </div>
