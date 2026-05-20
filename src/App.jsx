@@ -1,4 +1,3 @@
-// Archivo: src/App.jsx
 import React, { useState, useEffect, useMemo } from 'react';
 import { onAuthStateChanged, signInAnonymously } from "firebase/auth";
 import { collection, onSnapshot, doc, updateDoc, deleteDoc, addDoc, setDoc } from "firebase/firestore";
@@ -7,7 +6,7 @@ import { getDays, formatMoney, formatDate, getTheme, handleReportAction, getCate
 import { 
     IconDownload, IconPrinter, IconBell, IconBellRing, IconSearch, 
     IconBox, IconTag, IconWallet, IconTrendingUp, IconBriefcase, 
-    IconFolder, IconLayers, IconCheck, IconEye, IconPencil, IconTrash, IconMessage, IconBank, IconChevronLeft, IconChevronRight, IconX, IconFileText
+    IconFolder, IconLayers, IconCheck, IconEye, IconPencil, IconTrash, IconMessage, IconBank, IconChevronLeft, IconChevronRight, IconX, IconFileText, IconCalendar
 } from './components/Icons';
 
 import Pallets from './pages/Pallets';
@@ -450,6 +449,377 @@ export default function App() {
         }
     }, [payItems, collectItems, walletItems, expenseItems, activeFilter, mode, searchTerm, selectedDateFilter, payTab]);
 
+    // =====================================
+    // FUNCIONES DE REPORTES 
+    // =====================================
+    const triggerMainReport = (action) => {
+        if (!groupedView || !groupedView.data || groupedView.data.length === 0) {
+            return alert("No hay datos para procesar.");
+        }
+        
+        let titleMode = mode === 'pay' 
+            ? (payTab === 'realizados' ? 'Pagos Realizados' : 'Pagos Pendientes') 
+            : (mode === 'collect' ? 'Cobros' : (mode === 'wallet' ? 'Cartera Cheques' : (mode === 'expenses' ? 'Gastos Mensuales' : 'Balance')));
+        
+        let bodyHTML = `<h1>Reporte de ${titleMode}</h1><p class="meta">Generado: ${new Date().toLocaleDateString('es-AR')} • SII PALLETS APP</p>`;
+
+        if (mode === 'balance') {
+            bodyHTML += `<div class="total-box">Neto Proyectado: ${formatMoney(balanceData.net)}</div><table><thead><tr><th>Fecha</th><th style="text-align:right">Entradas</th><th style="text-align:right">Salidas</th><th style="text-align:right">Neto</th></tr></thead><tbody>`;
+            
+            balanceData.dailyAgenda.forEach(day => { 
+                bodyHTML += `
+                    <tr>
+                        <td>${new Date(day.date + 'T00:00:00').toLocaleDateString('es-AR')}</td>
+                        <td class="amount green">${day.inflow > 0 ? formatMoney(day.inflow) : '-'}</td>
+                        <td class="amount" style="color:blue">${day.outflow > 0 ? formatMoney(day.outflow) : '-'}</td>
+                        <td class="amount">${formatMoney(day.net)}</td>
+                    </tr>
+                `; 
+            });
+            bodyHTML += `</tbody></table>`;
+        } else {
+            let modeTotal = 0;
+            if (mode === 'pay') {
+                modeTotal = payTab === 'realizados' ? payItems.filter(i=>i.status==='paid').reduce((acc,i)=>acc+(i.paidAmount || i.amount),0) : balanceData.pay; 
+            } else if (mode === 'wallet') {
+                modeTotal = balanceData.wallet; 
+            } else if (mode === 'expenses') {
+                modeTotal = balanceData.expenses; 
+            } else {
+                modeTotal = balanceData.collect;
+            }
+            
+            bodyHTML += `<div class="total-box">Total ${(mode === 'pay' && payTab === 'realizados') ? 'Cancelado' : 'Pendiente'}: ${formatMoney(modeTotal)}</div>`;
+            
+            bodyHTML += `
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width:30%">Referencia</th>
+                            <th style="width:15%">Vencimiento</th>
+                            <th style="text-align:right;width:15%">Total Original</th>
+                            <th style="text-align:right;width:20%">${(mode === 'pay' && payTab === 'realizados') ? 'Abonado' : 'Pendiente'}</th>
+                            <th style="text-align:right;width:20%">Acumulado</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+            
+            let runningAccumulator = 0;
+            
+            let groupsToProcess = groupedView.type === 'flat' 
+                ? [{ key: 'General', label: 'Listado General', total: modeTotal, items: groupedView.data }] 
+                : groupedView.data;
+
+            groupsToProcess.forEach(group => {
+                const isRealizados = (mode === 'pay' && payTab === 'realizados');
+                const sortedItems = [...group.items]
+                    .filter(item => isRealizados ? item.status === 'paid' : item.status !== 'paid')
+                    .sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
+                
+                if (sortedItems.length === 0) return;
+                
+                let groupTitle = '';
+                if (groupedView.type === 'client-grouped') { 
+                    groupTitle = group.label; 
+                    runningAccumulator = 0; 
+                } else if (groupedView.type === 'month-grouped') { 
+                    groupTitle = group.label; 
+                } else if (groupedView.type === 'flat') { 
+                    groupTitle = 'Listado General'; 
+                } else {
+                    groupTitle = new Date(group.key + 'T00:00:00').toLocaleDateString('es-AR');
+                }
+                
+                bodyHTML += `<tr class="group-row"><td colspan="2">${groupTitle}</td><td class="amount" colspan="3">Grupo: ${formatMoney(group.total)}</td></tr>`;
+                
+                sortedItems.forEach(item => {
+                    const details = item.number ? `Ref: ${item.number}` : '';
+                    const displayValue = isRealizados ? (item.paidAmount || item.amount) : (item.amount - (item.paidAmount||0));
+                    runningAccumulator += displayValue;
+                    
+                    bodyHTML += `
+                        <tr>
+                            <td>${item.payee} <br/><span style="color:#666;font-size:9px">${details}</span></td>
+                            <td class="date">${new Date(item.dueDate+'T00:00:00').toLocaleDateString('es-AR')}</td>
+                            <td class="amount">${formatMoney(item.amount)}</td>
+                            <td class="amount ${isRealizados ? 'green' : 'red'}">${formatMoney(displayValue)}</td>
+                            <td class="amount" style="color:#555;font-weight:bold">${formatMoney(runningAccumulator)}</td>
+                        </tr>
+                    `;
+                });
+            });
+            bodyHTML += `</tbody></table>`;
+        }
+        
+        handleReportAction(`Reporte ${titleMode}`, bodyHTML, action, `Reporte_${titleMode.replace(/\s+/g, '_')}`);
+    };
+
+    const triggerClientReport = (group, action) => {
+        const pendingItems = group.items.filter(i => i.status !== 'paid').sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
+        if (pendingItems.length === 0) return alert("Este cliente no tiene facturas pendientes.");
+        
+        const totalPending = pendingItems.reduce((acc, item) => acc + (item.amount - (item.paidAmount || 0)), 0);
+        
+        let bodyHTML = `
+            <h1>Estado de Cuenta</h1>
+            <p class="meta">Generado: ${new Date().toLocaleDateString('es-AR')} • SII PALLETS APP</p>
+            <div class="client-info">
+                <div class="client-name">${group.label}</div>
+                <div>Total Pendiente: <strong>${formatMoney(totalPending)}</strong></div>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Factura / Ref</th>
+                        <th>Vencimiento</th>
+                        <th style="text-align:center">Estado / Días</th>
+                        <th style="text-align:right">Importe Original</th>
+                        <th style="text-align:right">A Cuenta / Parcial</th>
+                        <th style="text-align:right">Saldo Pendiente</th>
+                    </tr>
+                </thead>
+                <tbody>
+        `;
+        
+        pendingItems.forEach(item => {
+            const original = item.amount; 
+            const paid = item.paidAmount || 0; 
+            const remaining = original - paid; 
+            const details = item.number ? `${item.number}` : 'S/N';
+            const d = getDays(item.dueDate); 
+            const daysText = d < 0 ? `Vencida (${Math.abs(d)} días)` : `Faltan ${d} días`; 
+            const daysClass = d < 0 ? 'red' : 'green';
+            
+            bodyHTML += `
+                <tr>
+                    <td>${details}</td>
+                    <td class="date">${new Date(item.dueDate + 'T00:00:00').toLocaleDateString('es-AR')}</td>
+                    <td style="text-align:center; font-size:11px;" class="${daysClass}">${daysText}</td>
+                    <td class="amount">${formatMoney(original)}</td>
+                    <td class="amount" style="color:#666">${paid > 0 ? formatMoney(paid) : '-'}</td>
+                    <td class="amount red">${formatMoney(remaining)}</td>
+                </tr>
+            `;
+        });
+        
+        bodyHTML += `
+                    <tr class="total-row">
+                        <td colspan="5" style="text-align:right;">TOTAL A PAGAR:</td>
+                        <td class="amount red">${formatMoney(totalPending)}</td>
+                    </tr>
+                </tbody>
+            </table>
+            <div style="margin-top: 40px; font-size: 10px; color: #888; text-align: center;">Documento generado automáticamente por SII PALLETS APP</div>
+        `;
+        
+        handleReportAction(`Estado de Cuenta - ${group.label}`, bodyHTML, action, `Estado_Cuenta_${group.label.replace(/\s+/g, '_')}`);
+    };
+
+    const triggerCalendarReport = (action) => {
+        const days = generateCalendarDays();
+        const monthName = currentCalDate.toLocaleDateString('es-AR', { month: 'long', year: 'numeric' });
+        
+        const year = currentCalDate.getFullYear(); 
+        const month = currentCalDate.getMonth();
+        const firstDateStr = `${year}-${String(month + 1).padStart(2, '0')}-01`;
+        const lastDateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(new Date(year, month + 1, 0).getDate()).padStart(2, '0')}`;
+        
+        const bTotals = {};
+        payItems.forEach(item => {
+            if(item.dueDate >= firstDateStr && item.dueDate <= lastDateStr && item.status !== 'paid') {
+                const bankName = item.bank || 'Sin Banco Especificado';
+                if (!bTotals[bankName]) bTotals[bankName] = 0;
+                bTotals[bankName] += (item.amount - (item.paidAmount || 0));
+            }
+        });
+
+        let bodyHTML = `<h1>Proyección Mensual (Pendientes): ${monthName}</h1>`;
+        
+        if (Object.keys(bTotals).length > 0) {
+            bodyHTML += `
+                <div style="margin-bottom:20px; padding:10px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:4px;">
+                    <h3 style="margin-top:0; font-size:12px; color:#334155; border-bottom:1px solid #cbd5e1; padding-bottom:4px;">Totales de Pagos Pendientes por Banco (Este mes)</h3>
+                    <ul style="margin:0; padding-left:20px; font-size:11px; font-family:monospace;">
+            `;
+            Object.entries(bTotals).sort((a,b)=>b[1]-a[1]).forEach(([bank, total]) => {
+                bodyHTML += `<li><strong>${bank}:</strong> ${formatMoney(total)}</li>`;
+            });
+            bodyHTML += `</ul></div>`;
+        }
+
+        bodyHTML += `
+            <table>
+                <thead>
+                    <tr>
+                        <th class="date-col">Fecha</th>
+                        <th>Ingresos (Pendientes)</th>
+                        <th>Egresos (Pendientes)</th>
+                        <th>Acumulado</th>
+                    </tr>
+                </thead>
+                <tbody>
+        `;
+        
+        days.forEach(day => {
+            if(!day) return;
+            
+            let inflowHTML = ""; 
+            if(day.inflowItems.length > 0) { 
+                const pendingInflows = day.inflowItems.filter(i => i.status !== 'paid');
+                if (pendingInflows.length > 0) {
+                    pendingInflows.forEach(i => { 
+                        const ref = i.number ? `Ref: ${i.number}` : ''; 
+                        const remaining = i.amount - (i.paidAmount || 0);
+                        inflowHTML += `<div style="margin-bottom:6px;"><div style="font-weight:bold; color:#16a34a;">${formatMoney(remaining)}</div><div style="font-size:9px; color:#555;">(${i.payee} ${ref ? '- '+ref : ''})</div></div>`; 
+                    }); 
+                } else {
+                    inflowHTML = "-";
+                }
+            } else { 
+                inflowHTML = "-"; 
+            }
+            
+            let outflowHTML = ""; 
+            if(day.outflowItems.length > 0) { 
+                const pendingOutflows = day.outflowItems.filter(i => i.status !== 'paid');
+                if (pendingOutflows.length > 0) {
+                    pendingOutflows.forEach(i => { 
+                        const ref = i.number ? `Ref: ${i.number}` : ''; 
+                        const bankTag = i.bank ? ` 🏦 ${i.bank}` : '';
+                        const remaining = i.amount - (i.paidAmount || 0);
+                        outflowHTML += `<div style="margin-bottom:6px;"><div style="font-weight:bold; color:#dc2626;">${formatMoney(remaining)}</div><div style="font-size:9px; color:#555;">(${i.payee} ${ref ? '- '+ref : ''}${bankTag})</div></div>`; 
+                    }); 
+                } else {
+                    outflowHTML = "-";
+                }
+            } else { 
+                outflowHTML = "-"; 
+            }
+            
+            if (inflowHTML !== "-" || outflowHTML !== "-") {
+                const acumClass = day.accumulated >= 0 ? 'green-acum' : 'red-acum';
+                bodyHTML += `
+                    <tr>
+                        <td class="date-col">${new Date(day.dateKey+'T00:00:00').toLocaleDateString('es-AR', { weekday: 'short', day: 'numeric' })}</td>
+                        <td style="text-align:right;">${inflowHTML}</td>
+                        <td style="text-align:right;">${outflowHTML}</td>
+                        <td class="amount ${acumClass}">${formatMoney(day.accumulated)}</td>
+                    </tr>
+                `;
+            }
+        });
+        
+        bodyHTML += `</tbody></table>`;
+        handleReportAction(`Reporte Mensual - ${monthName}`, bodyHTML, action, `Calendario_${monthName.replace(/\s+/g, '_')}`);
+    };
+    
+    const triggerRangeReport = (action) => {
+        const { startDate, endDate } = rangeReportModal;
+        if (!startDate || !endDate) return alert("Selecciona ambas fechas.");
+        if (startDate > endDate) return alert("La fecha de inicio debe ser menor o igual a la fecha de fin.");
+
+        const mappedPay = payItems.map(i => ({ ...i, reportType: 'PAGO', isPositive: false }));
+        const mappedExp = expenseItems.map(i => ({ ...i, reportType: 'GASTO', isPositive: false }));
+        const mappedCol = collectItems.map(i => ({ ...i, reportType: 'COBRO', isPositive: true }));
+        const mappedWal = walletItems.map(i => ({ ...i, reportType: 'CARTERA', isPositive: true }));
+
+        const combined = [...mappedPay, ...mappedExp, ...mappedCol, ...mappedWal]
+            .filter(i => i.status !== 'paid' && i.dueDate && i.dueDate >= startDate && i.dueDate <= endDate)
+            .sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
+
+        if (combined.length === 0) return alert("No hay movimientos pendientes en este rango de fechas.");
+
+        let totalPos = 0;
+        let totalNeg = 0;
+        
+        const bTotals = {};
+        combined.forEach(item => {
+            if (item.reportType === 'PAGO' && item.status !== 'paid') {
+                const bankName = item.bank || 'Sin Banco Especificado';
+                if (!bTotals[bankName]) bTotals[bankName] = 0;
+                bTotals[bankName] += (item.amount - (item.paidAmount || 0));
+            }
+        });
+
+        let bodyHTML = `
+            <h1>Reporte de Movimientos Pendientes por Fecha</h1>
+            <p class="meta">Período: ${new Date(startDate+'T00:00:00').toLocaleDateString('es-AR')} al ${new Date(endDate+'T00:00:00').toLocaleDateString('es-AR')} • Generado: ${new Date().toLocaleDateString('es-AR')}</p>
+        `;
+
+        if (Object.keys(bTotals).length > 0) {
+            bodyHTML += `
+                <div style="margin-bottom:20px; padding:10px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:4px;">
+                    <h3 style="margin-top:0; font-size:12px; color:#334155; border-bottom:1px solid #cbd5e1; padding-bottom:4px;">Totales de Pagos Pendientes por Banco (En este rango)</h3>
+                    <ul style="margin:0; padding-left:20px; font-size:11px; font-family:monospace;">
+            `;
+            Object.entries(bTotals).sort((a,b)=>b[1]-a[1]).forEach(([bank, total]) => {
+                bodyHTML += `<li><strong>${bank}:</strong> ${formatMoney(total)}</li>`;
+            });
+            bodyHTML += `</ul></div>`;
+        }
+
+        bodyHTML += `
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width:15%">Fecha</th>
+                        <th style="width:45%">Concepto / Cliente</th>
+                        <th style="width:10%">Tipo</th>
+                        <th style="text-align:right; width:15%">Ingreso (Pendiente)</th>
+                        <th style="text-align:right; width:15%">Egreso (Pendiente)</th>
+                    </tr>
+                </thead>
+                <tbody>
+        `;
+
+        combined.forEach(item => {
+            const pendingAmount = item.amount - (item.paidAmount || 0);
+            
+            if (item.isPositive) totalPos += pendingAmount;
+            else totalNeg += pendingAmount;
+
+            const bankTag = (!item.isPositive && item.bank) ? `<br/><span style="color:#0284c7;font-size:9px;font-weight:bold;">🏦 ${item.bank}</span>` : '';
+
+            bodyHTML += `
+                <tr>
+                    <td class="date">${new Date(item.dueDate+'T00:00:00').toLocaleDateString('es-AR')}</td>
+                    <td><strong>${item.payee}</strong> ${item.number ? `<br/><span style="color:#666;font-size:9px">Ref: ${item.number}</span>` : ''}${bankTag}</td>
+                    <td style="font-size:10px">${item.reportType}</td>
+                    <td class="amount green">${item.isPositive ? formatMoney(pendingAmount) : '-'}</td>
+                    <td class="amount red">${!item.isPositive ? formatMoney(pendingAmount) : '-'}</td>
+                </tr>
+            `;
+        });
+
+        const balance = totalPos - totalNeg;
+        const balanceColor = balance >= 0 ? 'green' : 'red';
+
+        bodyHTML += `
+                </tbody>
+            </table>
+            <div style="margin-top:20px; display:flex; justify-content:space-between; gap:10px; page-break-inside: avoid;">
+                <div style="flex:1; padding:15px; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:8px; text-align:center;">
+                    <span style="display:block; font-size:10px; color:#166534; text-transform:uppercase; font-weight:bold; margin-bottom:5px;">Total Ingresos (Pendientes)</span>
+                    <span style="font-size:16px; font-weight:900; color:#15803d;">${formatMoney(totalPos)}</span>
+                </div>
+                <div style="flex:1; padding:15px; background:#fef2f2; border:1px solid #fecaca; border-radius:8px; text-align:center;">
+                    <span style="display:block; font-size:10px; color:#991b1b; text-transform:uppercase; font-weight:bold; margin-bottom:5px;">Total Egresos (Pendientes)</span>
+                    <span style="font-size:16px; font-weight:900; color:#b91c1c;">${formatMoney(totalNeg)}</span>
+                </div>
+                <div style="flex:1; padding:15px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; text-align:center;">
+                    <span style="display:block; font-size:10px; color:#334155; text-transform:uppercase; font-weight:bold; margin-bottom:5px;">Balance Neto Proyectado</span>
+                    <span style="font-size:18px; font-weight:900;" class="${balanceColor}">${balance >= 0 ? '+' : ''}${formatMoney(balance)}</span>
+                </div>
+            </div>
+        `;
+
+        handleReportAction('Reporte Rango de Fechas', bodyHTML, action, `Reporte_Pendientes_${startDate}_al_${endDate}`);
+    };
+
+    // =====================================
+    // MANEJADORES DE ACCIÓN
+    // =====================================
     const addBankAction = async (e) => {
         e.preventDefault();
         if(!newBank.trim()) return;
