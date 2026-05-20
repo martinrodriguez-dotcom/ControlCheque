@@ -6,7 +6,7 @@ import { formatMoney } from '../utils/helpers';
 import { IconPencil, IconCheck, IconX, IconFileText } from '../components/Icons';
 
 export default function Facturacion({ collectItems, theme }) {
-    // Obtenemos el mes actual respetando la zona horaria local (Formato YYYY-MM)
+    // Obtenemos el mes actual para el selector (El input type="month" usa YYYY-MM por defecto)
     const getLocalMonth = () => {
         const now = new Date();
         return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
@@ -42,27 +42,53 @@ export default function Facturacion({ collectItems, theme }) {
             // Asegurarnos de que sea una factura (invoice).
             const isInvoice = item.subtype === 'invoice' || !item.subtype;
             
-            // Usar fecha de emisión, o si está vacía, usar la de vencimiento.
-            // Las fechas vienen en formato YYYY-MM-DD (ej: 2026-05-20)
+            // Tomamos la fecha de emisión, o vencimiento si no hay emisión
             const rawDate = item.issueDate || item.dueDate || item.date || '';
             if (!rawDate) return false;
 
-            // Extraemos solo el Año y el Mes (YYYY-MM)
-            const parts = rawDate.split('-');
-            if (parts.length < 2) return false;
+            // TRADUCTOR INTELIGENTE DE FECHAS
+            // Convierte barras en guiones por si acasi (20/05/2026 -> 20-05-2026)
+            const cleanDate = rawDate.replace(/\//g, '-');
+            const parts = cleanDate.split('-');
             
-            const itemYearMonth = `${parts[0]}-${String(parts[1]).padStart(2, '0')}`;
+            let itemYear = "";
+            let itemMonth = "";
+
+            if (parts.length >= 3) {
+                // Si el año está primero (YYYY-MM-DD)
+                if (parts[0].length === 4) {
+                    itemYear = parts[0];
+                    itemMonth = parts[1];
+                } 
+                // Si el año está último (DD-MM-YYYY) <- TU FORMATO
+                else if (parts[2].length === 4) {
+                    itemYear = parts[2];
+                    itemMonth = parts[1];
+                }
+            } else if (parts.length === 2) {
+                 // Si solo cargaron MM-YYYY o YYYY-MM
+                 if (parts[0].length === 4) {
+                    itemYear = parts[0];
+                    itemMonth = parts[1];
+                } else {
+                    itemMonth = parts[0];
+                    itemYear = parts[1];
+                }
+            }
+
+            // Armamos el formato estándar YYYY-MM para compararlo con el selector
+            const itemYearMonth = `${itemYear}-${String(itemMonth).padStart(2, '0')}`;
 
             return isInvoice && itemYearMonth === selectedMonth;
         });
 
-        // 1. Total de facturación con IVA (Suma de los valores cargados en la app)
+        // 1. Total de facturación con IVA (Suma de los valores cargados)
         const totalConIva = facturasDelMes.reduce((acc, curr) => acc + (parseFloat(curr.amount) || 0), 0);
         
-        // 2. Facturación sin IVA (Valor cargado dividido 1.21)
+        // 2. Facturación sin IVA (Bruto real de la venta)
         const facturacionSinIva = totalConIva / 1.21;
         
-        // 3. Débito Fiscal (IVA acumulado = Total con IVA - Facturación sin IVA)
+        // 3. Débito Fiscal (IVA acumulado)
         const debitoCalculado = totalConIva - facturacionSinIva;
 
         return {
