@@ -1,0 +1,28 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@keyframes fadeIn { 
+    from { opacity: 0; transform: translateY(-5px); } 
+    to { opacity: 1; transform: translateY(0); } 
+}
+.animate-fade-in { animation: fadeIn 0.3s ease-out forwards; }
+.accordion-content { transition: max-height 0.3s ease-in-out, opacity 0.3s ease-in-out; overflow: hidden; }
+
+input, select, textarea { font-size: 16px !important; }
+
+.scrollbar-hide::-webkit-scrollbar { display: none; }
+.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* Modal Overlay */
+.modal-overlay { background-color: rgba(0, 0, 0, 0.5); backdrop-filter: blur(2px); }
+
+/* Estilos Tabla Caja */
+.grid-caja { display: grid; grid-template-columns: 2fr 3fr 2fr 2fr 2fr; gap: 4px; align-items: center; }
+.header-caja { background: #e5e7eb; padding: 8px 4px; font-weight: bold; font-size: 10px; color: #4b5563; border-radius: 4px; margin-bottom: 4px; text-align: center; }
+.row-caja { border-bottom: 1px solid #f3f4f6; padding: 8px 4px; font-size: 11px; text-align: right; }
+.row-caja div:first-child, .row-caja div:nth-child(2) { text-align: left; }
+
+/* Calendario Styles */
+.calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+.calendar-day { min-height: 90px; font-size: 10px; position: relative; }
