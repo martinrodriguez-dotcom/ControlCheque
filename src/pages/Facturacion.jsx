@@ -5,7 +5,7 @@ import { db } from '../firebase';
 import { formatMoney } from '../utils/helpers';
 import { IconPencil, IconCheck, IconX, IconFileText } from '../components/Icons';
 
-export default function Facturacion({ collectItems, theme }) {
+export default function Facturacion({ collectItems = [], theme }) {
     // Obtenemos el mes actual respetando la zona horaria (Formato YYYY-MM)
     const getLocalMonth = () => {
         const now = new Date();
@@ -13,10 +13,11 @@ export default function Facturacion({ collectItems, theme }) {
     };
     
     const [selectedMonth, setSelectedMonth] = useState(getLocalMonth());
-    const [dbData, setDbData] = useState({ creditoFiscal: 0, manualDebito: null });
+    const [dbData, setDbData] = useState({ creditoFiscal: 0, manualDebito: null, saldoAnterior: 0 });
     const [isEditingDebito, setIsEditingDebito] = useState(false);
     const [tempDebito, setTempDebito] = useState('');
     const [tempCredito, setTempCredito] = useState('');
+    const [tempSaldoAnterior, setTempSaldoAnterior] = useState('');
 
     useEffect(() => {
         const docRef = doc(db, 'config_sii', `iva_${selectedMonth}`);
@@ -25,55 +26,51 @@ export default function Facturacion({ collectItems, theme }) {
                 const data = docSnap.data();
                 setDbData({
                     creditoFiscal: data.creditoFiscal || 0,
-                    manualDebito: data.manualDebito !== undefined ? data.manualDebito : null
+                    manualDebito: data.manualDebito !== undefined ? data.manualDebito : null,
+                    saldoAnterior: data.saldoAnterior || 0
                 });
                 setTempCredito(data.creditoFiscal || '');
+                setTempSaldoAnterior(data.saldoAnterior || '');
             } else {
-                setDbData({ creditoFiscal: 0, manualDebito: null });
+                setDbData({ creditoFiscal: 0, manualDebito: null, saldoAnterior: 0 });
                 setTempCredito('');
+                setTempSaldoAnterior('');
             }
         });
         return () => unsubscribe();
     }, [selectedMonth]);
 
-    // Cálculos Exactos de Facturación
+    // Métricas calculadas dinámicamente con las facturas de Cobros
     const calculos = useMemo(() => {
         const facturasDelMes = collectItems.filter(item => {
-            // Asegurarnos de que sea una factura.
-            const isInvoice = item.subtype === 'invoice' || !item.subtype;
+            const sub = (item.subtype || '').toLowerCase().trim();
+            const isInvoice = sub === 'invoice' || sub === 'factura' || sub === '';
             
-            // Usar fecha de emisión, o si está vacía, usar vencimiento
             const rawDate = item.issueDate || item.dueDate || item.date || '';
             if (!rawDate) return false;
 
-            let itemYearMonth = '';
+            const cleanDate = rawDate.toString().replace(/\//g, '-').trim();
+            const parts = cleanDate.split('-');
+            
+            let y = '';
+            let m = '';
 
-            // ANÁLISIS DE POSICIONES (La lógica que pediste para DD/MM/AAAA o DD-MM-AAAA)
-            if (rawDate[2] === '/' || rawDate[2] === '-') {
-                // Agarra los 2 dígitos del mes (posiciones 3 y 4)
-                const mes = rawDate.slice(3, 5); 
-                // Agarra los 4 dígitos del año (posiciones 6 a la 9)
-                const anio = rawDate.slice(6, 10); 
-                itemYearMonth = `${anio}-${mes}`;
-            } 
-            // Respaldo por si el navegador lo fuerza a formato interno (YYYY-MM-DD)
-            else if (rawDate[4] === '-' || rawDate[4] === '/') {
-                const anio = rawDate.slice(0, 4);
-                const mes = rawDate.slice(5, 7);
-                itemYearMonth = `${anio}-${mes}`;
+            if (parts.length >= 3) {
+                if (parts[0].length === 4) {
+                    y = parts[0]; m = parts[1];
+                } else if (parts[2].length === 4) {
+                    y = parts[2]; m = parts[1];
+                }
             }
 
-            // Compara que la factura coincida con el mes/año del selector superior
+            if (!y || !m) return false;
+            const itemYearMonth = `${y}-${String(m).padStart(2, '0')}`;
+
             return isInvoice && itemYearMonth === selectedMonth;
         });
 
-        // 1. Total de facturación con IVA (Valor cargado)
         const totalConIva = facturasDelMes.reduce((acc, curr) => acc + (parseFloat(curr.amount) || 0), 0);
-        
-        // 2. Facturación sin IVA (Bruto real)
         const facturacionSinIva = totalConIva / 1.21;
-        
-        // 3. Débito Fiscal (IVA acumulado = Total - Facturación sin IVA)
         const debitoCalculado = totalConIva - facturacionSinIva;
 
         return {
@@ -84,17 +81,28 @@ export default function Facturacion({ collectItems, theme }) {
         };
     }, [collectItems, selectedMonth]);
 
-    // Si el usuario editó manualmente, usamos ese valor, si no usamos el automático
+    // Consolidación de Valores Finales (Firebase + Cálculos)
     const debitoFinal = dbData.manualDebito !== null ? parseFloat(dbData.manualDebito) : calculos.debitoCalculado;
     const creditoFinal = parseFloat(dbData.creditoFiscal) || 0;
-    
-    // Diferencia: Crédito Fiscal (a favor) - Débito Fiscal (a pagar)
-    const balanceIva = creditoFinal - debitoFinal;
+    const saldoAnteriorFinal = parseFloat(dbData.saldoAnterior) || 0;
 
+    // Fórmula 1: Crédito Fiscal - Débito Fiscal = Saldo Técnico de este mes
+    const saldoTecnico = creditoFinal - debitoFinal;
+
+    // Fórmula 2: Saldo Técnico + Saldo Anterior (Manual de remanente viejo) = Posición Final
+    const balanceFinal = saldoTecnico + saldoAnteriorFinal;
+
+    // Métodos de Persistencia en Firebase por cada Mes
     const guardarCredito = async () => {
         const val = parseFloat(tempCredito) || 0;
         await setDoc(doc(db, 'config_sii', `iva_${selectedMonth}`), { creditoFiscal: val }, { merge: true });
         alert("Crédito Fiscal guardado exitosamente.");
+    };
+
+    const guardarSaldoAnterior = async () => {
+        const val = parseFloat(tempSaldoAnterior) || 0;
+        await setDoc(doc(db, 'config_sii', `iva_${selectedMonth}`), { saldoAnterior: val }, { merge: true });
+        alert("Saldo Anterior acumulado guardado exitosamente.");
     };
 
     const guardarDebitoManual = async () => {
@@ -111,7 +119,8 @@ export default function Facturacion({ collectItems, theme }) {
 
     return (
         <div className="animate-fade-in">
-            <div className={`bg-white p-5 rounded-2xl shadow-md border-l-8 mb-6 border-pink-500 flex justify-between items-center`}>
+            {/* Header Selector */}
+            <div className="bg-white p-5 rounded-2xl shadow-md border-l-8 mb-6 border-pink-500 flex justify-between items-center">
                 <div>
                     <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
                         <IconFileText className="w-5 h-5 text-pink-500"/> Facturación e Impuestos
@@ -128,22 +137,20 @@ export default function Facturacion({ collectItems, theme }) {
                 </div>
             </div>
 
+            {/* MÓDULO 1: FACTURAS EMITIDAS */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-                {/* Facturación sin IVA */}
                 <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center items-center text-center">
                     <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Facturación Sin IVA</span>
                     <span className="text-xl font-black text-gray-800">{formatMoney(calculos.facturacionSinIva)}</span>
-                    <span className="text-[9px] text-gray-400 mt-1">Base imponible</span>
+                    <span className="text-[9px] text-gray-400 mt-1">Base imponible calculada</span>
                 </div>
 
-                {/* Total Facturación con IVA */}
                 <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center items-center text-center">
                     <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Total Facturación Con IVA</span>
                     <span className="text-xl font-black text-blue-600">{formatMoney(calculos.totalConIva)}</span>
-                    <span className="text-[9px] text-gray-400 mt-1">{calculos.cantidadFacturas} facturas emitidas</span>
+                    <span className="text-[9px] text-gray-400 mt-1">{calculos.cantidadFacturas} facturas en {selectedMonth}</span>
                 </div>
 
-                {/* Débito Fiscal (IVA acumulado) */}
                 <div className="bg-white p-4 rounded-xl shadow-sm border border-pink-100 flex flex-col justify-center items-center text-center relative overflow-hidden">
                     <div className="absolute top-0 left-0 w-full h-1 bg-pink-500"></div>
                     <span className="text-[10px] font-bold text-pink-600 uppercase tracking-wider mb-1 flex items-center gap-1">
@@ -165,28 +172,28 @@ export default function Facturacion({ collectItems, theme }) {
                                 onChange={(e) => setTempDebito(e.target.value)}
                             />
                             <div className="flex gap-1 w-full">
-                                <button onClick={guardarDebitoManual} className="flex-1 bg-green-100 text-green-700 py-1 rounded flex justify-center hover:bg-green-200" title="Guardar Manual"><IconCheck className="w-4 h-4"/></button>
-                                <button onClick={resetearDebito} className="flex-1 bg-gray-100 text-gray-600 py-1 rounded text-[9px] font-bold hover:bg-gray-200" title="Restaurar Automático">Auto</button>
-                                <button onClick={() => setIsEditingDebito(false)} className="flex-1 bg-red-100 text-red-700 py-1 rounded flex justify-center hover:bg-red-200" title="Cancelar"><IconX className="w-4 h-4"/></button>
+                                <button onClick={guardarDebitoManual} className="flex-1 bg-green-100 text-green-700 py-1 rounded flex justify-center hover:bg-green-200"><IconCheck className="w-4 h-4"/></button>
+                                <button onClick={resetearDebito} className="flex-1 bg-gray-100 text-gray-600 py-1 rounded text-[9px] font-bold hover:bg-gray-200">Auto</button>
+                                <button onClick={() => setIsEditingDebito(false)} className="flex-1 bg-red-100 text-red-700 py-1 rounded flex justify-center hover:bg-red-200"><IconX className="w-4 h-4"/></button>
                             </div>
                         </div>
                     ) : (
                         <div className="animate-fade-in flex flex-col items-center">
                             <span className="text-xl font-black text-pink-600">{formatMoney(debitoFinal)}</span>
-                            {dbData.manualDebito !== null && <span className="text-[9px] bg-pink-100 text-pink-700 px-2 py-0.5 rounded-full mt-1 font-bold">Editado Manualmente</span>}
+                            {dbData.manualDebito !== null && <span className="text-[9px] bg-pink-100 text-pink-700 px-2 py-0.5 rounded-full mt-1 font-bold">Editado Manual</span>}
                         </div>
                     )}
                 </div>
             </div>
 
-            {/* Crédito Fiscal y Balance Final */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* MÓDULO 2: DATOS COMPENSATORIOS MANUALES */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
                 {/* Crédito Manual */}
                 <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-200">
                     <h3 className="text-sm font-bold text-gray-700 mb-3 uppercase tracking-wide border-b pb-2">Crédito Fiscal (Compras)</h3>
                     <div className="flex gap-2 items-end">
                         <div className="flex-1">
-                            <label className="text-[10px] text-gray-500 block mb-1">Ingresar monto a favor ($)</label>
+                            <label className="text-[10px] text-gray-500 block mb-1">Ingresar monto IVA a favor de compras ($)</label>
                             <input 
                                 type="number" 
                                 step="0.01" 
@@ -202,18 +209,51 @@ export default function Facturacion({ collectItems, theme }) {
                     </div>
                 </div>
 
-                {/* Posición Final de IVA */}
-                <div className={`p-5 rounded-xl shadow-md border flex flex-col justify-center items-center text-center transition-colors duration-300 ${balanceIva < 0 ? 'bg-red-50 border-red-200' : 'bg-emerald-50 border-emerald-200'}`}>
-                    <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2">Posición Mensual de IVA</span>
+                {/* Saldo Técnico Anterior Manual */}
+                <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-200">
+                    <h3 className="text-sm font-bold text-gray-700 mb-3 uppercase tracking-wide border-b pb-2">Saldo Técnico Anterior</h3>
+                    <div className="flex gap-2 items-end">
+                        <div className="flex-1">
+                            <label className="text-[10px] text-gray-500 block mb-1">Arrastre de IVA a favor mes anterior ($)</label>
+                            <input 
+                                type="number" 
+                                step="0.01" 
+                                className="w-full p-3 bg-gray-50 rounded-lg border outline-none font-bold text-gray-800 focus:ring-2 focus:ring-blue-500" 
+                                placeholder="0.00" 
+                                value={tempSaldoAnterior}
+                                onChange={(e) => setTempSaldoAnterior(e.target.value)}
+                            />
+                        </div>
+                        <button onClick={guardarSaldoAnterior} className="bg-blue-600 text-white px-4 py-3 rounded-lg font-bold text-sm hover:bg-blue-700 transition-colors shadow-sm">
+                            Guardar
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            {/* MÓDULO 3: DETERMINACIÓN DE SALDOS Y VEREDICTO IMPOSITIVO */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Saldo Técnico del Periodo */}
+                <div className="bg-white p-5 rounded-xl shadow-md border border-gray-200 flex flex-col justify-center items-center text-center">
+                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Saldo Técnico del Mes</span>
+                    <span className={`text-2xl font-black ${saldoTecnico >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                        {saldoTecnico >= 0 ? '+' : ''}{formatMoney(saldoTecnico)}
+                    </span>
+                    <span className="text-[9px] text-gray-400 mt-1.5 italic">(Crédito Fiscal - Débito Fiscal)</span>
+                </div>
+
+                {/* Posición Final con el Saldo Técnico Anterior acumulado */}
+                <div className={`p-5 rounded-xl shadow-md border flex flex-col justify-center items-center text-center transition-colors duration-300 ${balanceFinal < 0 ? 'bg-red-50 border-red-200' : 'bg-emerald-50 border-emerald-200'}`}>
+                    <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2">Posición Final de IVA</span>
                     
-                    {balanceIva < 0 ? (
+                    {balanceFinal < 0 ? (
                         <div className="animate-fade-in flex flex-col items-center">
-                            <span className="text-2xl font-black text-red-600">{formatMoney(Math.abs(balanceIva))}</span>
+                            <span className="text-2xl font-black text-red-600">{formatMoney(Math.abs(balanceFinal))}</span>
                             <span className="mt-2 bg-red-600 text-white text-[10px] px-3 py-1 rounded-full font-bold uppercase tracking-widest shadow-sm animate-pulse">IVA A PAGAR</span>
                         </div>
                     ) : (
                         <div className="animate-fade-in flex flex-col items-center">
-                            <span className="text-2xl font-black text-emerald-600">{formatMoney(balanceIva)}</span>
+                            <span className="text-2xl font-black text-emerald-600">{formatMoney(balanceFinal)}</span>
                             <span className="mt-2 bg-emerald-600 text-white text-[10px] px-3 py-1 rounded-full font-bold uppercase tracking-widest shadow-sm">IVA A FAVOR</span>
                         </div>
                     )}
