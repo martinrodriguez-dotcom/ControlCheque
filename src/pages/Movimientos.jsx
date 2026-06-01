@@ -1,4 +1,5 @@
-import React from 'react';
+// Archivo: src/pages/Movimientos.jsx
+import React, { useState } from 'react';
 import { 
     IconWallet, IconPrinter, IconDownload, IconPlus, IconCheck, IconEye, 
     IconMessage, IconPencil, IconTrash, IconChevronDown, IconUserGroup, IconChevronLeft, IconBank, IconFileText 
@@ -12,6 +13,8 @@ export default function Movimientos({
     groupedView, expandedGroups, setExpandedGroups, triggerClientReport, selectedDateFilter, setSelectedDateFilter,
     newBank, setNewBank, addBank, deleteBank
 }) {
+    // Nuevo estado local para controlar qué cliente tiene su "Historial de Pagadas" abierto
+    const [expandedHistory, setExpandedHistory] = useState({});
 
     const getTypeIcon = (subtype) => {
         switch(subtype) { 
@@ -22,6 +25,105 @@ export default function Movimientos({
             case 'salary': return <IconWallet className="w-4 h-4 text-orange-500"/>; 
             default: return <span className="font-mono text-[10px] border px-1 rounded bg-white text-gray-500">CHQ</span>; 
         }
+    };
+
+    // FUNCIÓN UNIFICADA: Dibuja la tarjeta visual de un movimiento. 
+    // Al estar centralizada, evita duplicar 100 líneas de código y hace la app más ligera.
+    const renderMovementCard = (item) => {
+        const days = getDays(item.dueDate);
+        const isPaid = item.status === 'paid';
+        const isPartial = item.status === 'partial';
+        let borderClass = 'border-l-4 ';
+        
+        if (isPaid) borderClass += 'border-emerald-500 bg-emerald-50'; 
+        else if (isPartial) borderClass += 'border-yellow-400 bg-yellow-50';
+        else if (days < 0) borderClass += 'border-red-500 bg-red-50';
+        else if (days <= 7) borderClass += 'border-orange-400 bg-orange-50';
+        else borderClass += 'border-green-400 bg-white';
+
+        return (
+            <div key={item.id} className={`p-4 rounded-lg shadow-sm flex flex-col gap-2 ${borderClass} mb-2 bg-white`}>
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center w-full">
+                    <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                            <div className="text-gray-400">{getTypeIcon(item.subtype)}</div>
+                            <h3 className={`font-bold truncate text-gray-800`}>{item.payee}</h3>
+                            {isPaid && <span className="bg-emerald-200 text-emerald-800 text-[9px] px-1 rounded font-bold">PAGADO</span>}
+                            {isPartial && <span className="bg-yellow-200 text-yellow-800 text-[9px] px-1 rounded font-bold">PARCIAL</span>}
+                            {item.type === 'pay' && item.category !== 'others' && (
+                                <span className={`text-white text-[9px] px-1.5 py-0.5 rounded font-bold uppercase ml-1 ${getCategoryColor(item.category)}`}>
+                                    {getCategoryLabel(item.category)}
+                                </span>
+                            )}
+                            {item.type === 'pay' && item.bank && !isPaid && (
+                                <span className="bg-blue-100 text-blue-700 text-[9px] px-1.5 py-0.5 rounded font-bold ml-1 flex items-center gap-1">
+                                    <IconBank className="w-3 h-3"/> {item.bank}
+                                </span>
+                            )}
+                        </div>
+                        <div className="text-xs text-gray-500 flex flex-wrap gap-2 mt-1">
+                            {item.number && <span className="font-mono bg-white px-1 rounded border">#{item.number}</span>}
+                            <span>•</span>
+                            <span className={days < 0 && !isPaid ? 'text-red-600 font-bold' : ''}>
+                                {formatDate(item.dueDate)} 
+                                {days < 0 && !isPaid && <span className="ml-1 bg-red-100 text-red-600 px-1 rounded">-{Math.abs(days)}d</span>}
+                            </span>
+                        </div>
+                    </div>
+                    <div className="w-full sm:w-auto flex justify-between sm:justify-end items-center gap-4 pl-0 sm:pl-3 border-t sm:border-t-0 pt-2 sm:pt-0 mt-2 sm:mt-0">
+                        <div className="text-right">
+                            <div className="font-bold text-gray-800">{formatMoney(item.amount)}</div>
+                            {(isPartial || (isPaid && item.paidAmount < item.amount)) && (
+                                <div className="text-[10px] text-red-500 font-bold">Resta: {formatMoney(item.amount - (item.paidAmount || 0))}</div>
+                            )}
+                        </div>
+                        <div className="flex gap-1">
+                            {!isPaid && (
+                                <button onClick={() => markFullPayment(item)} className="text-gray-400 hover:text-green-600" title="Marcar Pagado">
+                                    <IconCheck className="w-4 h-4"/>
+                                </button>
+                            )}
+                            {!isPaid && item.status !== 'paid' && mode !== 'expenses' && (
+                                <button onClick={() => markPartialPayment(item)} className="text-gray-400 hover:text-yellow-600" title="Pago Parcial">
+                                    $
+                                </button>
+                            )}
+                            <button onClick={() => setHistoryModal({isOpen: true, item: item})} className="text-gray-400 hover:text-purple-600" title="Ver Historial de Pagos">
+                                <IconEye className="w-4 h-4"/>
+                            </button>
+                            <button 
+                                onClick={() => { 
+                                    const action = item.type === 'pay' ? 'PAGO' : 'COBRO';
+                                    const text = `Hola *${item.payee}*, aviso sobre ${action} (Ref: ${item.number || 'S/N'}) por *${formatMoney(item.amount)}* con fecha: ${new Date(item.dueDate+'T00:00:00').toLocaleDateString('es-AR')}. Saludos, SII PALLETS.`;
+                                    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+                                }} 
+                                className="text-gray-400 hover:text-green-500" title="Enviar WhatsApp"
+                            >
+                                <IconMessage className="w-4 h-4" />
+                            </button>
+                            <button onClick={() => handleEdit(item)} className="text-gray-400 hover:text-blue-600" title="Editar">
+                                <IconPencil className="w-4 h-4"/>
+                            </button>
+                            <button onClick={() => deleteItem(item)} className="text-gray-400 hover:text-red-600" title="Eliminar">
+                                <IconTrash className="w-4 h-4"/>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                {/* Detalle Integrado Cancelaciones Parciales */}
+                {(item.status === 'partial' && item.paymentHistory && item.paymentHistory.length > 0) && (
+                    <div className="mt-2 pt-2 border-t border-dashed border-gray-200 bg-gray-50/50 rounded-lg p-2">
+                        <p className="text-[9px] font-bold text-gray-500 uppercase mb-1">Detalle de Cancelaciones Parciales:</p>
+                        {item.paymentHistory.map((h, i) => (
+                            <div key={i} className="flex justify-between items-center text-[10px] text-gray-600 py-0.5 px-1 hover:bg-gray-100 rounded">
+                                <span>{new Date(h.date).toLocaleDateString('es-AR')} • Medio: {h.method.toUpperCase()} {h.proof ? `(Ref: ${h.proof})` : ''}</span>
+                                <span className="font-bold text-green-600">{formatMoney(h.amount)}</span>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </div>
+        );
     };
 
     return (
@@ -347,102 +449,7 @@ export default function Movimientos({
                     </div>
                 )}
 
-                {groupedView && (groupedView.type === 'flat' ? groupedView.data.map(item => {
-                    const days = getDays(item.dueDate);
-                    const isPaid = item.status === 'paid';
-                    const isPartial = item.status === 'partial';
-                    let borderClass = 'border-l-4 ';
-                    
-                    if (isPaid) borderClass += 'border-emerald-500 bg-emerald-50'; 
-                    else if (isPartial) borderClass += 'border-yellow-400 bg-yellow-50';
-                    else if (days < 0) borderClass += 'border-red-500 bg-red-50';
-                    else if (days <= 7) borderClass += 'border-orange-400 bg-orange-50';
-                    else borderClass += 'border-green-400 bg-white';
-
-                    return (
-                        <div key={item.id} className={`p-4 rounded-lg shadow-sm flex flex-col gap-2 ${borderClass} mb-2 bg-white`}>
-                            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center w-full">
-                                <div className="flex-1 min-w-0">
-                                    <div className="flex items-center gap-2">
-                                        <div className="text-gray-400">{getTypeIcon(item.subtype)}</div>
-                                        <h3 className={`font-bold truncate text-gray-800`}>{item.payee}</h3>
-                                        {isPaid && <span className="bg-emerald-200 text-emerald-800 text-[9px] px-1 rounded font-bold">PAGADO</span>}
-                                        {isPartial && <span className="bg-yellow-200 text-yellow-800 text-[9px] px-1 rounded font-bold">PARCIAL</span>}
-                                        {item.type === 'pay' && item.category !== 'others' && (
-                                            <span className={`text-white text-[9px] px-1.5 py-0.5 rounded font-bold uppercase ml-1 ${getCategoryColor(item.category)}`}>
-                                                {getCategoryLabel(item.category)}
-                                            </span>
-                                        )}
-                                        {item.type === 'pay' && item.bank && !isPaid && (
-                                            <span className="bg-blue-100 text-blue-700 text-[9px] px-1.5 py-0.5 rounded font-bold ml-1 flex items-center gap-1">
-                                                <IconBank className="w-3 h-3"/> {item.bank}
-                                            </span>
-                                        )}
-                                    </div>
-                                    <div className="text-xs text-gray-500 flex flex-wrap gap-2 mt-1">
-                                        {item.number && <span className="font-mono bg-white px-1 rounded border">#{item.number}</span>}
-                                        <span>•</span>
-                                        <span className={days < 0 && !isPaid ? 'text-red-600 font-bold' : ''}>
-                                            {formatDate(item.dueDate)} 
-                                            {days < 0 && !isPaid && <span className="ml-1 bg-red-100 text-red-600 px-1 rounded">-{Math.abs(days)}d</span>}
-                                        </span>
-                                    </div>
-                                </div>
-                                <div className="w-full sm:w-auto flex justify-between sm:justify-end items-center gap-4 pl-0 sm:pl-3 border-t sm:border-t-0 pt-2 sm:pt-0 mt-2 sm:mt-0">
-                                    <div className="text-right">
-                                        <div className="font-bold text-gray-800">{formatMoney(item.amount)}</div>
-                                        {(isPartial || (isPaid && item.paidAmount < item.amount)) && (
-                                            <div className="text-[10px] text-red-500 font-bold">Resta: {formatMoney(item.amount - (item.paidAmount || 0))}</div>
-                                        )}
-                                    </div>
-                                    <div className="flex gap-1">
-                                        {!isPaid && (
-                                            <button onClick={() => markFullPayment(item)} className="text-gray-400 hover:text-green-600">
-                                                <IconCheck className="w-4 h-4"/>
-                                            </button>
-                                        )}
-                                        {!isPaid && item.status !== 'paid' && mode !== 'expenses' && (
-                                            <button onClick={() => markPartialPayment(item)} className="text-gray-400 hover:text-yellow-600">
-                                                $
-                                            </button>
-                                        )}
-                                        <button onClick={() => setHistoryModal({isOpen: true, item: item})} className="text-gray-400 hover:text-purple-600" title="Ver Historial de Pagos">
-                                            <IconEye className="w-4 h-4"/>
-                                        </button>
-                                        <button 
-                                            onClick={() => { 
-                                                const action = item.type === 'pay' ? 'PAGO' : 'COBRO';
-                                                const text = `Hola *${item.payee}*, aviso sobre ${action} (Ref: ${item.number || 'S/N'}) por *${formatMoney(item.amount)}* con fecha: ${new Date(item.dueDate+'T00:00:00').toLocaleDateString('es-AR')}. Saludos, SII PALLETS.`;
-                                                window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
-                                            }} 
-                                            className="text-gray-400 hover:text-green-500"
-                                        >
-                                            <IconMessage className="w-4 h-4" />
-                                        </button>
-                                        <button onClick={() => handleEdit(item)} className="text-gray-400 hover:text-blue-600">
-                                            <IconPencil className="w-4 h-4"/>
-                                        </button>
-                                        <button onClick={() => deleteItem(item)} className="text-gray-400 hover:text-red-600">
-                                            <IconTrash className="w-4 h-4"/>
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                            {/* Detalle Integrado Cancelaciones Parciales */}
-                            {(item.status === 'partial' && item.paymentHistory && item.paymentHistory.length > 0) && (
-                                <div className="mt-2 pt-2 border-t border-dashed border-gray-200 bg-gray-50/50 rounded-lg p-2">
-                                    <p className="text-[9px] font-bold text-gray-500 uppercase mb-1">Detalle de Cancelaciones Parciales:</p>
-                                    {item.paymentHistory.map((h, i) => (
-                                        <div key={i} className="flex justify-between items-center text-[10px] text-gray-600 py-0.5 px-1 hover:bg-gray-100 rounded">
-                                            <span>{new Date(h.date).toLocaleDateString('es-AR')} • Medio: {h.method.toUpperCase()} {h.proof ? `(Ref: ${h.proof})` : ''}</span>
-                                            <span className="font-bold text-green-600">{formatMoney(h.amount)}</span>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-                    );
-                }) : groupedView.data.map((group, idx) => {
+                {groupedView && (groupedView.type === 'flat' ? groupedView.data.map(item => renderMovementCard(item)) : groupedView.data.map((group, idx) => {
                     const isClientGroup = groupedView.type === 'client-grouped';
                     return (
                     <div key={idx} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-2">
@@ -499,104 +506,50 @@ export default function Movimientos({
                                 <IconChevronDown className={`w-5 h-5 text-gray-400 transition-transform ml-1 ${expandedGroups[group.key] ? 'rotate-180' : ''}`} />
                             </div>
                         </button>
+                        
+                        {/* CONTENIDO DESPLEGADO DEL CLIENTE/FECHA */}
                         {expandedGroups[group.key] && (
                             <div className="border-t border-gray-100 animate-fade-in bg-gray-50 p-2 space-y-2">
-                                {group.items.map(item => {
-                                    const days = getDays(item.dueDate);
-                                    const isPaid = item.status === 'paid';
-                                    const isPartial = item.status === 'partial';
-                                    let borderClass = 'border-l-4 ';
+                                {(() => {
+                                    // Separar las pagadas de las pendientes
+                                    const pendingItems = group.items.filter(i => i.status !== 'paid');
+                                    const paidItems = group.items.filter(i => i.status === 'paid');
+                                    const isHistExpanded = expandedHistory[group.key];
                                     
-                                    if (isPaid) borderClass += 'border-emerald-500 bg-emerald-50'; 
-                                    else if (isPartial) borderClass += 'border-yellow-400 bg-yellow-50';
-                                    else if (days < 0) borderClass += 'border-red-500 bg-red-50';
-                                    else if (days <= 7) borderClass += 'border-orange-400 bg-orange-50';
-                                    else borderClass += 'border-green-400 bg-white';
-
                                     return (
-                                        <div key={item.id} className={`p-4 rounded-lg shadow-sm flex flex-col gap-2 ${borderClass} mb-2 bg-white`}>
-                                            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center w-full">
-                                                <div className="flex-1 min-w-0">
-                                                    <div className="flex items-center gap-2">
-                                                        <div className="text-gray-400">{getTypeIcon(item.subtype)}</div>
-                                                        <h3 className={`font-bold truncate text-gray-800`}>{item.payee}</h3>
-                                                        {isPaid && <span className="bg-emerald-200 text-emerald-800 text-[9px] px-1 rounded font-bold">PAGADO</span>}
-                                                        {isPartial && <span className="bg-yellow-200 text-yellow-800 text-[9px] px-1 rounded font-bold">PARCIAL</span>}
-                                                        {item.type === 'pay' && item.category !== 'others' && (
-                                                            <span className={`text-white text-[9px] px-1.5 py-0.5 rounded font-bold uppercase ml-1 ${getCategoryColor(item.category)}`}>
-                                                                {getCategoryLabel(item.category)}
-                                                            </span>
-                                                        )}
-                                                        {item.type === 'pay' && item.bank && !isPaid && (
-                                                            <span className="bg-blue-100 text-blue-700 text-[9px] px-1.5 py-0.5 rounded font-bold ml-1 flex items-center gap-1">
-                                                                <IconBank className="w-3 h-3"/> {item.bank}
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                    <div className="text-xs text-gray-500 flex flex-wrap gap-2 mt-1">
-                                                        {item.number && <span className="font-mono bg-white px-1 rounded border">#{item.number}</span>}
-                                                        <span>•</span>
-                                                        <span className={days < 0 && !isPaid ? 'text-red-600 font-bold' : ''}>
-                                                            {formatDate(item.dueDate)} 
-                                                            {days < 0 && !isPaid && <span className="ml-1 bg-red-100 text-red-600 px-1 rounded">-{Math.abs(days)}d</span>}
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                                <div className="w-full sm:w-auto flex justify-between sm:justify-end items-center gap-4 pl-0 sm:pl-3 border-t sm:border-t-0 pt-2 sm:pt-0 mt-2 sm:mt-0">
-                                                    <div className="text-right">
-                                                        <div className="font-bold text-gray-800">{formatMoney(item.amount)}</div>
-                                                        {(isPartial || (isPaid && item.paidAmount < item.amount)) && (
-                                                            <div className="text-[10px] text-red-500 font-bold">Resta: {formatMoney(item.amount - (item.paidAmount || 0))}</div>
-                                                        )}
-                                                    </div>
-                                                    <div className="flex gap-1">
-                                                        {!isPaid && (
-                                                            <button onClick={() => markFullPayment(item)} className="text-gray-400 hover:text-green-600">
-                                                                <IconCheck className="w-4 h-4"/>
-                                                            </button>
-                                                        )}
-                                                        {!isPaid && item.status !== 'paid' && mode !== 'expenses' && (
-                                                            <button onClick={() => markPartialPayment(item)} className="text-gray-400 hover:text-yellow-600">
-                                                                $
-                                                            </button>
-                                                        )}
-                                                        <button onClick={() => setHistoryModal({isOpen: true, item: item})} className="text-gray-400 hover:text-purple-600" title="Ver Historial de Pagos">
-                                                            <IconEye className="w-4 h-4"/>
-                                                        </button>
-                                                        <button 
-                                                            onClick={() => { 
-                                                                const action = item.type === 'pay' ? 'PAGO' : 'COBRO';
-                                                                const text = `Hola *${item.payee}*, aviso sobre ${action} (Ref: ${item.number || 'S/N'}) por *${formatMoney(item.amount)}* con fecha: ${new Date(item.dueDate+'T00:00:00').toLocaleDateString('es-AR')}. Saludos, SII PALLETS.`;
-                                                                window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
-                                                            }} 
-                                                            className="text-gray-400 hover:text-green-500"
-                                                        >
-                                                            <IconMessage className="w-4 h-4" />
-                                                        </button>
-                                                        <button onClick={() => handleEdit(item)} className="text-gray-400 hover:text-blue-600">
-                                                            <IconPencil className="w-4 h-4"/>
-                                                        </button>
-                                                        <button onClick={() => deleteItem(item)} className="text-gray-400 hover:text-red-600">
-                                                            <IconTrash className="w-4 h-4"/>
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            {/* Detalle Integrado Cancelaciones Parciales */}
-                                            {(item.status === 'partial' && item.paymentHistory && item.paymentHistory.length > 0) && (
-                                                <div className="mt-2 pt-2 border-t border-dashed border-gray-200 bg-gray-50/50 rounded-lg p-2">
-                                                    <p className="text-[9px] font-bold text-gray-500 uppercase mb-1">Detalle de Cancelaciones Parciales:</p>
-                                                    {item.paymentHistory.map((h, i) => (
-                                                        <div key={i} className="flex justify-between items-center text-[10px] text-gray-600 py-0.5 px-1 hover:bg-gray-100 rounded">
-                                                            <span>{new Date(h.date).toLocaleDateString('es-AR')} • Medio: {h.method.toUpperCase()} {h.proof ? `(Ref: ${h.proof})` : ''}</span>
-                                                            <span className="font-bold text-green-600">{formatMoney(h.amount)}</span>
+                                        <>
+                                            {/* SECCIÓN DE PENDIENTES */}
+                                            {pendingItems.length > 0 ? (
+                                                pendingItems.map(item => renderMovementCard(item))
+                                            ) : (
+                                                <p className="text-xs text-gray-400 text-center py-2 italic">No hay comprobantes pendientes.</p>
+                                            )}
+                                            
+                                            {/* SECCIÓN HISTORIAL DE PAGADAS (Colapsable) */}
+                                            {paidItems.length > 0 && (
+                                                <div className="mt-3">
+                                                    <button 
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setExpandedHistory(prev => ({...prev, [group.key]: !prev[group.key]}));
+                                                        }}
+                                                        className="w-full bg-gray-200 text-gray-600 hover:bg-gray-300 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-2 transition-colors shadow-inner"
+                                                    >
+                                                        <IconCheck className="w-4 h-4" /> 
+                                                        {isHistExpanded ? 'Ocultar Historial' : `Ver Historial de Pagadas (${paidItems.length})`}
+                                                        <IconChevronDown className={`w-4 h-4 transition-transform ${isHistExpanded ? 'rotate-180' : ''}`} />
+                                                    </button>
+                                                    
+                                                    {isHistExpanded && (
+                                                        <div className="mt-2 space-y-2 animate-fade-in border-t border-gray-200 pt-2">
+                                                            {paidItems.map(item => renderMovementCard(item))}
                                                         </div>
-                                                    ))}
+                                                    )}
                                                 </div>
                                             )}
-                                        </div>
+                                        </>
                                     );
-                                })}
+                                })()}
                             </div>
                         )}
                     </div>
