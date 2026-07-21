@@ -941,11 +941,9 @@ export default function App() {
         setEditingId(null);
     };
 
-    // EL TRUCO DE DISEÑO ADAPTATIVO: 
-    // En celular (w-full), ocupa todo el ancho.
-    // En computadora (lg:w-[96%] xl:max-w-[1600px]), se amplía ocupando casi todo el monitor.
+    // EL TRUCO 100% PANTALLA COMPLETA: w-full min-h-screen sin límites
     return (
-        <div className={`mx-auto min-h-screen bg-gray-50 shadow-2xl relative transition-colors duration-500 w-full lg:w-[96%] xl:max-w-[1600px] ${mode === 'pay' ? 'pb-0' : 'pb-24 lg:pb-8'}`}>
+        <div className={`w-full min-h-screen bg-gray-50 relative transition-colors duration-500 ${mode === 'pay' ? 'pb-0' : 'pb-24 lg:pb-8'}`}>
             <div className={`${theme.bg} text-white p-4 md:p-6 sticky top-0 z-30 shadow-lg transition-colors duration-500`}>
                 <div className="flex justify-between items-center mb-4">
                     <h1 className="text-xl font-bold flex items-center gap-2">SII PALLETS APP</h1>
@@ -1029,8 +1027,8 @@ export default function App() {
                 </div>
             </div>
 
-            {/* Espaciado de contenido adaptativo (más amplio en escritorio) */}
-            <div className={mode === 'pay' ? 'p-0 sm:p-4' : 'p-4 md:p-6 lg:p-8'}>
+            {/* Contenedor sin márgenes estrictos */}
+            <div className={mode === 'pay' ? 'p-0 sm:p-2' : 'p-2 sm:p-4 md:p-6'}>
                 
                 {/* PORTAL A PANTALLA COMPLETA: APLICACIÓN AVANZADA DE PAGOS */}
                 {mode === 'pay' && (
