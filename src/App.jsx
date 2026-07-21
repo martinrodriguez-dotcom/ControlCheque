@@ -17,9 +17,9 @@ import Balance from './pages/Balance';
 import Facturacion from './pages/Facturacion';
 
 export default function App() {
-    const [mode, setMode] = useState('pay');
+    const [mode, setMode] = useState('pay'); // Inicia en la nueva pestaña de Pagos
     const [user, setUser] = useState(null); 
-    const [payItems, setPayItems] = useState([]);
+    const [payItems, setPayItems] = useState([]); // Se mantiene por retrocompatibilidad del balance general
     const [collectItems, setCollectItems] = useState([]);
     const [walletItems, setWalletItems] = useState([]);
     const [expenseItems, setExpenseItems] = useState([]);
@@ -347,13 +347,11 @@ export default function App() {
 
     const groupedView = useMemo(() => {
         if (mode === 'balance' && !selectedDateFilter) return null;
-        if (mode === 'cashbox' || mode === 'pallets' || mode === 'billing') return null;
+        if (mode === 'cashbox' || mode === 'pallets' || mode === 'billing' || mode === 'pay') return null; // Anulado para 'pay'
 
         let items = [];
         if (mode === 'balance' && selectedDateFilter) { 
             items = [...payItems, ...collectItems, ...walletItems, ...expenseItems]; 
-        } else if (mode === 'pay') { 
-            items = payTab === 'realizados' ? payItems.filter(i => i.status === 'paid') : payItems.filter(i => i.status !== 'paid'); 
         } else if (mode === 'collect') { 
             items = collectItems; 
         } else if (mode === 'wallet') { 
@@ -371,7 +369,6 @@ export default function App() {
             items = items.filter(i => i.dueDate === selectedDateFilter); 
         } else if (activeFilter !== 'all') { 
             items = items.filter(i => { 
-                if (mode === 'pay' && payTab === 'realizados') return true;
                 if (i.status === 'paid') return false; 
                 const d = getDays(i.dueDate); 
                 if (activeFilter === 'expired') return d < 0; 
@@ -442,7 +439,7 @@ export default function App() {
                 if (!groups[dateKey]) {
                     groups[dateKey] = { key: dateKey, total: 0, items: [] }; 
                 }
-                const valueToAdd = (mode === 'pay' && payTab === 'realizados') ? (item.paidAmount || item.amount) : (item.amount - (item.paidAmount || 0));
+                const valueToAdd = (item.amount - (item.paidAmount || 0));
                 groups[dateKey].total += valueToAdd;  
                 groups[dateKey].items.push(item); 
             });
@@ -454,7 +451,6 @@ export default function App() {
     // FUNCIONES DE REPORTES 
     // =====================================
     const triggerMainReport = (action) => {
-        // CORRECCIÓN: Si estamos en Balance, NO necesitamos groupedView. Si no, sí lo requerimos.
         if (mode !== 'balance' && (!groupedView || !groupedView.data || groupedView.data.length === 0)) {
             return alert("No hay datos para procesar.");
         }
@@ -481,9 +477,7 @@ export default function App() {
             bodyHTML += `</tbody></table>`;
         } else {
             let modeTotal = 0;
-            if (mode === 'pay') {
-                modeTotal = payTab === 'realizados' ? payItems.filter(i=>i.status==='paid').reduce((acc,i)=>acc+(i.paidAmount || i.amount),0) : balanceData.pay; 
-            } else if (mode === 'wallet') {
+            if (mode === 'wallet') {
                 modeTotal = balanceData.wallet; 
             } else if (mode === 'expenses') {
                 modeTotal = balanceData.expenses; 
@@ -491,7 +485,7 @@ export default function App() {
                 modeTotal = balanceData.collect;
             }
             
-            bodyHTML += `<div class="total-box">Total ${(mode === 'pay' && payTab === 'realizados') ? 'Cancelado' : 'Pendiente'}: ${formatMoney(modeTotal)}</div>`;
+            bodyHTML += `<div class="total-box">Total Pendiente: ${formatMoney(modeTotal)}</div>`;
             
             bodyHTML += `
                 <table>
@@ -500,7 +494,7 @@ export default function App() {
                             <th style="width:30%">Referencia</th>
                             <th style="width:15%">Vencimiento</th>
                             <th style="text-align:right;width:15%">Total Original</th>
-                            <th style="text-align:right;width:20%">${(mode === 'pay' && payTab === 'realizados') ? 'Abonado' : 'Pendiente'}</th>
+                            <th style="text-align:right;width:20%">Pendiente</th>
                             <th style="text-align:right;width:20%">Acumulado</th>
                         </tr>
                     </thead>
@@ -514,9 +508,8 @@ export default function App() {
                 : groupedView.data;
 
             groupsToProcess.forEach(group => {
-                const isRealizados = (mode === 'pay' && payTab === 'realizados');
                 const sortedItems = [...group.items]
-                    .filter(item => isRealizados ? item.status === 'paid' : item.status !== 'paid')
+                    .filter(item => item.status !== 'paid')
                     .sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
                 
                 if (sortedItems.length === 0) return;
@@ -537,7 +530,7 @@ export default function App() {
                 
                 sortedItems.forEach(item => {
                     const details = item.number ? `Ref: ${item.number}` : '';
-                    const displayValue = isRealizados ? (item.paidAmount || item.amount) : (item.amount - (item.paidAmount||0));
+                    const displayValue = (item.amount - (item.paidAmount||0));
                     runningAccumulator += displayValue;
                     
                     bodyHTML += `
@@ -545,7 +538,7 @@ export default function App() {
                             <td>${item.payee} <br/><span style="color:#666;font-size:9px">${details}</span></td>
                             <td class="date">${new Date(item.dueDate+'T00:00:00').toLocaleDateString('es-AR')}</td>
                             <td class="amount">${formatMoney(item.amount)}</td>
-                            <td class="amount ${isRealizados ? 'green' : 'red'}">${formatMoney(displayValue)}</td>
+                            <td class="amount red">${formatMoney(displayValue)}</td>
                             <td class="amount" style="color:#555;font-weight:bold">${formatMoney(runningAccumulator)}</td>
                         </tr>
                     `;
@@ -914,7 +907,6 @@ export default function App() {
         const item = paymentModal.item;
         let collectionName = 'gastos_public_shared'; 
         if(item.type === 'collect') collectionName = 'cobros_public_shared'; 
-        if(item.type === 'pay') collectionName = 'cheques_public_shared'; 
         if(item.type === 'wallet') collectionName = 'cartera_public_shared';
         
         let currentPaid = item.paidAmount || 0; let paidNow = 0; let newStatus = 'pending';
@@ -935,8 +927,7 @@ export default function App() {
     
     const deleteItemAction = async (item) => {
         if(!confirm('¿Eliminar?')) return;
-        let collectionName = 'cheques_public_shared'; 
-        if(item.type === 'collect') collectionName = 'cobros_public_shared'; 
+        let collectionName = 'cobros_public_shared'; 
         if(item.type === 'wallet') collectionName = 'cartera_public_shared'; 
         if(item.type === 'expense') collectionName = 'gastos_public_shared'; 
         if(item.type === 'cash') collectionName = 'caja_public_shared';
@@ -961,7 +952,8 @@ export default function App() {
                                 <IconDownload className="w-4 h-4" /> Instalar
                             </button> 
                         )}
-                        {mode !== 'cashbox' && mode !== 'pallets' && mode !== 'billing' && (
+                        {/* Se ocultan los botones de impresión en el modo PAGOS avanzado porque ya los trae el HTML nativo */}
+                        {mode !== 'cashbox' && mode !== 'pallets' && mode !== 'billing' && mode !== 'pay' && (
                             <>
                                 <button onClick={() => triggerMainReport('print')} className="p-2 relative bg-white/20 rounded-full hover:bg-white/30" title="Imprimir Reporte">
                                     <IconPrinter className="w-5 h-5"/>
@@ -1009,7 +1001,7 @@ export default function App() {
                     </div>
                 </div>
 
-                {mode !== 'pallets' && mode !== 'billing' && (
+                {mode !== 'pallets' && mode !== 'billing' && mode !== 'pay' && (
                 <div className="mb-3 relative">
                     <input 
                         type="text" 
@@ -1023,10 +1015,10 @@ export default function App() {
                 )}
 
                 <div className="bg-black/20 p-1 rounded-xl flex text-[10px] sm:text-xs overflow-x-auto scrollbar-hide gap-1">
+                    <button onClick={() => changeMode('pay')} className={`flex-1 py-2 px-3 rounded-lg font-bold flex flex-col sm:flex-row items-center justify-center gap-1 transition-all whitespace-nowrap ${mode === 'pay' ? 'bg-white text-blue-800 shadow-md' : 'text-white/60'}`}><IconWallet className="w-4 h-4"/> <span>PAGOS</span></button>
                     <button onClick={() => changeMode('billing')} className={`flex-1 py-2 px-3 rounded-lg font-bold flex flex-col sm:flex-row items-center justify-center gap-1 transition-all whitespace-nowrap ${mode === 'billing' ? 'bg-white text-pink-800 shadow-md' : 'text-white/60'}`}><IconFileText className="w-4 h-4"/> <span>FACTURACIÓN</span></button>
                     <button onClick={() => changeMode('cashbox')} className={`flex-1 py-2 px-3 rounded-lg font-bold flex flex-col sm:flex-row items-center justify-center gap-1 transition-all whitespace-nowrap ${mode === 'cashbox' ? 'bg-white text-cyan-800 shadow-md' : 'text-white/60'}`}><IconBox className="w-4 h-4"/> <span>CAJA</span></button>
                     <button onClick={() => changeMode('expenses')} className={`flex-1 py-2 px-3 rounded-lg font-bold flex flex-col sm:flex-row items-center justify-center gap-1 transition-all whitespace-nowrap ${mode === 'expenses' ? 'bg-white text-orange-800 shadow-md' : 'text-white/60'}`}><IconTag className="w-4 h-4"/> <span>GASTOS</span></button>
-                    <button onClick={() => changeMode('pay')} className={`flex-1 py-2 px-3 rounded-lg font-bold flex flex-col sm:flex-row items-center justify-center gap-1 transition-all whitespace-nowrap ${mode === 'pay' ? 'bg-white text-blue-800 shadow-md' : 'text-white/60'}`}><IconWallet className="w-4 h-4"/> <span>PAGOS</span></button>
                     <button onClick={() => changeMode('balance')} className={`flex-1 py-2 px-3 rounded-lg font-bold flex flex-col sm:flex-row items-center justify-center gap-1 transition-all whitespace-nowrap ${mode === 'balance' ? 'bg-white text-violet-800 shadow-md' : 'text-white/60'}`}><IconTrendingUp className="w-4 h-4"/> <span>BALANCE</span></button>
                     <button onClick={() => changeMode('collect')} className={`flex-1 py-2 px-3 rounded-lg font-bold flex flex-col sm:flex-row items-center justify-center gap-1 transition-all whitespace-nowrap ${mode === 'collect' ? 'bg-white text-emerald-800 shadow-md' : 'text-white/60'}`}><IconBriefcase className="w-4 h-4"/> <span>COBROS</span></button>
                     <button onClick={() => changeMode('wallet')} className={`flex-1 py-2 px-3 rounded-lg font-bold flex flex-col sm:flex-row items-center justify-center gap-1 transition-all whitespace-nowrap ${mode === 'wallet' ? 'bg-white text-indigo-800 shadow-md' : 'text-white/60'}`}><IconFolder className="w-4 h-4"/> <span>CARTERA</span></button>
@@ -1035,6 +1027,13 @@ export default function App() {
             </div>
 
             <div className="p-4">
+                {/* PORTAL: APLICACIÓN AVANZADA DE PAGOS (iframe) */}
+                {mode === 'pay' && (
+                    <div className="w-full h-[calc(100vh-160px)] bg-white rounded-2xl shadow-xl overflow-hidden animate-fade-in border border-gray-200">
+                        <iframe src="/pagos.html" title="Control de Pagos Avanzado" className="w-full h-full border-none outline-none bg-[#f8fafc]"></iframe>
+                    </div>
+                )}
+
                 {mode === 'billing' && (
                     <Facturacion 
                         collectItems={collectItems} 
@@ -1074,7 +1073,8 @@ export default function App() {
                     />
                 )}
 
-                {(mode === 'pay' || mode === 'collect' || mode === 'wallet' || mode === 'expenses') && (
+                {/* Movimientos Viejos (Solo se renderiza para Cobros, Gastos y Cartera) */}
+                {(mode === 'collect' || mode === 'wallet' || mode === 'expenses') && (
                     <Movimientos 
                         mode={mode}
                         theme={theme}
