@@ -1027,10 +1027,10 @@ export default function App() {
             </div>
 
             <div className="p-4">
-                {/* PORTAL: APLICACIÓN AVANZADA DE PAGOS (iframe) */}
+                {/* PORTAL: APLICACIÓN AVANZADA DE PAGOS (iframe conectado a Netlify) */}
                 {mode === 'pay' && (
                     <div className="w-full h-[calc(100vh-160px)] bg-white rounded-2xl shadow-xl overflow-hidden animate-fade-in border border-gray-200">
-                        <iframe src="/pagos.html" title="Control de Pagos Avanzado" className="w-full h-full border-none outline-none bg-[#f8fafc]"></iframe>
+                        <iframe src="https://listapagos.netlify.app/" title="Control de Pagos Avanzado" className="w-full h-full border-none outline-none bg-[#f8fafc]"></iframe>
                     </div>
                 )}
 
