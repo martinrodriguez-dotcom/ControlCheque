@@ -19,7 +19,7 @@ import Facturacion from './pages/Facturacion';
 export default function App() {
     const [mode, setMode] = useState('pay'); // Inicia en la nueva pestaña de Pagos
     const [user, setUser] = useState(null); 
-    const [payItems, setPayItems] = useState([]); // Se mantiene por retrocompatibilidad
+    const [payItems, setPayItems] = useState([]); 
     const [collectItems, setCollectItems] = useState([]);
     const [walletItems, setWalletItems] = useState([]);
     const [expenseItems, setExpenseItems] = useState([]);
@@ -347,7 +347,7 @@ export default function App() {
 
     const groupedView = useMemo(() => {
         if (mode === 'balance' && !selectedDateFilter) return null;
-        if (mode === 'cashbox' || mode === 'pallets' || mode === 'billing' || mode === 'pay') return null; // Anulado para 'pay'
+        if (mode === 'cashbox' || mode === 'pallets' || mode === 'billing' || mode === 'pay') return null;
 
         let items = [];
         if (mode === 'balance' && selectedDateFilter) { 
@@ -941,11 +941,12 @@ export default function App() {
         setEditingId(null);
     };
 
-    // EL TRUCO DE DISEÑO: Si el modo es 'pay' cambiamos la clase "max-w-4xl" por "w-full max-w-full pb-0"
-    // para que use todo el ancho y alto del monitor. Si no, vuelve a ser modo celular/angosto.
+    // EL TRUCO DE DISEÑO ADAPTATIVO: 
+    // En celular (w-full), ocupa todo el ancho.
+    // En computadora (lg:w-[96%] xl:max-w-[1600px]), se amplía ocupando casi todo el monitor.
     return (
-        <div className={`mx-auto min-h-screen bg-gray-50 shadow-2xl relative transition-colors duration-500 ${mode === 'pay' ? 'w-full max-w-full pb-0' : 'max-w-4xl pb-24'}`}>
-            <div className={`${theme.bg} text-white p-4 sticky top-0 z-30 shadow-lg transition-colors duration-500`}>
+        <div className={`mx-auto min-h-screen bg-gray-50 shadow-2xl relative transition-colors duration-500 w-full lg:w-[96%] xl:max-w-[1600px] ${mode === 'pay' ? 'pb-0' : 'pb-24 lg:pb-8'}`}>
+            <div className={`${theme.bg} text-white p-4 md:p-6 sticky top-0 z-30 shadow-lg transition-colors duration-500`}>
                 <div className="flex justify-between items-center mb-4">
                     <h1 className="text-xl font-bold flex items-center gap-2">SII PALLETS APP</h1>
                     <div className="flex gap-1 items-center">
@@ -1028,8 +1029,8 @@ export default function App() {
                 </div>
             </div>
 
-            {/* Eliminamos el padding lateral solo en modo pagos para que ocupe todo el ancho visual */}
-            <div className={mode === 'pay' ? 'p-0 sm:p-2' : 'p-4'}>
+            {/* Espaciado de contenido adaptativo (más amplio en escritorio) */}
+            <div className={mode === 'pay' ? 'p-0 sm:p-4' : 'p-4 md:p-6 lg:p-8'}>
                 
                 {/* PORTAL A PANTALLA COMPLETA: APLICACIÓN AVANZADA DE PAGOS */}
                 {mode === 'pay' && (
