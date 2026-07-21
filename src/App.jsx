@@ -19,7 +19,7 @@ import Facturacion from './pages/Facturacion';
 export default function App() {
     const [mode, setMode] = useState('pay'); // Inicia en la nueva pestaña de Pagos
     const [user, setUser] = useState(null); 
-    const [payItems, setPayItems] = useState([]); // Se mantiene por retrocompatibilidad del balance general
+    const [payItems, setPayItems] = useState([]); // Se mantiene por retrocompatibilidad
     const [collectItems, setCollectItems] = useState([]);
     const [walletItems, setWalletItems] = useState([]);
     const [expenseItems, setExpenseItems] = useState([]);
@@ -941,8 +941,10 @@ export default function App() {
         setEditingId(null);
     };
 
+    // EL TRUCO DE DISEÑO: Si el modo es 'pay' cambiamos la clase "max-w-4xl" por "w-full max-w-full pb-0"
+    // para que use todo el ancho y alto del monitor. Si no, vuelve a ser modo celular/angosto.
     return (
-        <div className="pb-24 max-w-4xl mx-auto min-h-screen bg-gray-50 shadow-2xl relative transition-colors duration-500">
+        <div className={`mx-auto min-h-screen bg-gray-50 shadow-2xl relative transition-colors duration-500 ${mode === 'pay' ? 'w-full max-w-full pb-0' : 'max-w-4xl pb-24'}`}>
             <div className={`${theme.bg} text-white p-4 sticky top-0 z-30 shadow-lg transition-colors duration-500`}>
                 <div className="flex justify-between items-center mb-4">
                     <h1 className="text-xl font-bold flex items-center gap-2">SII PALLETS APP</h1>
@@ -1026,10 +1028,12 @@ export default function App() {
                 </div>
             </div>
 
-            <div className="p-4">
-                {/* PORTAL: APLICACIÓN AVANZADA DE PAGOS (iframe conectado a Netlify) */}
+            {/* Eliminamos el padding lateral solo en modo pagos para que ocupe todo el ancho visual */}
+            <div className={mode === 'pay' ? 'p-0 sm:p-2' : 'p-4'}>
+                
+                {/* PORTAL A PANTALLA COMPLETA: APLICACIÓN AVANZADA DE PAGOS */}
                 {mode === 'pay' && (
-                    <div className="w-full h-[calc(100vh-160px)] bg-white rounded-2xl shadow-xl overflow-hidden animate-fade-in border border-gray-200">
+                    <div className="w-full h-[calc(100vh-140px)] bg-white sm:rounded-2xl shadow-xl overflow-hidden animate-fade-in border-0 sm:border border-gray-200">
                         <iframe src="https://listapagos.netlify.app/" title="Control de Pagos Avanzado" className="w-full h-full border-none outline-none bg-[#f8fafc]"></iframe>
                     </div>
                 )}
