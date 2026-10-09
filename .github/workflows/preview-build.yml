@@ -1,0 +1,21 @@
+name: Verificar compilación - cuentas preview
+on:
+  push:
+    branches:
+      - preview-cuentas-clientes-20261009
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Obtener código
+        uses: actions/checkout@v4
+      - name: Configurar Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Instalar dependencias
+        run: npm install --no-audit --no-fund
+      - name: Compilar aplicación
+        run: npm run build
