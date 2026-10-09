@@ -15,7 +15,7 @@ import Caja from './pages/Caja';
 import Movimientos from './pages/Movimientos';
 import Balance from './pages/Balance';
 import Facturacion from './pages/Facturacion';
-import CuentasCobrar from './pages/CuentasCobrar';
+import CuentasCobrarV2 from './pages/CuentasCobrarV2';
 
 // Esta bandera solo existe en la rama de prueba. Nunca publicar en main sin retirarla.
 const IS_PREVIEW_BUILD = true;
@@ -954,7 +954,7 @@ export default function App() {
                         <span className="text-xs font-black tracking-wide rounded-full border border-white/40 bg-white/15 px-3 py-1.5">VERSIÓN DE PRUEBA</span>
                     </div>
                 </header>
-                {loading ? <div className="p-10 text-center text-slate-500">Cargando movimientos existentes...</div> : <CuentasCobrar items={collectItems} />}
+                {loading ? <div className="p-10 text-center text-slate-500">Cargando movimientos existentes...</div> : <CuentasCobrarV2 items={collectItems} />}
             </main>
         );
     }
