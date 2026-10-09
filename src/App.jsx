@@ -15,6 +15,10 @@ import Caja from './pages/Caja';
 import Movimientos from './pages/Movimientos';
 import Balance from './pages/Balance';
 import Facturacion from './pages/Facturacion';
+import CuentasCobrar from './pages/CuentasCobrar';
+
+// Esta bandera solo existe en la rama de prueba. Nunca publicar en main sin retirarla.
+const IS_PREVIEW_BUILD = true;
 
 export default function App() {
     const [mode, setMode] = useState('pay'); // Inicia en la nueva pestaña de Pagos
@@ -940,6 +944,20 @@ export default function App() {
         setShowAddForm(false);
         setEditingId(null);
     };
+
+    if (IS_PREVIEW_BUILD) {
+        return (
+            <main className="min-h-screen bg-slate-50">
+                <header className="bg-gradient-to-r from-emerald-800 to-emerald-600 text-white px-4 sm:px-8 py-5 shadow-md">
+                    <div className="max-w-7xl mx-auto flex flex-wrap gap-3 justify-between items-center">
+                        <h1 className="font-black text-xl">SII PALLETS · ControlCheque</h1>
+                        <span className="text-xs font-black tracking-wide rounded-full border border-white/40 bg-white/15 px-3 py-1.5">VERSIÓN DE PRUEBA</span>
+                    </div>
+                </header>
+                {loading ? <div className="p-10 text-center text-slate-500">Cargando movimientos existentes...</div> : <CuentasCobrar items={collectItems} />}
+            </main>
+        );
+    }
 
     // EL TRUCO 100% PANTALLA COMPLETA: w-full min-h-screen sin límites
     return (
