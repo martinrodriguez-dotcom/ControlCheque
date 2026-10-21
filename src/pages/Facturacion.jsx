@@ -120,6 +120,44 @@ export default function Facturacion({ collectItems = [], theme, onEditInvoice })
         alert("Saldo Anterior acumulado guardado exitosamente.");
     };
 
+    const guardarBaseManual = async () => {
+        const val = Number(tempBase);
+        if (!tempBase.trim() || !Number.isFinite(val)) {
+            setBaseError('Ingresá un importe numérico válido.');
+            return;
+        }
+        const bruto = calculos.totalConIva;
+        if (val < Math.min(bruto, 0) || val > Math.max(bruto, 0)) {
+            setBaseError('La base sin IVA debe estar entre cero y el total con IVA del mes.');
+            return;
+        }
+        setSavingBase(true);
+        setBaseError('');
+        try {
+            await setDoc(doc(db, 'config_sii', 'iva_' + selectedMonth), { manualBase: val }, { merge: true });
+            setIsEditingBase(false);
+        } catch (error) {
+            console.error('No se pudo guardar el neto del mes:', error);
+            setBaseError('Error al guardar. Verificá la conexión e intentá nuevamente.');
+        } finally {
+            setSavingBase(false);
+        }
+    };
+
+    const resetearBase = async () => {
+        setSavingBase(true);
+        setBaseError('');
+        try {
+            await setDoc(doc(db, 'config_sii', 'iva_' + selectedMonth), { manualBase: null }, { merge: true });
+            setIsEditingBase(false);
+        } catch (error) {
+            console.error('No se pudo restaurar el neto automático:', error);
+            setBaseError('No se pudo restaurar el cálculo automático.');
+        } finally {
+            setSavingBase(false);
+        }
+    };
+
     const guardarDebitoManual = async () => {
         const val = parseFloat(tempDebito);
         const dataToSave = isNaN(val) ? { manualDebito: null } : { manualDebito: val };
