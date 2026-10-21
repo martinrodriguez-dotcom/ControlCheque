@@ -3,9 +3,9 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { doc, onSnapshot, setDoc } from "firebase/firestore";
 import { db } from '../firebase';
 import { formatMoney } from '../utils/helpers';
-import { IconPencil, IconCheck, IconX, IconFileText } from '../components/Icons';
+import { IconPencil, IconCheck, IconX, IconFileText, IconChevronDown } from '../components/Icons';
 
-export default function Facturacion({ collectItems = [], theme }) {
+export default function Facturacion({ collectItems = [], theme, onEditInvoice }) {
     // Obtenemos el mes actual respetando la zona horaria (Formato YYYY-MM)
     const getLocalMonth = () => {
         const now = new Date();
@@ -13,8 +13,13 @@ export default function Facturacion({ collectItems = [], theme }) {
     };
     
     const [selectedMonth, setSelectedMonth] = useState(getLocalMonth());
-    const [dbData, setDbData] = useState({ creditoFiscal: 0, manualDebito: null, saldoAnterior: 0 });
+    const [dbData, setDbData] = useState({ creditoFiscal: 0, manualDebito: null, manualBase: null, saldoAnterior: 0 });
     const [isEditingDebito, setIsEditingDebito] = useState(false);
+    const [isEditingBase, setIsEditingBase] = useState(false);
+    const [tempBase, setTempBase] = useState('');
+    const [baseError, setBaseError] = useState('');
+    const [savingBase, setSavingBase] = useState(false);
+    const [showFacturas, setShowFacturas] = useState(false);
     const [tempDebito, setTempDebito] = useState('');
     const [tempCredito, setTempCredito] = useState('');
     const [tempSaldoAnterior, setTempSaldoAnterior] = useState('');
@@ -27,12 +32,13 @@ export default function Facturacion({ collectItems = [], theme }) {
                 setDbData({
                     creditoFiscal: data.creditoFiscal || 0,
                     manualDebito: data.manualDebito !== undefined ? data.manualDebito : null,
+                    manualBase: data.manualBase !== undefined ? data.manualBase : null,
                     saldoAnterior: data.saldoAnterior || 0
                 });
                 setTempCredito(data.creditoFiscal || '');
                 setTempSaldoAnterior(data.saldoAnterior || '');
             } else {
-                setDbData({ creditoFiscal: 0, manualDebito: null, saldoAnterior: 0 });
+                setDbData({ creditoFiscal: 0, manualDebito: null, manualBase: null, saldoAnterior: 0 });
                 setTempCredito('');
                 setTempSaldoAnterior('');
             }
@@ -69,12 +75,18 @@ export default function Facturacion({ collectItems = [], theme }) {
             return isInvoice && itemYearMonth === selectedMonth;
         });
 
+        // Estimación al 21%: las facturas en Cobros solo almacenan importes brutos.
+        const facturasOrdenadas = [...facturasDelMes].sort((a, b) =>
+            String(a.issueDate || a.dueDate || '').localeCompare(String(b.issueDate || b.dueDate || '')) ||
+            String(a.number || '').localeCompare(String(b.number || ''))
+        );
         const totalConIva = facturasDelMes.reduce((acc, curr) => acc + (parseFloat(curr.amount) || 0), 0);
         const facturacionSinIva = totalConIva / 1.21;
         const debitoCalculado = totalConIva - facturacionSinIva;
 
         return {
             cantidadFacturas: facturasDelMes.length,
+            facturasDelMes: facturasOrdenadas,
             totalConIva,
             facturacionSinIva,
             debitoCalculado
@@ -82,7 +94,10 @@ export default function Facturacion({ collectItems = [], theme }) {
     }, [collectItems, selectedMonth]);
 
     // Consolidación de Valores Finales (Firebase + Cálculos)
-    const debitoFinal = dbData.manualDebito !== null ? parseFloat(dbData.manualDebito) : calculos.debitoCalculado;
+    const baseFinal = dbData.manualBase !== null ? Number(dbData.manualBase) : calculos.facturacionSinIva;
+    const debitoDerivado = calculos.totalConIva - baseFinal;
+    const debitoFinal = dbData.manualDebito !== null ? Number(dbData.manualDebito) : debitoDerivado;
+    const diferenciaDebitoManual = dbData.manualDebito !== null && Math.abs(debitoFinal - debitoDerivado) > 0.02;
     const creditoFinal = parseFloat(dbData.creditoFiscal) || 0;
     const saldoAnteriorFinal = parseFloat(dbData.saldoAnterior) || 0;
 
@@ -131,7 +146,7 @@ export default function Facturacion({ collectItems = [], theme }) {
                     <input 
                         type="month" 
                         value={selectedMonth}
-                        onChange={(e) => setSelectedMonth(e.target.value)}
+                        onChange={(e) => { setSelectedMonth(e.target.value); setIsEditingBase(false); setIsEditingDebito(false); setShowFacturas(false); setBaseError(''); }}
                         className="p-2 border border-gray-200 rounded-lg text-sm font-bold text-gray-700 outline-none focus:ring-2 focus:ring-pink-500 bg-gray-50 shadow-sm"
                     />
                 </div>
