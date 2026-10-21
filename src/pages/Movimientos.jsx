@@ -5,13 +5,14 @@ import {
     IconMessage, IconPencil, IconTrash, IconChevronDown, IconUserGroup, IconChevronLeft, IconBank, IconFileText 
 } from '../components/Icons';
 import { formatMoney, formatDate, getCategoryLabel, getCategoryColor } from '../utils/helpers';
+import ResumenCuentasCobros from './ResumenCuentasCobros';
 
 export default function Movimientos({
     mode, theme, payTab, setPayTab, totalRealizados, balanceData, dashboardData, activeFilter, setActiveFilter,
     triggerMainReport, showAddForm, setShowAddForm, setEditingId, editingId, newItem, setNewItem, handleAdd, banks,
     uniqueClients, getDays, markFullPayment, markPartialPayment, setHistoryModal, deleteItem, handleEdit,
     groupedView, expandedGroups, setExpandedGroups, triggerClientReport, selectedDateFilter, setSelectedDateFilter,
-    newBank, setNewBank, addBank, deleteBank
+    newBank, setNewBank, addBank, deleteBank, collectItems = []
 }) {
     // Nuevo estado local para controlar qué cliente tiene su "Historial de Pagadas" abierto
     const [expandedHistory, setExpandedHistory] = useState({});
@@ -163,6 +164,9 @@ export default function Movimientos({
                     </button>
                 </div>
             )}
+
+            {/* Informe de cuentas 1/2: usa todos los registros, no la lista filtrada de la vista. */}
+            {mode === 'collect' && <ResumenCuentasCobros collectItems={collectItems} />}
 
             {/* Total Card */}
             {payTab !== 'bancos' && (
