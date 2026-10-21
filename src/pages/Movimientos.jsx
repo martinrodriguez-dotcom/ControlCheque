@@ -252,7 +252,7 @@ export default function Movimientos({
             )}
             
             {showAddForm && !(mode === 'pay' && payTab === 'realizados') && payTab !== 'bancos' && (
-                <form onSubmit={handleAdd} className="bg-white p-5 rounded-xl shadow-lg border border-gray-200 mb-6 animate-fade-in relative overflow-hidden">
+                <form id="sii-movimiento-form" onSubmit={handleAdd} className="bg-white p-5 rounded-xl shadow-lg border border-gray-200 mb-6 animate-fade-in relative overflow-hidden scroll-mt-48">
                     <div className={`absolute top-0 left-0 w-1 h-full ${theme.bg}`}></div>
                     <h3 className="font-bold mb-4 text-gray-700">{editingId ? 'Editar Movimiento' : 'Nuevo Registro'}</h3>
                     <div className="space-y-3">
