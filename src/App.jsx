@@ -941,6 +941,21 @@ export default function App() {
         setEditingId(null);
     };
 
+    // Abre el registro exacto desde el desglose de IVA, sin crear otra factura.
+    const abrirFacturaDesdeFacturacion = (factura) => {
+        changeMode('collect');
+        setActiveFilter('all');
+        setSelectedDateFilter(null);
+        setSearchTerm('');
+        handleEditAction(factura);
+    };
+
+    useEffect(() => {
+        if (mode === 'collect' && showAddForm && editingId) {
+            document.getElementById('sii-movimiento-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    }, [mode, showAddForm, editingId]);
+
     // EL TRUCO 100% PANTALLA COMPLETA: w-full min-h-screen sin límites
     return (
         <div className={`w-full min-h-screen bg-gray-50 relative transition-colors duration-500 ${mode === 'pay' ? 'pb-0' : 'pb-24 lg:pb-8'}`}>
@@ -1041,6 +1056,7 @@ export default function App() {
                     <Facturacion 
                         collectItems={collectItems} 
                         theme={theme} 
+                        onEditInvoice={abrirFacturaDesdeFacturacion} 
                     />
                 )}
 

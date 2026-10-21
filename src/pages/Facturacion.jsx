@@ -3,9 +3,9 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { doc, onSnapshot, setDoc } from "firebase/firestore";
 import { db } from '../firebase';
 import { formatMoney } from '../utils/helpers';
-import { IconPencil, IconCheck, IconX, IconFileText } from '../components/Icons';
+import { IconPencil, IconCheck, IconX, IconFileText, IconChevronDown } from '../components/Icons';
 
-export default function Facturacion({ collectItems = [], theme }) {
+export default function Facturacion({ collectItems = [], theme, onEditInvoice }) {
     // Obtenemos el mes actual respetando la zona horaria (Formato YYYY-MM)
     const getLocalMonth = () => {
         const now = new Date();
@@ -13,8 +13,13 @@ export default function Facturacion({ collectItems = [], theme }) {
     };
     
     const [selectedMonth, setSelectedMonth] = useState(getLocalMonth());
-    const [dbData, setDbData] = useState({ creditoFiscal: 0, manualDebito: null, saldoAnterior: 0 });
+    const [dbData, setDbData] = useState({ creditoFiscal: 0, manualDebito: null, manualBase: null, saldoAnterior: 0 });
     const [isEditingDebito, setIsEditingDebito] = useState(false);
+    const [isEditingBase, setIsEditingBase] = useState(false);
+    const [tempBase, setTempBase] = useState('');
+    const [baseError, setBaseError] = useState('');
+    const [savingBase, setSavingBase] = useState(false);
+    const [showFacturas, setShowFacturas] = useState(false);
     const [tempDebito, setTempDebito] = useState('');
     const [tempCredito, setTempCredito] = useState('');
     const [tempSaldoAnterior, setTempSaldoAnterior] = useState('');
@@ -27,12 +32,13 @@ export default function Facturacion({ collectItems = [], theme }) {
                 setDbData({
                     creditoFiscal: data.creditoFiscal || 0,
                     manualDebito: data.manualDebito !== undefined ? data.manualDebito : null,
+                    manualBase: data.manualBase !== undefined ? data.manualBase : null,
                     saldoAnterior: data.saldoAnterior || 0
                 });
                 setTempCredito(data.creditoFiscal || '');
                 setTempSaldoAnterior(data.saldoAnterior || '');
             } else {
-                setDbData({ creditoFiscal: 0, manualDebito: null, saldoAnterior: 0 });
+                setDbData({ creditoFiscal: 0, manualDebito: null, manualBase: null, saldoAnterior: 0 });
                 setTempCredito('');
                 setTempSaldoAnterior('');
             }
@@ -69,12 +75,18 @@ export default function Facturacion({ collectItems = [], theme }) {
             return isInvoice && itemYearMonth === selectedMonth;
         });
 
+        // Estimación al 21%: las facturas en Cobros solo almacenan importes brutos.
+        const facturasOrdenadas = [...facturasDelMes].sort((a, b) =>
+            String(a.issueDate || a.dueDate || '').localeCompare(String(b.issueDate || b.dueDate || '')) ||
+            String(a.number || '').localeCompare(String(b.number || ''))
+        );
         const totalConIva = facturasDelMes.reduce((acc, curr) => acc + (parseFloat(curr.amount) || 0), 0);
         const facturacionSinIva = totalConIva / 1.21;
         const debitoCalculado = totalConIva - facturacionSinIva;
 
         return {
             cantidadFacturas: facturasDelMes.length,
+            facturasDelMes: facturasOrdenadas,
             totalConIva,
             facturacionSinIva,
             debitoCalculado
@@ -82,7 +94,10 @@ export default function Facturacion({ collectItems = [], theme }) {
     }, [collectItems, selectedMonth]);
 
     // Consolidación de Valores Finales (Firebase + Cálculos)
-    const debitoFinal = dbData.manualDebito !== null ? parseFloat(dbData.manualDebito) : calculos.debitoCalculado;
+    const baseFinal = dbData.manualBase !== null ? Number(dbData.manualBase) : calculos.facturacionSinIva;
+    const debitoDerivado = calculos.totalConIva - baseFinal;
+    const debitoFinal = dbData.manualDebito !== null ? Number(dbData.manualDebito) : debitoDerivado;
+    const diferenciaDebitoManual = dbData.manualDebito !== null && Math.abs(debitoFinal - debitoDerivado) > 0.02;
     const creditoFinal = parseFloat(dbData.creditoFiscal) || 0;
     const saldoAnteriorFinal = parseFloat(dbData.saldoAnterior) || 0;
 
@@ -103,6 +118,44 @@ export default function Facturacion({ collectItems = [], theme }) {
         const val = parseFloat(tempSaldoAnterior) || 0;
         await setDoc(doc(db, 'config_sii', `iva_${selectedMonth}`), { saldoAnterior: val }, { merge: true });
         alert("Saldo Anterior acumulado guardado exitosamente.");
+    };
+
+    const guardarBaseManual = async () => {
+        const val = Number(tempBase);
+        if (!tempBase.trim() || !Number.isFinite(val)) {
+            setBaseError('Ingresá un importe numérico válido.');
+            return;
+        }
+        const bruto = calculos.totalConIva;
+        if (val < Math.min(bruto, 0) || val > Math.max(bruto, 0)) {
+            setBaseError('La base sin IVA debe estar entre cero y el total con IVA del mes.');
+            return;
+        }
+        setSavingBase(true);
+        setBaseError('');
+        try {
+            await setDoc(doc(db, 'config_sii', 'iva_' + selectedMonth), { manualBase: val }, { merge: true });
+            setIsEditingBase(false);
+        } catch (error) {
+            console.error('No se pudo guardar el neto del mes:', error);
+            setBaseError('Error al guardar. Verificá la conexión e intentá nuevamente.');
+        } finally {
+            setSavingBase(false);
+        }
+    };
+
+    const resetearBase = async () => {
+        setSavingBase(true);
+        setBaseError('');
+        try {
+            await setDoc(doc(db, 'config_sii', 'iva_' + selectedMonth), { manualBase: null }, { merge: true });
+            setIsEditingBase(false);
+        } catch (error) {
+            console.error('No se pudo restaurar el neto automático:', error);
+            setBaseError('No se pudo restaurar el cálculo automático.');
+        } finally {
+            setSavingBase(false);
+        }
     };
 
     const guardarDebitoManual = async () => {
@@ -131,7 +184,7 @@ export default function Facturacion({ collectItems = [], theme }) {
                     <input 
                         type="month" 
                         value={selectedMonth}
-                        onChange={(e) => setSelectedMonth(e.target.value)}
+                        onChange={(e) => { setSelectedMonth(e.target.value); setIsEditingBase(false); setIsEditingDebito(false); setShowFacturas(false); setBaseError(''); }}
                         className="p-2 border border-gray-200 rounded-lg text-sm font-bold text-gray-700 outline-none focus:ring-2 focus:ring-pink-500 bg-gray-50 shadow-sm"
                     />
                 </div>
@@ -140,15 +193,59 @@ export default function Facturacion({ collectItems = [], theme }) {
             {/* MÓDULO 1: FACTURAS EMITIDAS */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
                 <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center items-center text-center">
-                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Facturación Sin IVA</span>
-                    <span className="text-xl font-black text-gray-800">{formatMoney(calculos.facturacionSinIva)}</span>
-                    <span className="text-[9px] text-gray-400 mt-1">Base imponible calculada</span>
+                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1 flex items-center gap-2">
+                        Facturación Sin IVA
+                        {!isEditingBase && (
+                            <button
+                                type="button"
+                                onClick={() => { setTempBase(String(baseFinal)); setBaseError(''); setIsEditingBase(true); }}
+                                className="text-blue-500 hover:text-blue-700 p-1"
+                                title="Editar base sin IVA del mes"
+                                aria-label="Editar facturación sin IVA"
+                            >
+                                <IconPencil className="w-3.5 h-3.5" />
+                            </button>
+                        )}
+                    </span>
+                    {isEditingBase ? (
+                        <div className="w-full flex flex-col gap-2 items-center">
+                            <input
+                                type="number"
+                                step="0.01"
+                                value={tempBase}
+                                onChange={(e) => { setTempBase(e.target.value); setBaseError(''); }}
+                                className="w-full text-center p-2 border border-blue-300 rounded-lg text-sm font-bold outline-none focus:ring-2 focus:ring-blue-500"
+                                aria-label="Nuevo importe sin IVA"
+                            />
+                            {baseError && <p role="alert" className="text-xs text-red-600">{baseError}</p>}
+                            <div className="flex gap-2 w-full text-xs font-bold">
+                                <button type="button" disabled={savingBase} onClick={guardarBaseManual} className="flex-1 rounded bg-emerald-100 text-emerald-700 py-2 disabled:opacity-50">Guardar</button>
+                                <button type="button" disabled={savingBase} onClick={resetearBase} className="flex-1 rounded bg-blue-100 text-blue-700 py-2 disabled:opacity-50">Auto</button>
+                                <button type="button" disabled={savingBase} onClick={() => { setIsEditingBase(false); setBaseError(''); }} className="flex-1 rounded bg-gray-100 text-gray-700 py-2 disabled:opacity-50">Cancelar</button>
+                            </div>
+                        </div>
+                    ) : (
+                        <>
+                            <span className="text-xl font-black text-gray-800">{formatMoney(baseFinal)}</span>
+                            <span className="text-[9px] text-gray-400 mt-1">{dbData.manualBase !== null ? 'Base corregida manualmente' : 'Base imponible estimada (21%)'}</span>
+                        </>
+                    )}
                 </div>
 
                 <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center items-center text-center">
                     <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Total Facturación Con IVA</span>
                     <span className="text-xl font-black text-blue-600">{formatMoney(calculos.totalConIva)}</span>
                     <span className="text-[9px] text-gray-400 mt-1">{calculos.cantidadFacturas} facturas en {selectedMonth}</span>
+                    <button
+                        type="button"
+                        onClick={() => setShowFacturas(v => !v)}
+                        aria-expanded={showFacturas}
+                        aria-controls="detalle-facturacion"
+                        className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-blue-50 px-3 py-2 text-xs font-bold text-blue-700 hover:bg-blue-100"
+                    >
+                        {showFacturas ? 'Ocultar facturas' : 'Ver facturas incluidas'}
+                        <IconChevronDown className="w-4 h-4" />
+                    </button>
                 </div>
 
                 <div className="bg-white p-4 rounded-xl shadow-sm border border-pink-100 flex flex-col justify-center items-center text-center relative overflow-hidden">
@@ -185,6 +282,90 @@ export default function Facturacion({ collectItems = [], theme }) {
                     )}
                 </div>
             </div>
+
+
+            {diferenciaDebitoManual && (
+                <p role="alert" className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
+                    Atención: el débito fiscal editado manualmente ({formatMoney(debitoFinal)}) no coincide con la diferencia entre la facturación con IVA y sin IVA ({formatMoney(debitoDerivado)}). Revisá los importes.
+                </p>
+            )}
+
+            {/* Detalle de los comprobantes que componen el bruto del mes */}
+            {showFacturas && (
+                <section id="detalle-facturacion" className="bg-white border border-blue-100 rounded-xl shadow-sm mb-6 overflow-hidden">
+                    <div className="p-4 border-b border-gray-100">
+                        <h3 className="text-sm font-bold text-gray-800">Facturas incluidas en {selectedMonth}</h3>
+                        <p className="text-xs text-gray-500 mt-1">
+                            Neto e IVA estimados al 21% sobre los importes de Cobros. Si una factura tiene otra alícuota, es exenta o corresponde a una nota de crédito, verificá el comprobante real y corregí el neto mensual.
+                        </p>
+                    </div>
+                    {calculos.facturasDelMes.length === 0 ? (
+                        <p className="p-5 text-sm text-gray-500">No hay facturas registradas para este mes.</p>
+                    ) : (
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-xs text-left">
+                                <thead className="bg-gray-50 text-gray-600 uppercase">
+                                    <tr>
+                                        <th className="p-3">Fecha emisión</th>
+                                        <th className="p-3">Nº factura</th>
+                                        <th className="p-3">Cliente</th>
+                                        <th className="p-3 text-right">Neto est. 21%</th>
+                                        <th className="p-3 text-right">IVA est. 21%</th>
+                                        <th className="p-3 text-right">Total con IVA</th>
+                                        <th className="p-3 text-center">Acción</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-100">
+                                    {calculos.facturasDelMes.map((factura) => {
+                                        const bruto = parseFloat(factura.amount) || 0;
+                                        const neto = bruto / 1.21;
+                                        const iva = bruto - neto;
+                                        const fecha = factura.issueDate || factura.dueDate || factura.date || '';
+                                        const faltanDatos = !factura.number || !factura.payee || !factura.issueDate || !Number.isFinite(Number(factura.amount));
+                                        return (
+                                            <tr key={factura.id} className="hover:bg-blue-50/40">
+                                                <td className="p-3 whitespace-nowrap">{fecha || 'Sin fecha'}</td>
+                                                <td className="p-3 font-mono font-semibold">{factura.number || 'S/N'}</td>
+                                                <td className="p-3">
+                                                    <span className="font-semibold">{factura.payee || 'Sin cliente'}</span>
+                                                    {faltanDatos && <p className="text-amber-600 text-[10px] mt-1">Revisar datos faltantes o fecha de emisión</p>}
+                                                </td>
+                                                <td className="p-3 text-right whitespace-nowrap">{formatMoney(neto)}</td>
+                                                <td className="p-3 text-right whitespace-nowrap text-pink-700">{formatMoney(iva)}</td>
+                                                <td className="p-3 text-right whitespace-nowrap font-bold text-blue-700">{formatMoney(bruto)}</td>
+                                                <td className="p-3 text-center">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => onEditInvoice?.(factura)}
+                                                        className="inline-flex items-center gap-1 rounded-lg bg-blue-50 px-2.5 py-1.5 font-bold text-blue-700 hover:bg-blue-100"
+                                                        title="Editar esta factura en Cobros"
+                                                    >
+                                                        <IconPencil className="w-3.5 h-3.5" /> Editar
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                                <tfoot className="bg-blue-50 font-bold">
+                                    <tr>
+                                        <td colSpan={3} className="p-3">Total de {calculos.cantidadFacturas} facturas</td>
+                                        <td className="p-3 text-right whitespace-nowrap">{formatMoney(calculos.facturacionSinIva)}</td>
+                                        <td className="p-3 text-right whitespace-nowrap">{formatMoney(calculos.debitoCalculado)}</td>
+                                        <td className="p-3 text-right whitespace-nowrap">{formatMoney(calculos.totalConIva)}</td>
+                                        <td></td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    )}
+                    {dbData.manualBase !== null && (
+                        <div className="px-4 py-3 bg-amber-50 text-xs text-amber-800 border-t border-amber-100">
+                            Neto del mes corregido manualmente: {formatMoney(baseFinal)}. Las filas conservan su estimación original. El débito calculado para la posición fiscal es {formatMoney(debitoDerivado)}.
+                        </div>
+                    )}
+                </section>
+            )}
 
             {/* MÓDULO 2: DATOS COMPENSATORIOS MANUALES */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
