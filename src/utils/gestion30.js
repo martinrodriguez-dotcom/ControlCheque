@@ -50,7 +50,7 @@ export function monthlyInvoiceTrend(items, months = 6, today = localToday()) {
     const baseYear = Number(today.slice(0, 4));
     const baseMonth = Number(today.slice(5, 7));
     return Array.from({length:months}, (_, index) => {
-        const date = new Date(baseYear, baseMonth - months + index + 1, 1);
+        const date = new Date(baseYear, baseMonth - months + index, 1);
         const month = [date.getFullYear(), String(date.getMonth()+1).padStart(2, '0')].join('-');
         const summary = invoiceSummary(items, month);
         return { month, label: date.toLocaleDateString('es-AR', {month:'short'}), ...summary };
