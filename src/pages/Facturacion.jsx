@@ -283,6 +283,90 @@ export default function Facturacion({ collectItems = [], theme, onEditInvoice })
                 </div>
             </div>
 
+
+            {diferenciaDebitoManual && (
+                <p role="alert" className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
+                    Atención: el débito fiscal editado manualmente ({formatMoney(debitoFinal)}) no coincide con la diferencia entre la facturación con IVA y sin IVA ({formatMoney(debitoDerivado)}). Revisá los importes.
+                </p>
+            )}
+
+            {/* Detalle de los comprobantes que componen el bruto del mes */}
+            {showFacturas && (
+                <section id="detalle-facturacion" className="bg-white border border-blue-100 rounded-xl shadow-sm mb-6 overflow-hidden">
+                    <div className="p-4 border-b border-gray-100">
+                        <h3 className="text-sm font-bold text-gray-800">Facturas incluidas en {selectedMonth}</h3>
+                        <p className="text-xs text-gray-500 mt-1">
+                            Neto e IVA estimados al 21% sobre los importes de Cobros. Si una factura tiene otra alícuota, es exenta o corresponde a una nota de crédito, verificá el comprobante real y corregí el neto mensual.
+                        </p>
+                    </div>
+                    {calculos.facturasDelMes.length === 0 ? (
+                        <p className="p-5 text-sm text-gray-500">No hay facturas registradas para este mes.</p>
+                    ) : (
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-xs text-left">
+                                <thead className="bg-gray-50 text-gray-600 uppercase">
+                                    <tr>
+                                        <th className="p-3">Fecha emisión</th>
+                                        <th className="p-3">Nº factura</th>
+                                        <th className="p-3">Cliente</th>
+                                        <th className="p-3 text-right">Neto est. 21%</th>
+                                        <th className="p-3 text-right">IVA est. 21%</th>
+                                        <th className="p-3 text-right">Total con IVA</th>
+                                        <th className="p-3 text-center">Acción</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-100">
+                                    {calculos.facturasDelMes.map((factura) => {
+                                        const bruto = parseFloat(factura.amount) || 0;
+                                        const neto = bruto / 1.21;
+                                        const iva = bruto - neto;
+                                        const fecha = factura.issueDate || factura.dueDate || factura.date || '';
+                                        const faltanDatos = !factura.number || !factura.payee || !factura.issueDate || !Number.isFinite(Number(factura.amount));
+                                        return (
+                                            <tr key={factura.id} className="hover:bg-blue-50/40">
+                                                <td className="p-3 whitespace-nowrap">{fecha || 'Sin fecha'}</td>
+                                                <td className="p-3 font-mono font-semibold">{factura.number || 'S/N'}</td>
+                                                <td className="p-3">
+                                                    <span className="font-semibold">{factura.payee || 'Sin cliente'}</span>
+                                                    {faltanDatos && <p className="text-amber-600 text-[10px] mt-1">Revisar datos faltantes o fecha de emisión</p>}
+                                                </td>
+                                                <td className="p-3 text-right whitespace-nowrap">{formatMoney(neto)}</td>
+                                                <td className="p-3 text-right whitespace-nowrap text-pink-700">{formatMoney(iva)}</td>
+                                                <td className="p-3 text-right whitespace-nowrap font-bold text-blue-700">{formatMoney(bruto)}</td>
+                                                <td className="p-3 text-center">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => onEditInvoice?.(factura)}
+                                                        className="inline-flex items-center gap-1 rounded-lg bg-blue-50 px-2.5 py-1.5 font-bold text-blue-700 hover:bg-blue-100"
+                                                        title="Editar esta factura en Cobros"
+                                                    >
+                                                        <IconPencil className="w-3.5 h-3.5" /> Editar
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                                <tfoot className="bg-blue-50 font-bold">
+                                    <tr>
+                                        <td colSpan={3} className="p-3">Total de {calculos.cantidadFacturas} facturas</td>
+                                        <td className="p-3 text-right whitespace-nowrap">{formatMoney(calculos.facturacionSinIva)}</td>
+                                        <td className="p-3 text-right whitespace-nowrap">{formatMoney(calculos.debitoCalculado)}</td>
+                                        <td className="p-3 text-right whitespace-nowrap">{formatMoney(calculos.totalConIva)}</td>
+                                        <td></td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    )}
+                    {dbData.manualBase !== null && (
+                        <div className="px-4 py-3 bg-amber-50 text-xs text-amber-800 border-t border-amber-100">
+                            Neto del mes corregido manualmente: {formatMoney(baseFinal)}. Las filas conservan su estimación original. El débito calculado para la posición fiscal es {formatMoney(debitoDerivado)}.
+                        </div>
+                    )}
+                </section>
+            )}
+
             {/* MÓDULO 2: DATOS COMPENSATORIOS MANUALES */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
                 {/* Crédito Manual */}
