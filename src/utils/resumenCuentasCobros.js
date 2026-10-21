@@ -42,7 +42,8 @@ export function diaDelRegistro(value, isTimestamp = false) {
 }
 
 export function monedaEnCentavos(value) {
-    const numeric = typeof value === 'number' ? value : Number(String(value ?? '').replace(',', '.'));
+    if (value === null || value === undefined || (typeof value === 'string' && !value.trim())) return null;
+    const numeric = typeof value === 'number' ? value : Number(String(value).replace(',', '.'));
     if (!Number.isFinite(numeric)) return null;
     return Math.round((numeric + Math.sign(numeric)*Number.EPSILON) * 100);
 }
