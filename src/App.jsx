@@ -15,6 +15,7 @@ import Caja from './pages/Caja';
 import Movimientos from './pages/Movimientos';
 import Balance from './pages/Balance';
 import Facturacion from './pages/Facturacion';
+import Direccion from './pages/Direccion';
 
 export default function App() {
     const [mode, setMode] = useState('pay'); // Inicia en la nueva pestaña de Pagos
@@ -1031,6 +1032,7 @@ export default function App() {
                 )}
 
                 <div className="bg-black/20 p-1 rounded-xl flex text-[10px] sm:text-xs overflow-x-auto scrollbar-hide gap-1">
+                    <button onClick={() => changeMode('direction')} className={`flex-1 py-2 px-3 rounded-lg font-bold flex flex-col sm:flex-row items-center justify-center gap-1 transition-all whitespace-nowrap ${mode === 'direction' ? 'bg-white text-indigo-800 shadow-md' : 'text-white/60'}`}>📊 <span>DIRECCIÓN 3.0</span></button>
                     <button onClick={() => changeMode('pay')} className={`flex-1 py-2 px-3 rounded-lg font-bold flex flex-col sm:flex-row items-center justify-center gap-1 transition-all whitespace-nowrap ${mode === 'pay' ? 'bg-white text-blue-800 shadow-md' : 'text-white/60'}`}><IconWallet className="w-4 h-4"/> <span>PAGOS</span></button>
                     <button onClick={() => changeMode('billing')} className={`flex-1 py-2 px-3 rounded-lg font-bold flex flex-col sm:flex-row items-center justify-center gap-1 transition-all whitespace-nowrap ${mode === 'billing' ? 'bg-white text-pink-800 shadow-md' : 'text-white/60'}`}><IconFileText className="w-4 h-4"/> <span>FACTURACIÓN</span></button>
                     <button onClick={() => changeMode('cashbox')} className={`flex-1 py-2 px-3 rounded-lg font-bold flex flex-col sm:flex-row items-center justify-center gap-1 transition-all whitespace-nowrap ${mode === 'cashbox' ? 'bg-white text-cyan-800 shadow-md' : 'text-white/60'}`}><IconBox className="w-4 h-4"/> <span>CAJA</span></button>
@@ -1050,6 +1052,22 @@ export default function App() {
                     <div className="w-full h-[calc(100vh-140px)] bg-white sm:rounded-2xl shadow-xl overflow-hidden animate-fade-in border-0 sm:border border-gray-200">
                         <iframe src="https://listapagos.netlify.app/" title="Control de Pagos Avanzado" className="w-full h-full border-none outline-none bg-[#f8fafc]"></iframe>
                     </div>
+                )}
+
+                {mode === 'direction' && (
+                    <Direccion
+                        collectItems={collectItems}
+                        payItems={payItems}
+                        walletItems={walletItems}
+                        expenseItems={expenseItems}
+                        cashItems={cashItems}
+                        palletsTemplates={palletsTemplates}
+                        costosMadres={costosMadres}
+                        presupuestos={presupuestos}
+                        produccionMensual={produccionMensual}
+                        onEditInvoice={abrirFacturaDesdeFacturacion}
+                        onOpenModule={changeMode}
+                    />
                 )}
 
                 {mode === 'billing' && (
