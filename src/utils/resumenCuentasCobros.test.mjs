@@ -60,7 +60,7 @@ test('Sin datos erróneos ni cambios a originales',()=>{
 
 test('Validación de rangos y fechas',()=>{
     assert.throws(()=>separarCuentasCobros(data,'2026-10-21','2026-10-01'),/rango/);
-    assert.throws(()=>separarCuentasCobros(data,'2026-10-01','2026-10-21','otro'),/criterio/);
+    assert.throws(()=>separarCuentasCobros(data,'2026-10-01','2026-10-21','otro'),/[Cc]riterio/);
     assert.equal(diaDelRegistro('32/10/2026'),'');
     assert.equal(diaDelRegistro('2026-02-30'),'');
 });
