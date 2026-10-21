@@ -168,7 +168,7 @@ export function htmlResumenCuentas(result,startDate,endDate,field) {
         <table class="kpis"><tbody><tr>
             <td><div class="kpi-label">Cuenta 1 · Facturas (sin IVA)</div><div class="kpi-value">${pesos(result.totalCuenta1Centavos)}</div><div class="subtitle">${result.cuenta1.length} registros</div></td>
             <td><div class="kpi-label">Cuenta 2 · Otros movimientos</div><div class="kpi-value">${pesos(result.totalCuenta2Centavos)}</div><div class="subtitle">${result.cuenta2.length} registros</div></td>
-            <td><div class="kpi-label">Total ambas cuentas</div><div class="kpi-value">${pesos(result.totalGeneralCentavos)}</div><div class="subtitle">Cuenta 1 neta + Cuenta 2 original</div></td>
+            <td><div class="kpi-label">Total ambas cuentas</div><div class="kpi-value">${pesos(result.totalGeneralCentavos)}</div><div class="subtitle">${result.count} registros en total</div></td>
         </tr></tbody></table>
         <table class="cuentas"><thead>
             <tr><th class="section1" colspan="2">CUENTA 1 — FACTURAS (SIN IVA)</th><th class="section2" colspan="2">CUENTA 2 — RESTO DE COBROS</th></tr>
@@ -177,14 +177,9 @@ export function htmlResumenCuentas(result,startDate,endDate,field) {
         <tfoot><tr><td>TOTAL CUENTA 1</td><td class="money">${pesos(result.totalCuenta1Centavos)}</td>
                     <td>TOTAL CUENTA 2</td><td class="money">${pesos(result.totalCuenta2Centavos)}</td></tr></tfoot>
         </table>
-        <div class="observaciones">
-            <strong>Detalle Cuenta 1:</strong> bruto original ${pesos(result.totalBruto1Centavos)}; IVA estimado incluido (21 %) ${pesos(result.ivaCuenta1Centavos)};
-            base sin IVA ${pesos(result.totalCuenta1Centavos)}. Cada factura se dividió por 1,21 y redondeó a centavos antes de sumar.
-            <br/><strong>Cuenta 2:</strong> importes tal como fueron cargados, sin descuentos ni división por IVA.
-            <br/>Se incluyen movimientos cobrados y pendientes, por su importe originalmente registrado; este reporte no es un estado de cobranzas.
-            ${result.sinFecha ? `<br/><strong>Atención:</strong> ${result.sinFecha} registros no tenían la fecha necesaria para este criterio y quedaron fuera.` : ''}
-            ${result.invalidos ? `<br/><strong>Atención:</strong> ${result.invalidos} registros del período tenían un importe inválido; se muestran con $ 0,00 para revisión.` : ''}
-            <br/>El neto y el IVA de Cuenta 1 presuponen una alícuota uniforme del 21 %. Confirmar con comprobantes si existen otras tasas o notas de crédito.
-        </div>
+        ${result.sinFecha || result.invalidos ? `<div class="observaciones">
+            ${result.sinFecha ? `<strong>Atención:</strong> ${result.sinFecha} registros sin fecha correspondiente al filtro quedaron fuera del resumen.<br/>` : ''}
+            ${result.invalidos ? `<strong>Atención:</strong> ${result.invalidos} registros tenían importes inválidos y requieren revisión.` : ''}
+        </div>` : ''}
         <div class="footer">SII PALLETS · Informe generado desde Cobros</div>`;
 }
