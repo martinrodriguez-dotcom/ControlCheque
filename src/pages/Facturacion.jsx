@@ -229,7 +229,7 @@ export default function Facturacion({ collectItems = [], theme, onEditInvoice })
                             <span className="text-xl font-black text-gray-800">{formatMoney(baseFinal)}</span>
                             <span className="text-[9px] text-gray-400 mt-1">{dbData.manualBase !== null ? 'Base corregida manualmente' : 'Base imponible estimada (21%)'}</span>
                         </>
-                    )>
+                    )}
                 </div>
 
                 <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center items-center text-center">
