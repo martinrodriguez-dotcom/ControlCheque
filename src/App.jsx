@@ -1124,6 +1124,7 @@ export default function App() {
                         expandedGroups={expandedGroups}
                         setExpandedGroups={setExpandedGroups}
                         triggerClientReport={triggerClientReport}
+                        collectItems={collectItems}
                         selectedDateFilter={selectedDateFilter}
                         setSelectedDateFilter={setSelectedDateFilter}
                         newBank={newBank}
