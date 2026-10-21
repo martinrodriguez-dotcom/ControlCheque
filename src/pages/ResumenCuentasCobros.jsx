@@ -1,4 +1,5 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { IconPrinter, IconX } from '../components/Icons';
 import { handleReportAction } from '../utils/helpers';
 import { separarCuentasCobros, htmlResumenCuentas, pesos, fechaAR } from '../utils/resumenCuentasCobros';
@@ -11,6 +12,24 @@ const getFirstOfMonth = () => getToday().slice(0,7)+'-01';
 
 export default function ResumenCuentasCobros({ collectItems = [] }) {
     const [open,setOpen] = useState(false);
+    const modalRef = useRef(null);
+
+    useEffect(() => {
+        if (!open) return;
+        // El componente Cobros tiene una animación con transform; un modal fixed
+        // dentro de ese contenedor se posiciona respecto del contenido, no del viewport.
+        const previousOverflow = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
+        modalRef.current?.focus({ preventScroll: true });
+        const onEscape = (event) => {
+            if (event.key === 'Escape') setOpen(false);
+        };
+        document.addEventListener('keydown', onEscape);
+        return () => {
+            document.body.style.overflow = previousOverflow;
+            document.removeEventListener('keydown', onEscape);
+        };
+    }, [open]);
     const [startDate,setStartDate] = useState(getFirstOfMonth);
     const [endDate,setEndDate] = useState(getToday);
     const [dateField,setDateField] = useState('issueDate');
@@ -34,16 +53,16 @@ export default function ResumenCuentasCobros({ collectItems = [] }) {
         <div className="flex flex-wrap items-center justify-between gap-2 mb-5 bg-white rounded-xl shadow-sm border border-emerald-200 p-3">
             <div>
                 <p className="text-xs font-bold text-slate-800">Informe de facturación · Dos cuentas</p>
-                <p className="text-[11px] text-slate-500">Cuenta 1: facturas sin IVA (÷ 1,21) · Cuenta 2: importes originales</p>
+                <p className="text-[11px] text-slate-500">Resumen de Cuenta 1 y Cuenta 2 por período</p>
             </div>
             <button type="button" onClick={()=>setOpen(true)}
                 className="inline-flex items-center justify-center gap-2 bg-emerald-700 hover:bg-emerald-800 text-white px-4 py-2.5 rounded-xl text-xs font-bold shadow-sm transition">
                 <IconPrinter className="w-4 h-4"/> Imprimir resumen
             </button>
         </div>
-        {open && <div className="fixed inset-0 z-[70] bg-slate-950/65 backdrop-blur-[2px] flex items-center justify-center p-3 sm:p-5" role="presentation" onMouseDown={e=>{if(e.target===e.currentTarget)setOpen(false);}}>
-            <div role="dialog" aria-modal="true" aria-labelledby="resumen-cobros-title"
-                className="w-full max-w-3xl max-h-[94vh] bg-white rounded-2xl shadow-2xl flex flex-col overflow-hidden">
+        {open && createPortal(<div className="fixed inset-0 z-[9999] bg-slate-950/65 backdrop-blur-[2px] flex items-center justify-center p-3 sm:p-5" role="presentation" onMouseDown={e=>{if(e.target===e.currentTarget)setOpen(false);}}>
+            <div role="dialog" aria-modal="true" aria-labelledby="resumen-cobros-title" ref={modalRef} tabIndex={-1}
+                className="w-full max-w-3xl max-h-[min(92dvh,900px)] bg-white rounded-2xl shadow-2xl flex flex-col overflow-hidden outline-none">
                 <div className="flex items-start justify-between gap-3 border-b border-slate-200 p-4 sm:p-5">
                     <div>
                         <h2 id="resumen-cobros-title" className="text-lg font-black text-slate-800">Resumen de facturación por cuentas</h2>
@@ -52,7 +71,7 @@ export default function ResumenCuentasCobros({ collectItems = [] }) {
                     <button type="button" aria-label="Cerrar" onClick={()=>setOpen(false)}
                         className="p-2 text-slate-500 rounded-lg hover:bg-slate-100"><IconX className="w-5 h-5"/></button>
                 </div>
-                <div className="overflow-y-auto p-4 sm:p-5 space-y-4">
+                <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-4 sm:p-5 space-y-4">
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                         <label className="text-xs font-bold text-slate-600">Desde
                             <input type="date" value={startDate} max={endDate||undefined}
@@ -112,14 +131,10 @@ export default function ResumenCuentasCobros({ collectItems = [] }) {
                                 ))}
                             </div>
                         </div>
-                        <div className="text-[11px] text-slate-600 bg-slate-50 rounded-xl p-3 space-y-1">
-                            <p><strong>Cuenta 1:</strong> se calcula el neto individual de cada factura dividiendo el total cargado por 1,21 y redondeando a centavos. Bruto: {pesos(report.totalBruto1Centavos)} · IVA estimado: {pesos(report.ivaCuenta1Centavos)}.</p>
-                            <p><strong>Cuenta 2:</strong> conserva exactamente el importe de cada cheque, transferencia, efectivo u otro tipo.</p>
-                            <p>Se incluyen registros cobrados y pendientes. El informe toma todos los Cobros, independientemente de los filtros de pantalla.</p>
-                            {report.sinFecha>0 && <p className="text-amber-700 font-bold">Hay {report.sinFecha} registros sin {dateField==='createdAt'?'fecha de carga':'fecha de emisión'}; no se incluyen.</p>}
-                            {report.invalidos>0 && <p className="text-rose-700 font-bold">{report.invalidos} registros del período tienen importes inválidos. Revisalos antes de presentar el informe.</p>}
-                            <p className="text-slate-500">El cálculo sin IVA presupone una alícuota del 21 % para todas las facturas.</p>
-                        </div>
+                        {(report.sinFecha>0 || report.invalidos>0) && <div className="text-[11px] text-slate-600 bg-amber-50 border border-amber-200 rounded-xl p-3 space-y-1">
+                            {report.sinFecha>0 && <p className="text-amber-800 font-bold">{report.sinFecha} registros sin {dateField==='createdAt'?'fecha de carga':'fecha de emisión'} quedaron fuera del período.</p>}
+                            {report.invalidos>0 && <p className="text-rose-700 font-bold">{report.invalidos} registros tienen importes inválidos. Revisalos antes de imprimir.</p>}
+                        </div>}
                     </>}
                 </div>
                 <div className="border-t border-slate-200 p-4 flex flex-wrap justify-between items-center gap-3 bg-white">
@@ -133,6 +148,6 @@ export default function ResumenCuentasCobros({ collectItems = [] }) {
                     </div>
                 </div>
             </div>
-        </div>}
+        </div>, document.body)}
     </>;
 }

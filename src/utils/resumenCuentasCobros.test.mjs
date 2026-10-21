@@ -77,3 +77,17 @@ test('Salida imprimible escapa datos de cliente',()=>{
 test('Formato monetario en pesos, dos decimales',()=>{
     assert.match(pesos(12345),/123,45/);
 });
+
+
+test('El impreso muestra solo resumen y totales sin explicar fórmulas',()=>{
+    const result=separarCuentasCobros(data,'2026-10-01','2026-10-21');
+    const html=htmlResumenCuentas(result,'2026-10-01','2026-10-21','issueDate');
+    assert.ok(html.includes('CUENTA 1 — FACTURAS'));
+    assert.ok(html.includes('CUENTA 2 — RESTO'));
+    assert.ok(html.includes('TOTAL CUENTA 1'));
+    assert.ok(html.includes('TOTAL CUENTA 2'));
+    assert.ok(!html.includes('Cada factura se dividió'));
+    assert.ok(!html.includes('Detalle Cuenta 1'));
+    assert.ok(!html.includes('se calcula el neto'));
+    assert.ok(!html.includes('presuponen una alícuota'));
+});
