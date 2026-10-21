@@ -193,15 +193,59 @@ export default function Facturacion({ collectItems = [], theme, onEditInvoice })
             {/* MÓDULO 1: FACTURAS EMITIDAS */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
                 <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center items-center text-center">
-                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Facturación Sin IVA</span>
-                    <span className="text-xl font-black text-gray-800">{formatMoney(calculos.facturacionSinIva)}</span>
-                    <span className="text-[9px] text-gray-400 mt-1">Base imponible calculada</span>
+                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1 flex items-center gap-2">
+                        Facturación Sin IVA
+                        {!isEditingBase && (
+                            <button
+                                type="button"
+                                onClick={() => { setTempBase(String(baseFinal)); setBaseError(''); setIsEditingBase(true); }}
+                                className="text-blue-500 hover:text-blue-700 p-1"
+                                title="Editar base sin IVA del mes"
+                                aria-label="Editar facturación sin IVA"
+                            >
+                                <IconPencil className="w-3.5 h-3.5" />
+                            </button>
+                        )}
+                    </span>
+                    {isEditingBase ? (
+                        <div className="w-full flex flex-col gap-2 items-center">
+                            <input
+                                type="number"
+                                step="0.01"
+                                value={tempBase}
+                                onChange={(e) => { setTempBase(e.target.value); setBaseError(''); }}
+                                className="w-full text-center p-2 border border-blue-300 rounded-lg text-sm font-bold outline-none focus:ring-2 focus:ring-blue-500"
+                                aria-label="Nuevo importe sin IVA"
+                            />
+                            {baseError && <p role="alert" className="text-xs text-red-600">{baseError}</p>}
+                            <div className="flex gap-2 w-full text-xs font-bold">
+                                <button type="button" disabled={savingBase} onClick={guardarBaseManual} className="flex-1 rounded bg-emerald-100 text-emerald-700 py-2 disabled:opacity-50">Guardar</button>
+                                <button type="button" disabled={savingBase} onClick={resetearBase} className="flex-1 rounded bg-blue-100 text-blue-700 py-2 disabled:opacity-50">Auto</button>
+                                <button type="button" disabled={savingBase} onClick={() => { setIsEditingBase(false); setBaseError(''); }} className="flex-1 rounded bg-gray-100 text-gray-700 py-2 disabled:opacity-50">Cancelar</button>
+                            </div>
+                        </div>
+                    ) : (
+                        <>
+                            <span className="text-xl font-black text-gray-800">{formatMoney(baseFinal)}</span>
+                            <span className="text-[9px] text-gray-400 mt-1">{dbData.manualBase !== null ? 'Base corregida manualmente' : 'Base imponible estimada (21%)'}</span>
+                        </>
+                    )>
                 </div>
 
                 <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center items-center text-center">
                     <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Total Facturación Con IVA</span>
                     <span className="text-xl font-black text-blue-600">{formatMoney(calculos.totalConIva)}</span>
                     <span className="text-[9px] text-gray-400 mt-1">{calculos.cantidadFacturas} facturas en {selectedMonth}</span>
+                    <button
+                        type="button"
+                        onClick={() => setShowFacturas(v => !v)}
+                        aria-expanded={showFacturas}
+                        aria-controls="detalle-facturacion"
+                        className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-blue-50 px-3 py-2 text-xs font-bold text-blue-700 hover:bg-blue-100"
+                    >
+                        {showFacturas ? 'Ocultar facturas' : 'Ver facturas incluidas'}
+                        <IconChevronDown className="w-4 h-4" />
+                    </button>
                 </div>
 
                 <div className="bg-white p-4 rounded-xl shadow-sm border border-pink-100 flex flex-col justify-center items-center text-center relative overflow-hidden">
