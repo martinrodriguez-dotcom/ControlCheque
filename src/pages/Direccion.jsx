@@ -117,8 +117,10 @@ function Flujo({payItems,collectItems,walletItems,expenseItems,cashItems}) {
     const [opening,setOpening]=useState('0');
     const [showEvents,setShowEvents]=useState(false);
     const [includeWallet,setIncludeWallet]=useState(false);
+    const [includePay,setIncludePay]=useState(true);
+    const [includeExpenses,setIncludeExpenses]=useState(true);
     const cashAvailable = cashItems.reduce((s,i)=>s+((i.cashType==='open'||i.cashType==='income') ? numberValue(i.amount) : (i.cashType==='expense' ? -numberValue(i.amount) : 0)),0);
-    const data = useMemo(()=>cashFlow({payItems,collectItems,walletItems:includeWallet?walletItems:[],expenseItems,days,opening:numberValue(opening)}),[payItems,collectItems,walletItems,expenseItems,days,opening,includeWallet]);
+    const data = useMemo(()=>cashFlow({payItems:includePay?payItems:[],collectItems,walletItems:includeWallet?walletItems:[],expenseItems:includeExpenses?expenseItems:[],days,opening:numberValue(opening)}),[payItems,collectItems,walletItems,expenseItems,days,opening,includeWallet,includePay,includeExpenses]);
     const populated = data.days.filter(d=>d.events.length>0);
     const extended = data.events.concat(data.overdue).sort((a,b)=>a.date.localeCompare(b.date));
     const exportData=()=>downloadCsv('SII_Flujo_de_fondos_'+localToday()+'.csv',
@@ -141,10 +143,21 @@ function Flujo({payItems,collectItems,walletItems,expenseItems,cashItems}) {
                         <span className="text-[10px] text-slate-500">No incluye cuentas bancarias ni conciliación.</span>
                     </div>
                 </div>
-                <label className="flex items-center gap-2 text-xs text-amber-900 mt-3">
-                    <input type="checkbox" checked={includeWallet} onChange={e=>setIncludeWallet(e.target.checked)} className="w-4 h-4 accent-indigo-700"/>
-                    Incluir cheques en cartera en los ingresos proyectados (podrían estar asociados a facturas ya incluidas y duplicarse).
-                </label>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3">
+                    <label className="flex items-start gap-2 text-xs text-amber-900">
+                        <input type="checkbox" checked={includePay} onChange={e=>setIncludePay(e.target.checked)} className="w-4 h-4 shrink-0 accent-indigo-700"/>
+                        Contar cheques emitidos como egresos
+                    </label>
+                    <label className="flex items-start gap-2 text-xs text-amber-900">
+                        <input type="checkbox" checked={includeExpenses} onChange={e=>setIncludeExpenses(e.target.checked)} className="w-4 h-4 shrink-0 accent-indigo-700"/>
+                        Contar gastos registrados como egresos
+                    </label>
+                    <label className="flex items-start gap-2 text-xs text-amber-900">
+                        <input type="checkbox" checked={includeWallet} onChange={e=>setIncludeWallet(e.target.checked)} className="w-4 h-4 shrink-0 accent-indigo-700"/>
+                        Incluir cheques en cartera como ingresos
+                    </label>
+                    <p className="md:col-span-3 text-[11px] text-amber-900">Si un cheque y un gasto representan la misma compra, o un cheque en cartera cancela una factura incluida, desmarcá la fuente que duplicaría el movimiento. Aún no hay conciliación automática.</p>
+                </div>
                 <p className="text-[11px] text-slate-500 mt-2">La pestaña PAGOS actual integra un servicio externo. Este escenario solo considera cheques de la colección histórica de ControlCheque y puede omitir vencimientos de Pagos avanzado.</p>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
