@@ -5,8 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview"
+    "build": "npm test && vite build",
+    "preview": "vite preview",
+    "test": "node --test src/utils/gestion30.test.mjs"
   },
   "dependencies": {
     "firebase": "^10.7.1",
