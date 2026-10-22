@@ -78,17 +78,21 @@ export default function ExportarCategoriasPagos({pagosState}) {
     };
     const pdf=async()=>{
         setError('');setWorking('pdf');
-        let el=null;
         try{
             const importer=await import('html2pdf.js');
             const html2pdf=importer.default || importer;
-            el=document.createElement('div');
-            el.innerHTML=htmlReporteCategoria(categories);
-            el.style.cssText='width:760px;background:white;padding:14px;position:absolute;left:-99999px;top:0;';
-            document.body.appendChild(el);
-            await html2pdf().set({margin:10,filename:'SII_Pagos_por_Categoria.pdf',image:{type:'jpeg',quality:0.98},html2canvas:{scale:2},jsPDF:{unit:'mm',format:'a4',orientation:'portrait'}}).from(el).save();
+            const html=htmlReporteCategoria(categories);
+            // html2pdf crea su propio contenedor visible para html2canvas.
+            // Evita generar un PDF vacío por capturar un elemento fuera del viewport.
+            await html2pdf().set({
+                margin:10, filename:'SII_Pagos_por_Categoria.pdf',
+                image:{type:'jpeg',quality:0.98},
+                html2canvas:{scale:2,useCORS:true},
+                jsPDF:{unit:'mm',format:'a4',orientation:'portrait'},
+                pagebreak:{mode:['css','legacy']}
+            }).from(html,'string').save();
         }catch(err){setError('No se pudo generar PDF: '+(err.message||String(err)));}
-        finally{el?.remove();setWorking('');}
+        finally{setWorking('');}
     };
     const print=()=>{
         setError('');
