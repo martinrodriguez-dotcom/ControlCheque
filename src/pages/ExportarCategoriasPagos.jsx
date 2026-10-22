@@ -67,6 +67,19 @@ export async function exportarExcelCategorias(categorias) {
         'SII_Pagos_por_Categoria.xlsx');
 }
 
+export async function exportarPdfCategorias(categorias) {
+    const importer=await import('html2pdf.js');
+    const html2pdf=importer.default || importer;
+    const html=htmlReporteCategoria(categorias);
+    await html2pdf().set({
+        margin:10, filename:'SII_Pagos_por_Categoria.pdf',
+        image:{type:'jpeg',quality:0.98},
+        html2canvas:{scale:2,useCORS:true},
+        jsPDF:{unit:'mm',format:'a4',orientation:'portrait'},
+        pagebreak:{mode:['css','legacy']}
+    }).from(html,'string').save();
+}
+
 export default function ExportarCategoriasPagos({pagosState}) {
     const [working,setWorking]=useState('');
     const [error,setError]=useState('');
@@ -78,20 +91,8 @@ export default function ExportarCategoriasPagos({pagosState}) {
     };
     const pdf=async()=>{
         setError('');setWorking('pdf');
-        try{
-            const importer=await import('html2pdf.js');
-            const html2pdf=importer.default || importer;
-            const html=htmlReporteCategoria(categories);
-            // html2pdf crea su propio contenedor visible para html2canvas.
-            // Evita generar un PDF vacío por capturar un elemento fuera del viewport.
-            await html2pdf().set({
-                margin:10, filename:'SII_Pagos_por_Categoria.pdf',
-                image:{type:'jpeg',quality:0.98},
-                html2canvas:{scale:2,useCORS:true},
-                jsPDF:{unit:'mm',format:'a4',orientation:'portrait'},
-                pagebreak:{mode:['css','legacy']}
-            }).from(html,'string').save();
-        }catch(err){setError('No se pudo generar PDF: '+(err.message||String(err)));}
+        try{await exportarPdfCategorias(categories);}
+        catch(err){setError('No se pudo generar PDF: '+(err.message||String(err)));}
         finally{setWorking('');}
     };
     const print=()=>{
