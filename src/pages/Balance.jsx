@@ -1,152 +1,185 @@
-import React, { useState } from 'react';
-import { IconCalendar, IconFileText, IconPieChart, IconChevronDown } from '../components/Icons';
-import { formatMoney, getCategoryLabel, getCategoryColor } from '../utils/helpers';
+import React, { useMemo, useState } from 'react';
+import { IconChevronDown, IconCalendar, IconFileText, IconWallet } from '../components/Icons';
+import { construirBalance, categoriasPagos, fechaCorta, hoyLocal, numero, pesos } from '../utils/balanceSemanal';
+import ExportarCategoriasPagos from './ExportarCategoriasPagos';
 
-export default function Balance({ balanceData, forecastData, setRangeReportModal, setShowCalendar, setSelectedDateFilter, payItems }) {
-    const [expandedCategory, setExpandedCategory] = useState(null);
+const BOX='bg-white border border-slate-200 shadow-sm rounded-2xl p-4 sm:p-5';
+const field='rounded-lg border border-slate-200 px-3 py-2.5 text-sm bg-white text-slate-800 focus:ring-2 focus:ring-violet-300 outline-none';
+function Metric({title,value,sub,accent='text-slate-800'}) {
+    return <div className={BOX}><div className="text-[10px] uppercase font-bold tracking-wide text-slate-500">{title}</div>
+        <div className={'text-xl sm:text-2xl font-black mt-2 break-words '+accent}>{pesos(value)}</div>
+        <p className="text-xs text-slate-500 mt-1">{sub}</p>
+    </div>;
+}
+function Badge({color,children}) {
+    return <span className={'inline-flex text-[10px] px-2 py-1 rounded-full font-bold '+color}>{children}</span>;
+}
+const summ = rows => rows.reduce((acc,x)=>acc+(numero(x.importe)||0),0);
 
-    return (
-        <div className="animate-fade-in">
-            <div className={`bg-white p-5 rounded-2xl shadow-md border-l-8 mb-6 border-violet-500`}>
-                <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-3">Estado Financiero Global</p>
-                <div className="flex justify-between text-center mb-4">
-                    <div>
-                        <p className="text-xs text-emerald-600 font-bold mb-1">A COBRAR</p>
-                        <p className="text-xl font-bold text-gray-800">{formatMoney(balanceData.collect + balanceData.wallet)}</p>
-                    </div>
-                    <div>
-                        <p className="text-xs text-blue-600 font-bold mb-1">A PAGAR</p>
-                        <p className="text-xl font-bold text-gray-800">{formatMoney(balanceData.pay + balanceData.expenses)}</p>
-                    </div>
-                </div>
-                <div className="border-t pt-3 flex justify-between items-center">
-                    <span className="text-sm font-bold text-gray-600">PROYECCIÓN SALDO:</span>
-                    <span className={`text-3xl font-black ${balanceData.net >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
-                        {balanceData.net > 0 ? '+' : ''}{formatMoney(balanceData.net)}
-                    </span>
-                </div>
+function WeekDetails({week}) {
+    return <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 py-3 px-2 sm:px-4 bg-slate-50 border-t border-slate-200">
+        <div className="min-w-0 bg-white rounded-xl border border-emerald-100 overflow-hidden">
+            <div className="flex items-center justify-between gap-2 bg-emerald-50 px-3 py-3">
+                <h4 className="font-bold text-sm text-emerald-900">Cobros esperados</h4>
+                <span className="font-bold text-sm text-emerald-700">{pesos(week.cobros)}</span>
             </div>
-
-            <div className="mb-6">
-                <div className="flex justify-between items-center mb-3">
-                    <h3 className="font-bold text-gray-700 flex items-center gap-2">
-                        <IconCalendar className="w-5 h-5 text-violet-600"/> Proyección 15 Días
-                    </h3>
-                    <div className="flex gap-2">
-                        <button 
-                            onClick={() => setRangeReportModal({isOpen: true, startDate: new Date().toISOString().split('T')[0], endDate: new Date().toISOString().split('T')[0]})} 
-                            className="bg-blue-50 text-blue-700 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-blue-100 transition-colors flex items-center gap-1"
-                        >
-                            <IconFileText className="w-3 h-3"/> Reporte Rango
-                        </button>
-                        <button 
-                            onClick={() => setShowCalendar(true)} 
-                            className="bg-violet-100 text-violet-700 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-violet-200 transition-colors flex items-center gap-1"
-                        >
-                            <IconCalendar className="w-3 h-3"/> Ver Mensual
-                        </button>
-                    </div>
-                </div>
-                
-                <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
-                    {forecastData.map((day, idx) => (
-                        <button 
-                            key={idx} 
-                            onClick={() => { setSelectedDateFilter(day.dateKey); }}
-                            className={`p-2 rounded-xl border flex flex-col items-center justify-center shadow-sm transition-transform active:scale-95 ${day.net > 0 ? 'bg-emerald-50 border-emerald-200' : (day.net < 0 ? 'bg-red-50 border-red-200' : 'bg-white border-gray-100')}`}
-                        >
-                            <span className="text-[10px] font-bold text-gray-500 uppercase mb-1">
-                                {day.date.toLocaleDateString('es-AR', {weekday:'short', day:'numeric'})}
-                            </span>
-                            <span className={`text-xs font-black ${day.net > 0 ? 'text-emerald-600' : (day.net < 0 ? 'text-red-600' : 'text-gray-300')}`}>
-                                {day.net === 0 ? '-' : (day.net > 0 ? '+' : '') + formatMoney(Math.abs(day.net))}
-                            </span>
-                            {(day.inflow > 0 || day.outflow > 0) && (
-                                <div className="flex gap-1 mt-1 justify-center w-full">
-                                    {day.inflow > 0 && <div className="w-1.5 h-1.5 rounded-full bg-emerald-400"></div>}
-                                    {day.outflow > 0 && <div className="w-1.5 h-1.5 rounded-full bg-blue-400"></div>}
-                                </div>
-                            )}
-                        </button>
-                    ))}
-                </div>
-                <p className="text-[10px] text-gray-400 mt-2 text-center">Toca un día para ver el detalle de movimientos.</p>
+            {week.itemsCobro.length===0?<p className="text-sm text-slate-400 text-center p-5">Sin cobranzas en esta semana</p>:
+            <div className="divide-y divide-slate-100 max-h-80 overflow-auto">{week.itemsCobro.map((item,index)=>
+                <div key={item.id||index} className="flex flex-wrap justify-between gap-2 px-3 py-2.5 text-xs">
+                    <div><strong className="text-slate-700">{item.payee||'Sin cliente'}</strong>
+                        <p className="text-[11px] text-slate-500 mt-0.5">{fechaCorta(item.dueDate||item.date)} · {item.number||'Sin número'}</p>
+                    </div><span className="font-bold text-emerald-700">{pesos(item.pendiente)}</span>
+                </div>)}</div>}
+        </div>
+        <div className="min-w-0 bg-white rounded-xl border border-rose-100 overflow-hidden">
+            <div className="flex items-center justify-between gap-2 bg-rose-50 px-3 py-3">
+                <h4 className="font-bold text-sm text-rose-900">Compromisos de Pagos</h4>
+                <span className="font-bold text-sm text-rose-700">{pesos(week.pagos)}</span>
             </div>
+            {week.itemsPago.length===0?<p className="text-sm text-slate-400 text-center p-5">Sin pagos en esta semana</p>:
+            <div className="divide-y divide-slate-100 max-h-80 overflow-auto">{week.itemsPago.map((item,index)=>
+                <div key={item.id||index} className="flex flex-wrap justify-between gap-2 px-3 py-2.5 text-xs">
+                    <div><strong className="text-slate-700">{item.nombre||'Sin beneficiario'}</strong>
+                        <p className="text-[11px] text-slate-500 mt-0.5">{fechaCorta(item.fecha)} · {item.categoria||'Sin categoría'} · {item.nro||'Sin número'}</p>
+                    </div><span className="font-bold text-rose-700">{pesos(numero(item.importe))}</span>
+                </div>)}</div>}
+        </div>
+    </div>;
+}
 
-            {balanceData.sortedCategories.length > 0 && (
-                <div className="bg-white p-5 rounded-2xl shadow-md border border-gray-100 mb-6">
-                    <h3 className="font-bold text-gray-700 mb-4 flex items-center gap-2 text-sm uppercase tracking-wide">
-                        <IconPieChart className="w-4 h-4 text-blue-500"/> Distribución de Gastos (Pendientes)
-                    </h3>
-                    <div className="space-y-3">
-                        {balanceData.sortedCategories.map((item, idx) => {
-                            const percent = balanceData.pay > 0 ? (item.amount / balanceData.pay) * 100 : 0;
-                            const isExpanded = expandedCategory === item.cat;
-                            return (
-                                <div key={idx} className="mb-3">
-                                    <button 
-                                        onClick={() => setExpandedCategory(isExpanded ? null : item.cat)} 
-                                        className="w-full text-left"
-                                    >
-                                        <div className="flex justify-between text-xs mb-1">
-                                            <span className="font-bold text-gray-600 flex items-center gap-1">
-                                                {getCategoryLabel(item.cat)} 
-                                                <IconChevronDown className={`w-3 h-3 text-gray-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`}/>
-                                            </span>
-                                            <span className="font-mono text-gray-500">{formatMoney(item.amount)}</span>
-                                        </div>
-                                        <div className="w-full bg-gray-100 rounded-full h-2.5">
-                                            <div className={`h-2.5 rounded-full ${getCategoryColor(item.cat)}`} style={{ width: `${percent}%` }}></div>
-                                        </div>
-                                    </button>
-                                    {isExpanded && (
-                                        <div className="mt-2 pl-2 border-l-2 border-gray-200 space-y-2 animate-fade-in">
-                                            {payItems.filter(p => p.status !== 'paid' && (p.category || 'others') === item.cat).sort((a,b) => new Date(a.dueDate) - new Date(b.dueDate)).map(detail => (
-                                                <div key={detail.id} className="text-xs flex justify-between bg-gray-50 p-2 rounded items-center">
-                                                    <span className="truncate pr-2">
-                                                        {detail.payee} 
-                                                        <span className="text-gray-400"> ({new Date(detail.dueDate+'T00:00:00').toLocaleDateString('es-AR', {day:'numeric', month:'short'})})</span>
-                                                    </span>
-                                                    <span className="font-mono font-bold whitespace-nowrap">{formatMoney(detail.amount - (detail.paidAmount||0))}</span>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    )}
-                                </div>
-                            );
-                        })}
-                    </div>
-                </div>
-            )}
+export default function Balance({pagosAvanzados,collectItems=[]}) {
+    const [start,setStart]=useState(hoyLocal);
+    const [horizon,setHorizon]=useState(8);
+    const [expanded,setExpanded]=useState('');
+    const [categoryOpen,setCategoryOpen]=useState('');
+    const [tab,setTab]=useState('semanas');
 
-            <div className="bg-white p-5 rounded-2xl shadow-md border border-gray-100">
-                <h3 className="font-bold text-gray-700 mb-4 flex items-center gap-2 text-sm uppercase tracking-wide">
-                    <IconCalendar className="w-4 h-4 text-violet-500"/> Agenda Financiera
-                </h3>
-                <div className="space-y-4">
-                    {balanceData.dailyAgenda.length === 0 ? <p className="text-xs text-gray-400 italic text-center">No hay movimientos pendientes.</p> : 
-                    balanceData.dailyAgenda.slice(0, 10).map((day, i) => (
-                        <div key={i} className="flex items-center text-sm border-b border-gray-50 last:border-0 pb-2 last:pb-0">
-                            <div className="w-16 font-bold text-gray-500 text-xs">
-                                {new Date(day.date+'T00:00:00').toLocaleDateString('es-AR', {day:'2-digit', month:'short'})}
-                            </div>
-                            <div className="flex-1 px-2">
-                                <div className="flex justify-between text-xs mb-1">
-                                    <span className="text-emerald-600 font-bold">Ingresos</span>
-                                    <span className="text-emerald-600">{formatMoney(day.inflow)}</span>
-                                </div>
-                                <div className="flex justify-between text-xs">
-                                    <span className="text-blue-600 font-bold">Egresos</span>
-                                    <span className="text-blue-600">{formatMoney(day.outflow)}</span>
-                                </div>
-                            </div>
-                            <div className={`w-20 text-right font-mono font-bold text-xs ${day.net >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                {day.net > 0 ? '+' : ''}{formatMoney(day.net)}
-                            </div>
-                        </div>
-                    ))}
+    const calculo=useMemo(()=>{
+        if(!pagosAvanzados.ready)return null;
+        try {return construirBalance({pagos:pagosAvanzados.items,cobros:collectItems,inicio:start,semanas:Number(horizon)});}
+        catch{return null;}
+    },[pagosAvanzados.ready,pagosAvanzados.items,collectItems,start,horizon]);
+    const categorias=useMemo(()=>pagosAvanzados.ready?categoriasPagos(pagosAvanzados.items):[],[pagosAvanzados.items,pagosAvanzados.ready]);
+    const maxBar=calculo?Math.max(1,...calculo.semanas.flatMap(w=>[w.cobros,w.pagos])):1;
+    const today=hoyLocal();
+    const pagosVencidos=calculo?.alertas.pagosVencidos?.reduce((acc,i)=>acc+(numero(i.importe)||0),0)||0;
+    const cobrosVencidos=calculo?.alertas.cobrosVencidos?.reduce((acc,i)=>acc+Math.max(0,(numero(i.amount)||0)-(numero(i.paidAmount)||0)),0)||0;
+
+    return <div className="space-y-4 animate-fade-in max-w-[1600px] mx-auto">
+        <div className="bg-slate-900 rounded-2xl p-5 sm:p-6 shadow-md text-white">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                    <p className="text-xs font-bold text-violet-300 uppercase tracking-wider">SII PALLETS · Gestión financiera</p>
+                    <h2 className="text-2xl sm:text-3xl font-black mt-1">Balance semanal</h2>
+                    <p className="text-sm mt-2 text-slate-300 max-w-2xl">Comparación de cobranzas pendientes contra compromisos de Pagos Avanzado. Semanas idénticas a Pagos: <strong className="text-white">sábado a viernes</strong>.</p>
                 </div>
+                <Badge color={pagosAvanzados.ready?'bg-emerald-900 text-emerald-100':pagosAvanzados.loading?'bg-amber-900 text-amber-100':'bg-rose-900 text-rose-100'}>
+                    {pagosAvanzados.loading?'Conectando Pagos…':pagosAvanzados.ready?'Pagos conectado en vivo':'Pagos sin conexión'}
+                </Badge>
             </div>
         </div>
-    );
+        {pagosAvanzados.loading && <div className={BOX}><p className="text-sm text-slate-600">Consultando el Firebase de Pagos Avanzado…</p></div>}
+        {!pagosAvanzados.loading&&!pagosAvanzados.ready && <div role="alert" className="rounded-xl border border-rose-300 bg-rose-50 p-4 text-rose-900">
+            <p className="font-bold">No se pueden consultar los compromisos reales de Pagos.</p>
+            <p className="text-sm mt-1">{pagosAvanzados.error || 'La lectura no está disponible.'}</p>
+            <p className="text-xs mt-2">No mostramos un saldo financiero de 0 ni recurrimos a los registros antiguos de Gastos: eso ocultaría compromisos reales. La app de Pagos sigue funcionando de forma independiente.</p>
+        </div>}
+        {pagosAvanzados.bankError && <div className="text-xs text-amber-700">{pagosAvanzados.bankError}</div>}
+        {calculo && <>
+            <div className={BOX}>
+                <div className="flex flex-wrap gap-3 items-end">
+                    <label className="text-xs font-bold text-slate-600">Fecha de referencia
+                        <input type="date" className={field+' block mt-1'} value={start} onChange={e=>setStart(e.target.value)}/>
+                    </label>
+                    <label className="text-xs font-bold text-slate-600">Período de comparación
+                        <select className={field+' block mt-1'} value={horizon} onChange={e=>setHorizon(Number(e.target.value))}>
+                            <option value={4}>4 semanas</option>
+                            <option value={8}>8 semanas</option>
+                            <option value={12}>12 semanas</option>
+                            <option value={16}>16 semanas</option>
+                            <option value={26}>26 semanas</option>
+                        </select>
+                    </label>
+                    <div className="text-sm text-slate-500 pb-2">Del <strong className="text-slate-800">{fechaCorta(calculo.desde)}</strong> al <strong className="text-slate-800">{fechaCorta(calculo.hasta)}</strong></div>
+                </div>
+                <p className="text-[11px] mt-3 text-slate-500">Los valores reflejan importes aún pendientes: se descuentan los cobros parciales registrados y no se incluyen pagos marcados como pagados.</p>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+                <Metric title="Cobros del período" value={calculo.totalCobrosPeriodo} sub="Saldos pendientes con fecha de vencimiento" accent="text-emerald-700"/>
+                <Metric title="Pagos del período" value={calculo.totalPagosPeriodo} sub="Obligaciones pendientes en Pagos Avanzado" accent="text-rose-700"/>
+                <Metric title="Diferencia proyectada" value={calculo.netoPeriodo} sub="Cobros esperados menos pagos comprometidos" accent={calculo.netoPeriodo>=0?'text-emerald-700':'text-rose-700'}/>
+                <Metric title="Deuda total cargada" value={calculo.deudaPendienteTotal} sub="Incluye compromisos fuera del período" accent="text-indigo-700"/>
+            </div>
+            {(pagosVencidos>0||cobrosVencidos>0||calculo.alertas.pagosSinFecha.length||calculo.alertas.cobrosSinFecha.length||calculo.alertas.pagosSinImporte.length||calculo.alertas.estadosInesperados.length)&&
+            <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-950 space-y-1">
+                <p className="font-bold">Puntos a revisar antes de tomar decisiones:</p>
+                {pagosVencidos>0 && <p>Pagos vencidos antes del {fechaCorta(today)}: {pesos(pagosVencidos)} (podrían estar incluidos en la semana actual o semanas anteriores)</p>}
+                {cobrosVencidos>0 && <p>Cobros vencidos antes del {fechaCorta(today)}: {pesos(cobrosVencidos)}</p>}
+                {calculo.alertas.pagosSinFecha.length>0&&<p>{calculo.alertas.pagosSinFecha.length} pagos pendientes sin fecha válida quedaron fuera de las semanas.</p>}
+                {calculo.alertas.cobrosSinFecha.length>0&&<p>{calculo.alertas.cobrosSinFecha.length} cobros pendientes sin vencimiento válido quedaron fuera de las semanas.</p>}
+                {calculo.alertas.pagosSinImporte.length>0&&<p>{calculo.alertas.pagosSinImporte.length} pagos tienen importes inválidos.</p>}
+                {calculo.alertas.estadosInesperados.length>0&&<p>{calculo.alertas.estadosInesperados.length} pagos tienen estados no reconocidos y no se suman.</p>}
+            </div>}
+            <div className="bg-white rounded-xl border border-slate-200 p-1 flex gap-1 overflow-x-auto">
+                <button type="button" onClick={()=>setTab('semanas')} className={'shrink-0 px-4 py-2.5 rounded-lg font-bold text-sm '+(tab==='semanas'?'bg-violet-700 text-white':'text-slate-600 hover:bg-slate-100')}>Semanas: cobros vs pagos</button>
+                <button type="button" onClick={()=>setTab('categorias')} className={'shrink-0 px-4 py-2.5 rounded-lg font-bold text-sm '+(tab==='categorias'?'bg-violet-700 text-white':'text-slate-600 hover:bg-slate-100')}>Deuda por categoría</button>
+            </div>
+            {tab==='semanas' && <div className={BOX+' space-y-4'}>
+                <div>
+                    <h3 className="font-bold text-slate-900 text-lg flex items-center gap-2"><IconCalendar className="w-5 h-5 text-violet-700"/> Comparación semanal</h3>
+                    <p className="text-xs text-slate-500 mt-1">Seleccioná una semana para ver cada factura pendiente y compromiso, con sus fechas originales.</p>
+                </div>
+                <div className="flex gap-4 text-xs"><span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-emerald-500"/> Cobros</span><span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-rose-500"/> Pagos</span></div>
+                <div className="space-y-2">
+                    {calculo.semanas.map((w,index)=><div key={w.desde} className={'border rounded-xl overflow-hidden '+(expanded===w.desde?'border-violet-300':'border-slate-200')}>
+                        <button type="button" onClick={()=>setExpanded(expanded===w.desde?'':w.desde)} className="w-full text-left p-3 sm:p-4 hover:bg-slate-50" aria-expanded={expanded===w.desde}>
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                                <div className="text-sm font-bold text-slate-800">Semana {index+1} <span className="font-medium text-slate-500 text-xs"> · Sáb {fechaCorta(w.desde)} – Vie {fechaCorta(w.hasta)}</span></div>
+                                <div className="flex items-center gap-2">
+                                    <Badge color={w.neto>=0?'bg-emerald-50 text-emerald-800':'bg-rose-50 text-rose-800'}>{w.neto>=0?'+':'−'}{pesos(Math.abs(w.neto))}</Badge>
+                                    <IconChevronDown className={'w-4 h-4 text-slate-400 transition-transform '+(expanded===w.desde?'rotate-180':'')}/>
+                                </div>
+                            </div>
+                            <div className="grid sm:grid-cols-2 gap-2 mt-3 text-xs">
+                                <div><div className="flex justify-between gap-2"><span className="text-emerald-800 font-bold">A cobrar</span><span className="font-bold">{pesos(w.cobros)}</span></div>
+                                    <div className="mt-1.5 h-2 bg-slate-100 rounded-full overflow-hidden"><div className="h-full bg-emerald-500 rounded-full" style={{width:(w.cobros/maxBar*100)+'%'}}/></div></div>
+                                <div><div className="flex justify-between gap-2"><span className="text-rose-800 font-bold">A pagar</span><span className="font-bold">{pesos(w.pagos)}</span></div>
+                                    <div className="mt-1.5 h-2 bg-slate-100 rounded-full overflow-hidden"><div className="h-full bg-rose-500 rounded-full" style={{width:(w.pagos/maxBar*100)+'%'}}/></div></div>
+                            </div>
+                        </button>
+                        {expanded===w.desde && <WeekDetails week={w}/>}
+                    </div>)}
+                </div>
+                <div className="border-t border-slate-200 pt-3 flex flex-wrap justify-between gap-2 text-sm font-bold">
+                    <span>Resultado acumulado del período</span>
+                    <span className={calculo.netoPeriodo>=0?'text-emerald-700':'text-rose-700'}>{pesos(calculo.netoPeriodo)}</span>
+                </div>
+                <p className="text-xs text-slate-500">Esta proyección compara vencimientos, no dinero efectivamente disponible. No duplica importes de Cartera ni de Gastos. Pagos vencidos antes del período seleccionado no se trasladan artificialmente a semanas posteriores.</p>
+            </div>}
+            {tab==='categorias' && <div className={BOX+' space-y-4'}>
+                <div><h3 className="font-bold text-slate-900 text-lg">Deuda de Pagos por categoría</h3>
+                    <p className="text-xs text-slate-500 mt-1">Mismos campos que «Por Categorías» de Pagos: total histórico, pagado y deuda pendiente.</p>
+                </div>
+                <ExportarCategoriasPagos pagosState={pagosAvanzados} />
+                {categorias.length===0?<p className="text-sm text-slate-500 p-4 text-center">No hay categorías cargadas.</p>:
+                <div className="space-y-2">{categorias.map(cat=><div key={cat.categoria} className="border border-slate-200 rounded-xl overflow-hidden">
+                    <button type="button" aria-expanded={categoryOpen===cat.categoria} onClick={()=>setCategoryOpen(categoryOpen===cat.categoria?'':cat.categoria)} className="w-full hover:bg-slate-50 px-4 py-3 flex items-center justify-between text-left gap-3">
+                        <div><strong className="text-sm text-slate-800">{cat.categoria}</strong><p className="text-xs text-slate-500 mt-1">Histórico {pesos(cat.total)} · Pagado {pesos(cat.pagado)}</p></div>
+                        <div className="flex items-center gap-2"><div className="text-right"><p className="text-[10px] text-slate-500">Pendiente</p><p className="text-sm font-black text-rose-700">{pesos(cat.deuda)}</p></div><IconChevronDown className={'w-4 h-4 text-slate-500 '+(categoryOpen===cat.categoria?'rotate-180':'')}/></div>
+                    </button>
+                    {categoryOpen===cat.categoria && <div className="border-t bg-slate-50 p-3">
+                        <div className="max-h-80 overflow-y-auto divide-y divide-slate-200">
+                            {cat.items.slice().sort((a,b)=>String(a.fecha||'').localeCompare(String(b.fecha||''))).map((x,i)=><div key={x.id||i} className="py-2 flex flex-wrap justify-between items-center gap-2 text-xs">
+                                <div><strong className="text-slate-700">{x.nombre||'Sin proveedor'}</strong><p className="text-slate-500">{fechaCorta(x.fecha)} · {x.nro||'S/N'} · {x.estado||'PENDIENTE'}</p></div>
+                                <span className="font-bold">{pesos(numero(x.importe))}</span>
+                            </div>)}
+                        </div>
+                    </div>}
+                </div>)}</div>}
+            </div>}
+            <div className="text-xs text-slate-500 leading-relaxed px-1">
+                <strong>Fuentes:</strong> ingresos desde Cobros de ControlCheque; egresos desde el Firebase de Pagos Avanzado. No se modifica información. Las categorías y los importes se actualizan cuando cambian los registros de origen.
+            </div>
+        </>}
+    </div>;
 }
