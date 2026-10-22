@@ -1,5 +1,5 @@
 // Archivo: src/App.jsx
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { onAuthStateChanged, signInAnonymously } from "firebase/auth";
 import { collection, onSnapshot, doc, updateDoc, deleteDoc, addDoc, setDoc } from "firebase/firestore";
 import { auth, db } from './firebase';
@@ -14,13 +14,15 @@ import Pallets from './pages/Pallets';
 import Caja from './pages/Caja';
 import Movimientos from './pages/Movimientos';
 import Balance from './pages/Balance';
-import ExportarCategoriasPagos from './pages/ExportarCategoriasPagos';
+import { exportarExcelCategorias, exportarPdfCategorias } from './pages/ExportarCategoriasPagos';
+import { categoriasPagos } from './utils/balanceSemanal';
 import { usePagosReales } from './hooks/usePagosReales';
 import Facturacion from './pages/Facturacion';
 
 export default function App() {
     const [mode, setMode] = useState('pay'); // Inicia en la nueva pestaña de Pagos
     const pagosAvanzados = usePagosReales(true); // Solo lectura de la fuente real de Pagos
+    const pagosIframeRef = useRef(null);
     const [user, setUser] = useState(null); 
     const [payItems, setPayItems] = useState([]); 
     const [collectItems, setCollectItems] = useState([]);
@@ -72,6 +74,45 @@ export default function App() {
     const [presupuestos, setPresupuestos] = useState([]);
 
     const theme = getTheme(mode);
+
+    // Comunicación únicamente con la copia local de Pagos incluida en ESTA vista previa.
+    // Los informes se generan a pedido; ningún movimiento de Firebase es modificado.
+    useEffect(() => {
+        const onExport = async event => {
+            const message=event.data;
+            if (event.origin !== window.location.origin ||
+                event.source !== pagosIframeRef.current?.contentWindow ||
+                !message || message.type !== 'SII_CATEGORIAS_EXPORT_V1') return;
+            const reply=(ok,error='')=>{
+                try {event.source.postMessage({type:'SII_CATEGORIAS_EXPORT_RESULT_V1',ok,error},event.origin);}
+                catch(err){console.warn('No se pudo notificar a Pagos',err);}
+            };
+            try{
+                if (!['xlsx','pdf'].includes(message.format) ||
+                    !Array.isArray(message.items) || message.items.length>50000) {
+                    throw new Error('Solicitud de informe no válida.');
+                }
+                const items=message.items.map(item => {
+                    if (!item || typeof item !== 'object' ||
+                        typeof item.categoria !== 'string' || item.categoria.length>300 ||
+                        typeof item.estado !== 'string' || item.estado.length>80 ||
+                        typeof item.importe !== 'number' || !Number.isFinite(item.importe)) {
+                        throw new Error('Hay datos de categoría o importes inválidos; revisá los registros.');
+                    }
+                    return {categoria:item.categoria,estado:item.estado,importe:item.importe};
+                });
+                const categories=categoriasPagos(items);
+                if (message.format==='xlsx') await exportarExcelCategorias(categories);
+                else await exportarPdfCategorias(categories);
+                reply(true);
+            }catch(err) {
+                console.error('Error al exportar categorías de Pagos:',err);
+                reply(false,err?.message||String(err));
+            }
+        };
+        window.addEventListener('message',onExport);
+        return ()=>window.removeEventListener('message',onExport);
+    }, []);
 
     useEffect(() => {
         window.addEventListener('beforeinstallprompt', (e) => { 
@@ -1049,12 +1090,11 @@ export default function App() {
             <div className={mode === 'pay' ? 'p-0 sm:p-2' : 'p-2 sm:p-4 md:p-6'}>
                 
                 {/* PORTAL A PANTALLA COMPLETA: APLICACIÓN AVANZADA DE PAGOS */}
-                {mode === 'pay' && (<>
-                    <ExportarCategoriasPagos pagosState={pagosAvanzados}/>
-                    <div className="w-full h-[calc(100vh-210px)] min-h-[540px] bg-white sm:rounded-2xl shadow-xl overflow-hidden animate-fade-in border-0 sm:border border-gray-200">
-                        <iframe src="https://listapagos.netlify.app/" title="Control de Pagos Avanzado" className="w-full h-full border-none outline-none bg-[#f8fafc]"></iframe>
+                {mode === 'pay' && (
+                    <div className="w-full h-[calc(100vh-140px)] bg-white sm:rounded-2xl shadow-xl overflow-hidden animate-fade-in border-0 sm:border border-gray-200">
+                        <iframe ref={pagosIframeRef} src="/pagos.html" title="Control de Pagos Avanzado — prueba de categorías" className="w-full h-full border-none outline-none bg-[#f8fafc]"></iframe>
                     </div>
-                </>)}
+                )}
 
                 {mode === 'billing' && (
                     <Facturacion 
