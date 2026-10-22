@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
-import { IconChevronDown, IconCalendar, IconFileText, IconWallet } from '../components/Icons';
-import { construirBalance, categoriasPagos, fechaCorta, hoyLocal, numero, pesos } from '../utils/balanceSemanal';
+import { IconChevronDown, IconCalendar, IconPrinter } from '../components/Icons';
+import { construirBalance, categoriasPagos, fechaCorta, hoyLocal, numero, pesos, htmlReporteSemana } from '../utils/balanceSemanal';
+import { handleReportAction } from '../utils/helpers';
 import ExportarCategoriasPagos from './ExportarCategoriasPagos';
 
 const BOX='bg-white border border-slate-200 shadow-sm rounded-2xl p-4 sm:p-5';
@@ -14,7 +15,6 @@ function Metric({title,value,sub,accent='text-slate-800'}) {
 function Badge({color,children}) {
     return <span className={'inline-flex text-[10px] px-2 py-1 rounded-full font-bold '+color}>{children}</span>;
 }
-const summ = rows => rows.reduce((acc,x)=>acc+(numero(x.importe)||0),0);
 
 function WeekDetails({week}) {
     return <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 py-3 px-2 sm:px-4 bg-slate-50 border-t border-slate-200">
@@ -66,17 +66,14 @@ export default function Balance({pagosAvanzados,collectItems=[]}) {
     const cobrosVencidos=calculo?.alertas.cobrosVencidos?.reduce((acc,i)=>acc+Math.max(0,(numero(i.amount)||0)-(numero(i.paidAmount)||0)),0)||0;
 
     return <div className="space-y-4 animate-fade-in max-w-[1600px] mx-auto">
-        <div className="bg-slate-900 rounded-2xl p-5 sm:p-6 shadow-md text-white">
-            <div className="flex flex-wrap items-start justify-between gap-3">
-                <div>
-                    <p className="text-xs font-bold text-violet-300 uppercase tracking-wider">SII PALLETS · Gestión financiera</p>
-                    <h2 className="text-2xl sm:text-3xl font-black mt-1">Balance semanal</h2>
-                    <p className="text-sm mt-2 text-slate-300 max-w-2xl">Comparación de cobranzas pendientes contra compromisos de Pagos Avanzado. Semanas idénticas a Pagos: <strong className="text-white">sábado a viernes</strong>.</p>
-                </div>
-                <Badge color={pagosAvanzados.ready?'bg-emerald-900 text-emerald-100':pagosAvanzados.loading?'bg-amber-900 text-amber-100':'bg-rose-900 text-rose-100'}>
-                    {pagosAvanzados.loading?'Conectando Pagos…':pagosAvanzados.ready?'Pagos conectado en vivo':'Pagos sin conexión'}
-                </Badge>
+        <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
+            <div>
+                <h2 className="text-2xl sm:text-3xl font-black text-slate-800">Balance</h2>
+                <p className="text-xs sm:text-sm text-slate-500 mt-1">Cobros y compromisos por semana · Sábado a viernes</p>
             </div>
+            <Badge color={pagosAvanzados.ready?'bg-emerald-50 text-emerald-800':pagosAvanzados.loading?'bg-amber-50 text-amber-800':'bg-rose-50 text-rose-800'}>
+                {pagosAvanzados.loading?'Conectando Pagos…':pagosAvanzados.ready?'Pagos conectado':'Pagos sin conexión'}
+            </Badge>
         </div>
         {pagosAvanzados.loading && <div className={BOX}><p className="text-sm text-slate-600">Consultando el Firebase de Pagos Avanzado…</p></div>}
         {!pagosAvanzados.loading&&!pagosAvanzados.ready && <div role="alert" className="rounded-xl border border-rose-300 bg-rose-50 p-4 text-rose-900">
@@ -132,7 +129,8 @@ export default function Balance({pagosAvanzados,collectItems=[]}) {
                 <div className="flex gap-4 text-xs"><span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-emerald-500"/> Cobros</span><span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-rose-500"/> Pagos</span></div>
                 <div className="space-y-2">
                     {calculo.semanas.map((w,index)=><div key={w.desde} className={'border rounded-xl overflow-hidden '+(expanded===w.desde?'border-violet-300':'border-slate-200')}>
-                        <button type="button" onClick={()=>setExpanded(expanded===w.desde?'':w.desde)} className="w-full text-left p-3 sm:p-4 hover:bg-slate-50" aria-expanded={expanded===w.desde}>
+                        <div className="relative">
+                        <button type="button" onClick={()=>setExpanded(expanded===w.desde?'':w.desde)} className="w-full text-left p-3 sm:p-4 pr-24 sm:pr-32 hover:bg-slate-50" aria-expanded={expanded===w.desde}>
                             <div className="flex flex-wrap items-center justify-between gap-2">
                                 <div className="text-sm font-bold text-slate-800">Semana {index+1} <span className="font-medium text-slate-500 text-xs"> · Sáb {fechaCorta(w.desde)} – Vie {fechaCorta(w.hasta)}</span></div>
                                 <div className="flex items-center gap-2">
@@ -147,6 +145,12 @@ export default function Balance({pagosAvanzados,collectItems=[]}) {
                                     <div className="mt-1.5 h-2 bg-slate-100 rounded-full overflow-hidden"><div className="h-full bg-rose-500 rounded-full" style={{width:(w.pagos/maxBar*100)+'%'}}/></div></div>
                             </div>
                         </button>
+                        <button type="button" title={'Imprimir semana '+fechaCorta(w.desde)+' a '+fechaCorta(w.hasta)}
+                            onClick={() => handleReportAction('Balance semanal SII PALLETS', htmlReporteSemana(w),'print','')}
+                            className="absolute top-3 right-3 sm:top-4 sm:right-4 z-10 inline-flex items-center gap-1.5 rounded-lg bg-white border border-violet-200 px-2.5 py-2 text-xs font-bold text-violet-800 shadow-sm hover:bg-violet-50">
+                            <IconPrinter className="w-4 h-4"/><span className="hidden sm:inline">Imprimir</span>
+                        </button>
+                        </div>
                         {expanded===w.desde && <WeekDetails week={w}/>}
                     </div>)}
                 </div>
