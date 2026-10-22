@@ -1,5 +1,5 @@
 // Archivo: src/App.jsx
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { onAuthStateChanged, signInAnonymously } from "firebase/auth";
 import { collection, onSnapshot, doc, updateDoc, deleteDoc, addDoc, setDoc } from "firebase/firestore";
 import { auth, db } from './firebase';
@@ -14,10 +14,15 @@ import Pallets from './pages/Pallets';
 import Caja from './pages/Caja';
 import Movimientos from './pages/Movimientos';
 import Balance from './pages/Balance';
+import { exportarExcelCategorias, exportarPdfCategorias } from './pages/ExportarCategoriasPagos';
+import { categoriasPagos } from './utils/balanceSemanal';
+import { usePagosReales } from './hooks/usePagosReales';
 import Facturacion from './pages/Facturacion';
 
 export default function App() {
     const [mode, setMode] = useState('pay'); // Inicia en la nueva pestaña de Pagos
+    const pagosAvanzados = usePagosReales(true); // Solo lectura de la fuente real de Pagos
+    const pagosIframeRef = useRef(null);
     const [user, setUser] = useState(null); 
     const [payItems, setPayItems] = useState([]); 
     const [collectItems, setCollectItems] = useState([]);
@@ -69,6 +74,45 @@ export default function App() {
     const [presupuestos, setPresupuestos] = useState([]);
 
     const theme = getTheme(mode);
+
+    // Comunicación únicamente con la copia local de Pagos incluida en ESTA vista previa.
+    // Los informes se generan a pedido; ningún movimiento de Firebase es modificado.
+    useEffect(() => {
+        const onExport = async event => {
+            const message=event.data;
+            if (event.origin !== window.location.origin ||
+                event.source !== pagosIframeRef.current?.contentWindow ||
+                !message || message.type !== 'SII_CATEGORIAS_EXPORT_V1') return;
+            const reply=(ok,error='')=>{
+                try {event.source.postMessage({type:'SII_CATEGORIAS_EXPORT_RESULT_V1',ok,error},event.origin);}
+                catch(err){console.warn('No se pudo notificar a Pagos',err);}
+            };
+            try{
+                if (!['xlsx','pdf'].includes(message.format) ||
+                    !Array.isArray(message.items) || message.items.length>50000) {
+                    throw new Error('Solicitud de informe no válida.');
+                }
+                const items=message.items.map(item => {
+                    if (!item || typeof item !== 'object' ||
+                        typeof item.categoria !== 'string' || item.categoria.length>300 ||
+                        typeof item.estado !== 'string' || item.estado.length>80 ||
+                        typeof item.importe !== 'number' || !Number.isFinite(item.importe)) {
+                        throw new Error('Hay datos de categoría o importes inválidos; revisá los registros.');
+                    }
+                    return {categoria:item.categoria,estado:item.estado,importe:item.importe};
+                });
+                const categories=categoriasPagos(items);
+                if (message.format==='xlsx') await exportarExcelCategorias(categories);
+                else await exportarPdfCategorias(categories);
+                reply(true);
+            }catch(err) {
+                console.error('Error al exportar categorías de Pagos:',err);
+                reply(false,err?.message||String(err));
+            }
+        };
+        window.addEventListener('message',onExport);
+        return ()=>window.removeEventListener('message',onExport);
+    }, []);
 
     useEffect(() => {
         window.addEventListener('beforeinstallprompt', (e) => { 
@@ -1034,7 +1078,7 @@ export default function App() {
                     <button onClick={() => changeMode('pay')} className={`flex-1 py-2 px-3 rounded-lg font-bold flex flex-col sm:flex-row items-center justify-center gap-1 transition-all whitespace-nowrap ${mode === 'pay' ? 'bg-white text-blue-800 shadow-md' : 'text-white/60'}`}><IconWallet className="w-4 h-4"/> <span>PAGOS</span></button>
                     <button onClick={() => changeMode('billing')} className={`flex-1 py-2 px-3 rounded-lg font-bold flex flex-col sm:flex-row items-center justify-center gap-1 transition-all whitespace-nowrap ${mode === 'billing' ? 'bg-white text-pink-800 shadow-md' : 'text-white/60'}`}><IconFileText className="w-4 h-4"/> <span>FACTURACIÓN</span></button>
                     <button onClick={() => changeMode('cashbox')} className={`flex-1 py-2 px-3 rounded-lg font-bold flex flex-col sm:flex-row items-center justify-center gap-1 transition-all whitespace-nowrap ${mode === 'cashbox' ? 'bg-white text-cyan-800 shadow-md' : 'text-white/60'}`}><IconBox className="w-4 h-4"/> <span>CAJA</span></button>
-                    <button onClick={() => changeMode('expenses')} className={`flex-1 py-2 px-3 rounded-lg font-bold flex flex-col sm:flex-row items-center justify-center gap-1 transition-all whitespace-nowrap ${mode === 'expenses' ? 'bg-white text-orange-800 shadow-md' : 'text-white/60'}`}><IconTag className="w-4 h-4"/> <span>GASTOS</span></button>
+                    {/* Gastos permanece en el código y Firebase, pero se oculta del menú durante el piloto. */}
                     <button onClick={() => changeMode('balance')} className={`flex-1 py-2 px-3 rounded-lg font-bold flex flex-col sm:flex-row items-center justify-center gap-1 transition-all whitespace-nowrap ${mode === 'balance' ? 'bg-white text-violet-800 shadow-md' : 'text-white/60'}`}><IconTrendingUp className="w-4 h-4"/> <span>BALANCE</span></button>
                     <button onClick={() => changeMode('collect')} className={`flex-1 py-2 px-3 rounded-lg font-bold flex flex-col sm:flex-row items-center justify-center gap-1 transition-all whitespace-nowrap ${mode === 'collect' ? 'bg-white text-emerald-800 shadow-md' : 'text-white/60'}`}><IconBriefcase className="w-4 h-4"/> <span>COBROS</span></button>
                     <button onClick={() => changeMode('wallet')} className={`flex-1 py-2 px-3 rounded-lg font-bold flex flex-col sm:flex-row items-center justify-center gap-1 transition-all whitespace-nowrap ${mode === 'wallet' ? 'bg-white text-indigo-800 shadow-md' : 'text-white/60'}`}><IconFolder className="w-4 h-4"/> <span>CARTERA</span></button>
@@ -1048,7 +1092,7 @@ export default function App() {
                 {/* PORTAL A PANTALLA COMPLETA: APLICACIÓN AVANZADA DE PAGOS */}
                 {mode === 'pay' && (
                     <div className="w-full h-[calc(100vh-140px)] bg-white sm:rounded-2xl shadow-xl overflow-hidden animate-fade-in border-0 sm:border border-gray-200">
-                        <iframe src="https://listapagos.netlify.app/" title="Control de Pagos Avanzado" className="w-full h-full border-none outline-none bg-[#f8fafc]"></iframe>
+                        <iframe ref={pagosIframeRef} src="/pagos.html" title="Control de Pagos Avanzado — prueba de categorías" className="w-full h-full border-none outline-none bg-[#f8fafc]"></iframe>
                     </div>
                 )}
 
@@ -1082,14 +1126,7 @@ export default function App() {
                 )}
 
                 {mode === 'balance' && (
-                    <Balance 
-                        balanceData={balanceData}
-                        forecastData={forecastData}
-                        setRangeReportModal={setRangeReportModal}
-                        setShowCalendar={setShowCalendar}
-                        setSelectedDateFilter={setSelectedDateFilter}
-                        payItems={payItems}
-                    />
+                    <Balance pagosAvanzados={pagosAvanzados} collectItems={collectItems}/>
                 )}
 
                 {/* Movimientos Viejos (Solo se renderiza para Cobros, Gastos y Cartera) */}
