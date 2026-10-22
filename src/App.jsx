@@ -14,10 +14,13 @@ import Pallets from './pages/Pallets';
 import Caja from './pages/Caja';
 import Movimientos from './pages/Movimientos';
 import Balance from './pages/Balance';
+import ExportarCategoriasPagos from './pages/ExportarCategoriasPagos';
+import { usePagosReales } from './hooks/usePagosReales';
 import Facturacion from './pages/Facturacion';
 
 export default function App() {
     const [mode, setMode] = useState('pay'); // Inicia en la nueva pestaña de Pagos
+    const pagosAvanzados = usePagosReales(true); // Solo lectura de la fuente real de Pagos
     const [user, setUser] = useState(null); 
     const [payItems, setPayItems] = useState([]); 
     const [collectItems, setCollectItems] = useState([]);
@@ -1034,7 +1037,7 @@ export default function App() {
                     <button onClick={() => changeMode('pay')} className={`flex-1 py-2 px-3 rounded-lg font-bold flex flex-col sm:flex-row items-center justify-center gap-1 transition-all whitespace-nowrap ${mode === 'pay' ? 'bg-white text-blue-800 shadow-md' : 'text-white/60'}`}><IconWallet className="w-4 h-4"/> <span>PAGOS</span></button>
                     <button onClick={() => changeMode('billing')} className={`flex-1 py-2 px-3 rounded-lg font-bold flex flex-col sm:flex-row items-center justify-center gap-1 transition-all whitespace-nowrap ${mode === 'billing' ? 'bg-white text-pink-800 shadow-md' : 'text-white/60'}`}><IconFileText className="w-4 h-4"/> <span>FACTURACIÓN</span></button>
                     <button onClick={() => changeMode('cashbox')} className={`flex-1 py-2 px-3 rounded-lg font-bold flex flex-col sm:flex-row items-center justify-center gap-1 transition-all whitespace-nowrap ${mode === 'cashbox' ? 'bg-white text-cyan-800 shadow-md' : 'text-white/60'}`}><IconBox className="w-4 h-4"/> <span>CAJA</span></button>
-                    <button onClick={() => changeMode('expenses')} className={`flex-1 py-2 px-3 rounded-lg font-bold flex flex-col sm:flex-row items-center justify-center gap-1 transition-all whitespace-nowrap ${mode === 'expenses' ? 'bg-white text-orange-800 shadow-md' : 'text-white/60'}`}><IconTag className="w-4 h-4"/> <span>GASTOS</span></button>
+                    {/* Gastos permanece en el código y Firebase, pero se oculta del menú durante el piloto. */}
                     <button onClick={() => changeMode('balance')} className={`flex-1 py-2 px-3 rounded-lg font-bold flex flex-col sm:flex-row items-center justify-center gap-1 transition-all whitespace-nowrap ${mode === 'balance' ? 'bg-white text-violet-800 shadow-md' : 'text-white/60'}`}><IconTrendingUp className="w-4 h-4"/> <span>BALANCE</span></button>
                     <button onClick={() => changeMode('collect')} className={`flex-1 py-2 px-3 rounded-lg font-bold flex flex-col sm:flex-row items-center justify-center gap-1 transition-all whitespace-nowrap ${mode === 'collect' ? 'bg-white text-emerald-800 shadow-md' : 'text-white/60'}`}><IconBriefcase className="w-4 h-4"/> <span>COBROS</span></button>
                     <button onClick={() => changeMode('wallet')} className={`flex-1 py-2 px-3 rounded-lg font-bold flex flex-col sm:flex-row items-center justify-center gap-1 transition-all whitespace-nowrap ${mode === 'wallet' ? 'bg-white text-indigo-800 shadow-md' : 'text-white/60'}`}><IconFolder className="w-4 h-4"/> <span>CARTERA</span></button>
@@ -1046,11 +1049,12 @@ export default function App() {
             <div className={mode === 'pay' ? 'p-0 sm:p-2' : 'p-2 sm:p-4 md:p-6'}>
                 
                 {/* PORTAL A PANTALLA COMPLETA: APLICACIÓN AVANZADA DE PAGOS */}
-                {mode === 'pay' && (
-                    <div className="w-full h-[calc(100vh-140px)] bg-white sm:rounded-2xl shadow-xl overflow-hidden animate-fade-in border-0 sm:border border-gray-200">
+                {mode === 'pay' && (<>
+                    <ExportarCategoriasPagos pagosState={pagosAvanzados}/>
+                    <div className="w-full h-[calc(100vh-210px)] min-h-[540px] bg-white sm:rounded-2xl shadow-xl overflow-hidden animate-fade-in border-0 sm:border border-gray-200">
                         <iframe src="https://listapagos.netlify.app/" title="Control de Pagos Avanzado" className="w-full h-full border-none outline-none bg-[#f8fafc]"></iframe>
                     </div>
-                )}
+                </>)}
 
                 {mode === 'billing' && (
                     <Facturacion 
@@ -1082,14 +1086,7 @@ export default function App() {
                 )}
 
                 {mode === 'balance' && (
-                    <Balance 
-                        balanceData={balanceData}
-                        forecastData={forecastData}
-                        setRangeReportModal={setRangeReportModal}
-                        setShowCalendar={setShowCalendar}
-                        setSelectedDateFilter={setSelectedDateFilter}
-                        payItems={payItems}
-                    />
+                    <Balance pagosAvanzados={pagosAvanzados} collectItems={collectItems}/>
                 )}
 
                 {/* Movimientos Viejos (Solo se renderiza para Cobros, Gastos y Cartera) */}
