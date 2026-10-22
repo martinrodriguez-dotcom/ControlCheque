@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {rangoSemana,sabadoDeSemana,sumarDias,construirBalance,categoriasPagos,htmlReporteCategoria,numero,validarFecha} from './balanceSemanal.js';
+import {rangoSemana,sabadoDeSemana,sumarDias,construirBalance,categoriasPagos,htmlReporteCategoria,htmlReporteSemana,numero,validarFecha} from './balanceSemanal.js';
 
 test('Semana idéntica a Pagos: sábado a viernes, incluso cambio de mes y año',()=>{
     assert.equal(sabadoDeSemana('2026-10-22'),'2026-10-17');
@@ -65,4 +65,23 @@ test('HTML de categoría escapa datos de proveedores y categorías',()=>{
     assert.ok(html.includes('&lt;SCRIPT&gt;'));
     assert.ok(html.includes('TOTAL GENERAL'));
     assert.ok(html.includes('TOTAL HISTÓRICO')===false || html.toLowerCase().includes('total histórico'));
+});
+
+test('Impresión de una semana respeta fechas sábado-viernes y desglosa ambos lados',()=>{
+    const balance=construirBalance({
+        inicio:'2026-10-22',semanas:1,
+        pagos:[{id:17,fecha:'2026-10-23',nombre:'Proveedor & Cía',categoria:'MADERA',nro:'CH-11',importe:300,estado:'PENDIENTE'}],
+        cobros:[{id:'abc',dueDate:'2026-10-22',payee:'<Cliente>',number:'F-20',amount:1210,paidAmount:210,status:'partial'}]
+    });
+    const html=htmlReporteSemana(balance.semanas[0]);
+    assert.ok(html.includes('17/10/2026'));
+    assert.ok(html.includes('23/10/2026'));
+    assert.ok(html.includes('COBROS') && html.includes('PAGOS'));
+    assert.ok(html.includes('Proveedor &amp; Cía'));
+    assert.ok(html.includes('&lt;Cliente&gt;'));
+    assert.ok(html.includes('CH-11'));
+    assert.ok(html.includes('F-20'));
+    assert.ok(html.includes('Diferencia semanal'));
+    assert.ok(!html.includes('<Cliente>'));
+    assert.ok(!html.includes('Sin movimientos previstos esta semana'));
 });
