@@ -2,7 +2,6 @@ import React, { useMemo, useState } from 'react';
 import { IconChevronDown, IconCalendar, IconPrinter } from '../components/Icons';
 import { construirBalance, categoriasPagos, fechaCorta, hoyLocal, numero, pesos, htmlReporteSemana } from '../utils/balanceSemanal';
 import { handleReportAction } from '../utils/helpers';
-import ExportarCategoriasPagos from './ExportarCategoriasPagos';
 
 const BOX='bg-white border border-slate-200 shadow-sm rounded-2xl p-4 sm:p-5';
 const field='rounded-lg border border-slate-200 px-3 py-2.5 text-sm bg-white text-slate-800 focus:ring-2 focus:ring-violet-300 outline-none';
@@ -164,7 +163,6 @@ export default function Balance({pagosAvanzados,collectItems=[]}) {
                 <div><h3 className="font-bold text-slate-900 text-lg">Deuda de Pagos por categoría</h3>
                     <p className="text-xs text-slate-500 mt-1">Mismos campos que «Por Categorías» de Pagos: total histórico, pagado y deuda pendiente.</p>
                 </div>
-                <ExportarCategoriasPagos pagosState={pagosAvanzados} />
                 {categorias.length===0?<p className="text-sm text-slate-500 p-4 text-center">No hay categorías cargadas.</p>:
                 <div className="space-y-2">{categorias.map(cat=><div key={cat.categoria} className="border border-slate-200 rounded-xl overflow-hidden">
                     <button type="button" aria-expanded={categoryOpen===cat.categoria} onClick={()=>setCategoryOpen(categoryOpen===cat.categoria?'':cat.categoria)} className="w-full hover:bg-slate-50 px-4 py-3 flex items-center justify-between text-left gap-3">
