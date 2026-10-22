@@ -141,3 +141,51 @@ export function htmlReporteCategoria(categorias) {
       <p>Fuente: módulo Pagos, datos consultados en el momento de generar el informe.</p>
       </div>`;
 }
+
+
+// Documento de una semana: desglose de ambos lados y resultado neto, sin datos ficticios.
+export function htmlReporteSemana(week) {
+    if (!week || !validarFecha(week.desde) || !validarFecha(week.hasta)) throw Error('Semana inválida');
+    const rowsCobros=(week.itemsCobro||[]).map(i=>`<tr><td>${fechaCorta(i.dueDate||i.date)}</td><td>${escapeHtml(i.payee||'Sin cliente')}</td><td>${escapeHtml(i.number||'—')}</td><td class="money">${pesos(i.pendiente)}</td></tr>`).join('');
+    const rowsPagos=(week.itemsPago||[]).map(i=>`<tr><td>${fechaCorta(i.fecha)}</td><td>${escapeHtml(i.nombre||'Sin beneficiario')}<small>${escapeHtml(i.categoria||'Sin categoría')}</small></td><td>${escapeHtml(i.nro||'—')}</td><td class="money">${pesos(numero(i.importe))}</td></tr>`).join('');
+    const empty='<tr><td colspan="4" class="empty">Sin movimientos previstos esta semana</td></tr>';
+    const table=(title,items,rows,total,cls)=>`<section class="column ${cls}"><h2>${title}<span>${pesos(total)}</span></h2><table><thead><tr><th>Fecha</th><th>Cliente / Concepto</th><th>N°</th><th class="money">Importe</th></tr></thead><tbody>${items.length?rows:empty}</tbody><tfoot><tr><td colspan="3">TOTAL</td><td class="money">${pesos(total)}</td></tr></tfoot></table></section>`;
+    return `<style>
+        @page{size:A4 landscape;margin:12mm}
+        body,.report-container{padding:0!important;font-family:Arial,sans-serif!important;color:#1e293b!important;font-size:11px!important}
+        .weekly-report h1{font-size:19px!important;border-bottom:3px solid #4f46e5!important;width:100%!important;color:#1e293b!important;padding-bottom:8px!important}
+        .weekly-report .intro{font-size:11px;color:#64748b;margin:8px 0 15px}
+        .weekly-report .summary{width:100%;border-collapse:separate;border-spacing:8px;margin:0 -8px 14px}
+        .weekly-report .summary td{border:1px solid #e2e8f0;border-radius:6px;padding:10px;width:33%;vertical-align:top}
+        .weekly-report .summary small{display:block;color:#64748b;font-weight:700;text-transform:uppercase}
+        .weekly-report .summary strong{font-size:16px;display:block;margin-top:5px}
+        .weekly-report .columns{display:table;width:100%;table-layout:fixed;border-spacing:12px 0;margin-left:-12px}
+        .weekly-report .column{display:table-cell;width:50%;vertical-align:top}
+        .weekly-report .column h2{background:#dcfce7;color:#166534;font-size:13px;margin:0;padding:10px;display:flex;justify-content:space-between;gap:12px}
+        .weekly-report .column.pay h2{background:#fee2e2;color:#991b1b}
+        .weekly-report table{width:100%;border-collapse:collapse;margin:0}
+        .weekly-report th{background:#f1f5f9!important;text-align:left;font-size:10px!important}
+        .weekly-report th,.weekly-report .column td{padding:7px 5px;border-bottom:1px solid #e2e8f0;overflow-wrap:anywhere}
+        .weekly-report .money{text-align:right!important;white-space:nowrap}
+        .weekly-report small{display:block;color:#94a3b8}
+        .weekly-report tfoot td{font-weight:bold;border-top:2px solid #94a3b8;background:#f8fafc}
+        .weekly-report .empty{color:#94a3b8;text-align:center;padding:16px}
+        .weekly-report tr{break-inside:avoid;page-break-inside:avoid}
+        .weekly-report thead{display:table-header-group}
+        .weekly-report .footer{font-size:10px;color:#64748b;margin-top:14px;border-top:1px solid #cbd5e1;padding-top:8px}
+    </style>
+    <div class="weekly-report">
+        <h1>SII PALLETS · Balance semanal</h1>
+        <p class="intro"><strong>Semana del sábado ${fechaCorta(week.desde)} al viernes ${fechaCorta(week.hasta)}</strong> · Generado: ${new Date().toLocaleDateString('es-AR')}</p>
+        <table class="summary"><tr>
+            <td><small>Cobranzas previstas</small><strong>${pesos(week.cobros)}</strong></td>
+            <td><small>Pagos comprometidos</small><strong>${pesos(week.pagos)}</strong></td>
+            <td><small>Diferencia semanal</small><strong>${pesos(week.neto)}</strong></td>
+        </tr></table>
+        <div class="columns">
+            ${table('COBROS',week.itemsCobro||[],rowsCobros,week.cobros,'collect')}
+            ${table('PAGOS',week.itemsPago||[],rowsPagos,week.pagos,'pay')}
+        </div>
+        <p class="footer">Proyección basada en saldos pendientes de Cobros y compromisos no pagados de Pagos Avanzado. Los importes indican vencimientos previstos, no dinero disponible.</p>
+    </div>`;
+}
