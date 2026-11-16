@@ -18,6 +18,7 @@ import { exportarExcelCategorias, exportarPdfCategorias } from './pages/Exportar
 import { categoriasPagos } from './utils/balanceSemanal';
 import { usePagosReales } from './hooks/usePagosReales';
 import Facturacion from './pages/Facturacion';
+import PresupuestosPDF from './pages/PresupuestosPDF';
 
 export default function App() {
     const [mode, setMode] = useState('pay'); // Inicia en la nueva pestaña de Pagos
@@ -1077,6 +1078,7 @@ export default function App() {
                 <div className="bg-black/20 p-1 rounded-xl flex text-[10px] sm:text-xs overflow-x-auto scrollbar-hide gap-1">
                     <button onClick={() => changeMode('pay')} className={`flex-1 py-2 px-3 rounded-lg font-bold flex flex-col sm:flex-row items-center justify-center gap-1 transition-all whitespace-nowrap ${mode === 'pay' ? 'bg-white text-blue-800 shadow-md' : 'text-white/60'}`}><IconWallet className="w-4 h-4"/> <span>PAGOS</span></button>
                     <button onClick={() => changeMode('billing')} className={`flex-1 py-2 px-3 rounded-lg font-bold flex flex-col sm:flex-row items-center justify-center gap-1 transition-all whitespace-nowrap ${mode === 'billing' ? 'bg-white text-pink-800 shadow-md' : 'text-white/60'}`}><IconFileText className="w-4 h-4"/> <span>FACTURACIÓN</span></button>
+                    <button onClick={() => changeMode('quotesPDF')} className={`flex-1 py-2 px-3 rounded-lg font-bold flex flex-col sm:flex-row items-center justify-center gap-1 transition-all whitespace-nowrap ${mode === 'quotesPDF' ? 'bg-white text-blue-800 shadow-md' : 'text-white/60'}`}><IconFileText className="w-4 h-4"/> <span>PRESUPUESTOS</span></button>
                     <button onClick={() => changeMode('cashbox')} className={`flex-1 py-2 px-3 rounded-lg font-bold flex flex-col sm:flex-row items-center justify-center gap-1 transition-all whitespace-nowrap ${mode === 'cashbox' ? 'bg-white text-cyan-800 shadow-md' : 'text-white/60'}`}><IconBox className="w-4 h-4"/> <span>CAJA</span></button>
                     {/* Gastos permanece en el código y Firebase, pero se oculta del menú durante el piloto. */}
                     <button onClick={() => changeMode('balance')} className={`flex-1 py-2 px-3 rounded-lg font-bold flex flex-col sm:flex-row items-center justify-center gap-1 transition-all whitespace-nowrap ${mode === 'balance' ? 'bg-white text-violet-800 shadow-md' : 'text-white/60'}`}><IconTrendingUp className="w-4 h-4"/> <span>BALANCE</span></button>
@@ -1095,6 +1097,8 @@ export default function App() {
                         <iframe ref={pagosIframeRef} src="/pagos.html" title="Control de Pagos Avanzado — prueba de categorías" className="w-full h-full border-none outline-none bg-[#f8fafc]"></iframe>
                     </div>
                 )}
+
+                {mode === 'quotesPDF' && <PresupuestosPDF />}
 
                 {mode === 'billing' && (
                     <Facturacion 
