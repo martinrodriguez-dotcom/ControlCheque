@@ -91,7 +91,7 @@ function escribirRenglon(pdf,row,index,y,cuenta) {
   pdf.line(8,y+alto,202,y+alto);
   const xs=[20,104,119,136,152,178];
   xs.forEach(x=>pdf.line(x,y,x,y+alto));
-  t(pdf,String(index+1).padStart(4,'0'),9.5,y+4.5,7);
+  t(pdf,String(row.codigo||String(index+1).padStart(4,'0')).slice(0,8),9.5,y+4.5,6.3);
   pdf.setFontSize(7);pdf.text(descriptionLines,21.5,y+4.5);
   t(pdf,cuenta==='1'?'21,00':'—',111.5,y+4.5,7,{align:'center'});
   t(pdf,Number(row.cantidad).toLocaleString('es-AR'),127.5,y+4.5,7,{align:'center'});
