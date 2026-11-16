@@ -197,7 +197,7 @@ export default function PresupuestosPDF() {
               <colgroup><col style={{width:'7%'}}/><col style={{width:'40%'}}/><col style={{width:'9%'}}/><col style={{width:'9%'}}/><col style={{width:'9%'}}/><col style={{width:'13%'}}/><col style={{width:'13%'}}/></colgroup>
               <thead><tr className="bg-slate-200 border-b border-slate-700">{['Ítem','Descripción','Alíc. %','Cantidad','Bultos','Precio Unit.','Subtotal'].map(x=><th key={x} className="border-r border-slate-500 px-1 py-2 text-left">{x}</th>)}</tr></thead>
               <tbody>{(totals.data?.lineas||quote.items).map((item,i)=><tr key={item.id||i} className="border-b border-slate-100">
-                <td className="align-top p-1 border-r border-slate-100">{String(i+1).padStart(4,'0')}</td>
+                <td className="align-top p-1 border-r border-slate-100 break-all">{item.codigo||String(i+1).padStart(4,'0')}</td>
                 <td className="align-top p-1 border-r border-slate-100 break-words">{item.descripcion||'—'}</td>
                 <td className="align-top p-1 border-r border-slate-100 text-center">{quote.cuenta==='1'?'21,00':'—'}</td>
                 <td className="align-top p-1 border-r border-slate-100 text-center">{item.cantidad}</td>
