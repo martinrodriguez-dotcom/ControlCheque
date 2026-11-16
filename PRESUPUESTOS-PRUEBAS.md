@@ -19,3 +19,6 @@ Implementación aislada en `feature/presupuestos-pdf-sii-20261116`. No fusionar 
 5. Abrir desde iPhone/Android y comprobar descargas, compartir archivo adjunto en WhatsApp y correo.
 6. En navegador sin soporte de archivos compartidos, comprobar la descarga y el aviso para adjuntar manualmente.
 7. Si se usará en más de un dispositivo, diseñar correlativo centralizado con control de permisos para evitar duplicados.
+
+## Publicación de prueba
+Se solicitó una Deploy Preview del PR #7 de Netlify, sin fusionar a `main`.
