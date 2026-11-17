@@ -1,6 +1,6 @@
 import {
   Bytes, DocumentReference, GeoPoint, Timestamp, collection, doc, documentId,
-  getDoc, getDocs, limit, orderBy, query, startAfter, writeBatch
+  getDoc, getDocs, limit, orderBy, query, runTransaction, startAfter
 } from 'firebase/firestore';
 import { strFromU8, strToU8, unzipSync, zipSync } from 'fflate';
 
@@ -214,10 +214,25 @@ export async function importarRespaldo(db, bundle, informar = () => {}) {
   const pendientes = verificacion.faltantes.slice(0, LIMITE_POR_EJECUCION);
   let hechos = 0;
   for (const grupo of grupos(pendientes, 12)) {
-    const batch = writeBatch(db);
-    for (const registro of grupo) batch.set(doc(db, registro.ruta), decodificarValor(registro.datos, db));
-    await batch.commit();
-    hechos += grupo.length;
+    // Transacción: leer primero y crear solamente si sigue ausente al momento de escribir.
+    // Evita sobrescribir un movimiento creado entre la comparación y la importación.
+    const nuevos = await runTransaction(db, async transaccion => {
+      const referencias = grupo.map(registro => doc(db, registro.ruta));
+      const snapshots = await Promise.all(referencias.map(referencia => transaccion.get(referencia)));
+      let creados = 0;
+      for (let i = 0; i < grupo.length; i++) {
+        if (snapshots[i].exists()) {
+          if (!identicos(snapshots[i].data(), grupo[i].datos)) {
+            throw new Error('El documento cambió durante la importación: ' + grupo[i].ruta + '. No se reemplazó.');
+          }
+          continue;
+        }
+        transaccion.set(referencias[i], decodificarValor(grupo[i].datos, db));
+        creados++;
+      }
+      return creados;
+    }, { maxAttempts: 5 });
+    hechos += nuevos;
     informar('Restaurados: ' + hechos + ' de ' + pendientes.length + '. Coincidentes anteriores: ' + verificacion.iguales.length);
   }
   const final = await inspeccionarDestino(db, bundle, informar);
