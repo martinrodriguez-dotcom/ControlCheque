@@ -19,6 +19,8 @@ import { categoriasPagos } from './utils/balanceSemanal';
 import { usePagosReales } from './hooks/usePagosReales';
 import Facturacion from './pages/Facturacion';
 import PresupuestosPDF from './pages/PresupuestosPDF';
+import TransferenciaFirestore from './pages/TransferenciaFirestore';
+import { pagosDb } from './hooks/usePagosReales';
 
 export default function App() {
     const [mode, setMode] = useState('pay'); // Inicia en la nueva pestaña de Pagos
@@ -1084,6 +1086,7 @@ export default function App() {
                     <button onClick={() => changeMode('balance')} className={`flex-1 py-2 px-3 rounded-lg font-bold flex flex-col sm:flex-row items-center justify-center gap-1 transition-all whitespace-nowrap ${mode === 'balance' ? 'bg-white text-violet-800 shadow-md' : 'text-white/60'}`}><IconTrendingUp className="w-4 h-4"/> <span>BALANCE</span></button>
                     <button onClick={() => changeMode('collect')} className={`flex-1 py-2 px-3 rounded-lg font-bold flex flex-col sm:flex-row items-center justify-center gap-1 transition-all whitespace-nowrap ${mode === 'collect' ? 'bg-white text-emerald-800 shadow-md' : 'text-white/60'}`}><IconBriefcase className="w-4 h-4"/> <span>COBROS</span></button>
                     <button onClick={() => changeMode('wallet')} className={`flex-1 py-2 px-3 rounded-lg font-bold flex flex-col sm:flex-row items-center justify-center gap-1 transition-all whitespace-nowrap ${mode === 'wallet' ? 'bg-white text-indigo-800 shadow-md' : 'text-white/60'}`}><IconFolder className="w-4 h-4"/> <span>CARTERA</span></button>
+                    <button onClick={() => changeMode('migration')} className={`flex-1 py-2 px-3 rounded-lg font-bold flex flex-col sm:flex-row items-center justify-center gap-1 transition-all whitespace-nowrap ${mode === 'migration' ? 'bg-white text-amber-900 shadow-md' : 'text-white/60'}`}><IconDownload className="w-4 h-4"/> <span>MIGRACIÓN</span></button>
                     <button onClick={() => changeMode('pallets')} className={`flex-1 py-2 px-3 rounded-lg font-bold flex flex-col sm:flex-row items-center justify-center gap-1 transition-all whitespace-nowrap ${mode === 'pallets' ? 'bg-white text-teal-800 shadow-md' : 'text-white/60'}`}><IconLayers className="w-4 h-4"/> <span>PALLETS</span></button>
                 </div>
             </div>
@@ -1099,6 +1102,7 @@ export default function App() {
                 )}
 
                 {mode === 'quotesPDF' && <PresupuestosPDF />}
+                {mode === 'migration' && <TransferenciaFirestore rol="origen" pagosDb={pagosDb} />}
 
                 {mode === 'billing' && (
                     <Facturacion 
