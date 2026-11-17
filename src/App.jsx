@@ -23,7 +23,7 @@ import TransferenciaFirestore from './pages/TransferenciaFirestore';
 import { pagosDb } from './hooks/usePagosReales';
 
 export default function App() {
-    const [mode, setMode] = useState('pay'); // Inicia en la nueva pestaña de Pagos
+    const [mode, setMode] = useState(() => (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('migracion') === '1' ? 'migration' : 'pay')); // Inicia en la nueva pestaña de Pagos
     const pagosAvanzados = usePagosReales(true); // Solo lectura de la fuente real de Pagos
     const pagosIframeRef = useRef(null);
     const [user, setUser] = useState(null); 
@@ -1016,7 +1016,7 @@ export default function App() {
                             </button> 
                         )}
                         {/* Se ocultan los botones de impresión en el modo PAGOS avanzado porque ya los trae el HTML nativo */}
-                        {mode !== 'cashbox' && mode !== 'pallets' && mode !== 'billing' && mode !== 'pay' && (
+                        {mode !== 'cashbox' && mode !== 'pallets' && mode !== 'billing' && mode !== 'pay' && mode !== 'migration' && (
                             <>
                                 <button onClick={() => triggerMainReport('print')} className="p-2 relative bg-white/20 rounded-full hover:bg-white/30" title="Imprimir Reporte">
                                     <IconPrinter className="w-5 h-5"/>
@@ -1077,6 +1077,11 @@ export default function App() {
                 </div>
                 )}
 
+                <div className="flex justify-end mb-2">
+                    <button onClick={() => changeMode('migration')} className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-xs sm:text-sm shadow-sm transition-all ${mode === 'migration' ? 'bg-white text-amber-900' : 'bg-amber-300 text-slate-900 hover:bg-amber-200'}`}>
+                        <IconDownload className="w-4 h-4"/> MIGRACIÓN / RESPALDO
+                    </button>
+                </div>
                 <div className="bg-black/20 p-1 rounded-xl flex text-[10px] sm:text-xs overflow-x-auto scrollbar-hide gap-1">
                     <button onClick={() => changeMode('pay')} className={`flex-1 py-2 px-3 rounded-lg font-bold flex flex-col sm:flex-row items-center justify-center gap-1 transition-all whitespace-nowrap ${mode === 'pay' ? 'bg-white text-blue-800 shadow-md' : 'text-white/60'}`}><IconWallet className="w-4 h-4"/> <span>PAGOS</span></button>
                     <button onClick={() => changeMode('billing')} className={`flex-1 py-2 px-3 rounded-lg font-bold flex flex-col sm:flex-row items-center justify-center gap-1 transition-all whitespace-nowrap ${mode === 'billing' ? 'bg-white text-pink-800 shadow-md' : 'text-white/60'}`}><IconFileText className="w-4 h-4"/> <span>FACTURACIÓN</span></button>
@@ -1086,7 +1091,6 @@ export default function App() {
                     <button onClick={() => changeMode('balance')} className={`flex-1 py-2 px-3 rounded-lg font-bold flex flex-col sm:flex-row items-center justify-center gap-1 transition-all whitespace-nowrap ${mode === 'balance' ? 'bg-white text-violet-800 shadow-md' : 'text-white/60'}`}><IconTrendingUp className="w-4 h-4"/> <span>BALANCE</span></button>
                     <button onClick={() => changeMode('collect')} className={`flex-1 py-2 px-3 rounded-lg font-bold flex flex-col sm:flex-row items-center justify-center gap-1 transition-all whitespace-nowrap ${mode === 'collect' ? 'bg-white text-emerald-800 shadow-md' : 'text-white/60'}`}><IconBriefcase className="w-4 h-4"/> <span>COBROS</span></button>
                     <button onClick={() => changeMode('wallet')} className={`flex-1 py-2 px-3 rounded-lg font-bold flex flex-col sm:flex-row items-center justify-center gap-1 transition-all whitespace-nowrap ${mode === 'wallet' ? 'bg-white text-indigo-800 shadow-md' : 'text-white/60'}`}><IconFolder className="w-4 h-4"/> <span>CARTERA</span></button>
-                    <button onClick={() => changeMode('migration')} className={`flex-1 py-2 px-3 rounded-lg font-bold flex flex-col sm:flex-row items-center justify-center gap-1 transition-all whitespace-nowrap ${mode === 'migration' ? 'bg-white text-amber-900 shadow-md' : 'text-white/60'}`}><IconDownload className="w-4 h-4"/> <span>MIGRACIÓN</span></button>
                     <button onClick={() => changeMode('pallets')} className={`flex-1 py-2 px-3 rounded-lg font-bold flex flex-col sm:flex-row items-center justify-center gap-1 transition-all whitespace-nowrap ${mode === 'pallets' ? 'bg-white text-teal-800 shadow-md' : 'text-white/60'}`}><IconLayers className="w-4 h-4"/> <span>PALLETS</span></button>
                 </div>
             </div>
