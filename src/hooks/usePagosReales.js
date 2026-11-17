@@ -16,7 +16,7 @@ const firebaseConfigPagos = {
 const APP_NAME = 'sii-pagos-avanzados-solo-lectura';
 const pagosApp = getApps().some(app => app.name === APP_NAME)
     ? getApp(APP_NAME) : initializeApp(firebaseConfigPagos, APP_NAME);
-const pagosDb = getFirestore(pagosApp);
+export const pagosDb = getFirestore(pagosApp);
 
 export function usePagosReales(active = true) {
     const [state, setState] = useState({
